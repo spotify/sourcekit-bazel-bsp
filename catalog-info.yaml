@@ -1,0 +1,7 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sourcekit-bazel-bsp
+spec:
+  type: library
+  owner: developer-tools

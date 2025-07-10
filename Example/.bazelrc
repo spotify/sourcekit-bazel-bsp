@@ -1,0 +1,26 @@
+common --ios_simulator_device="iPhone 15 Pro"
+common --ios_simulator_version="17.5"
+
+# All of the following are Debug/Index setup configs inspired by the recommended rules_xcodeproj templates
+
+common --verbose_failures
+common --cache_computed_file_digests=500000
+common --compilation_mode=dbg
+common --action_cache_store_output_metadata
+common --experimental_use_cpp_compile_action_args_params_file
+common --define=apple.experimental.tree_artifact_outputs=1
+common --features=apple.swizzle_absolute_xcttestsourcelocation
+common --features=oso_prefix_is_pwd
+common --features=relative_ast_path
+common --features=swift.cacheable_swiftmodules
+common --features=swift.index_while_building
+common --features=swift.use_global_index_store
+common --features=swift.use_global_module_cache
+build --noworker_sandboxing
+build --spawn_strategy=remote,worker,local
+
+# Only for BSP builds
+common:index_build --experimental_convenience_symlinks=ignore
+common:index_build --bes_backend= --bes_results_url=
+common:index_build --nolegacy_important_outputs
+common:index_build --show_result=0

@@ -1,0 +1,17 @@
+*~
+.*.swp
+/.aswb/
+/.cache/
+/.classpath
+/.clwb/
+/.factorypath
+/.idea/
+/.ijwb/
+/.project
+/.settings
+/bazel.iml
+/bazel-*
+/output/
+/production
+/.sass-cache
+user.bazelrc

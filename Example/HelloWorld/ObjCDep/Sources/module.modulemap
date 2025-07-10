@@ -1,0 +1,3 @@
+module ObjCDep {
+  umbrella header "ObjCDep.h" export *module * { export * }
+}

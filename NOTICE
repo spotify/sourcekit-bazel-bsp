@@ -1,0 +1,8 @@
+sourcekit-bazel-bsp
+Copyright 2025 Spotify AB
+
+This project uses code from sourcekit-lsp:
+https://github.com/apple/sourcekit-lsp
+
+This project uses code from swift-argument-parser:
+https://github.com/apple/swift-argument-parser

@@ -1,0 +1,24 @@
+{
+	"name": "sourcekit-bazel-bsp",
+	"version": "0.0.1",
+	"bspVersion": "2.2.0",
+	"languages": [
+		"c",
+		"cpp",
+		"objective-c",
+		"objective-cpp",
+		"swift"
+	],
+	"argv": [
+		"(your_pwd_here)/../.build/arm64-apple-macosx/debug/sourcekit-bazel-bsp",
+		"serve",
+		"--target",
+		"//HelloWorld",
+		"--target",
+		"//HelloWorld:HelloWorldTests",
+		"--index-flag",
+		"config=index_build",
+		"--files-to-watch",
+		"HelloWorld/**/*.swift,HelloWorld/**/*.m,HelloWorld/**/*.h"
+	]
+}

@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:sourcekit-bazel-bsp}",
+            "name": "Debug sourcekit-bazel-bsp",
+            "program": "${workspaceFolder:sourcekit-bazel-bsp}/.build/debug/sourcekit-bazel-bsp",
+            "preLaunchTask": "swift: Build Debug sourcekit-bazel-bsp"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:sourcekit-bazel-bsp}",
+            "name": "Release sourcekit-bazel-bsp",
+            "program": "${workspaceFolder:sourcekit-bazel-bsp}/.build/release/sourcekit-bazel-bsp",
+            "preLaunchTask": "swift: Build Release sourcekit-bazel-bsp"
+        }
+    ]
+}

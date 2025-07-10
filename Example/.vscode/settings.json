@@ -1,0 +1,13 @@
+{
+    "swift.sourcekit-lsp.backgroundIndexing": "on",
+    "swift.sourcekit-lsp.trace.server": "messages",
+    "terminal.integrated.profiles.osx": {
+        "zsh": {
+            "path": "/bin/zsh",
+            "args": [
+                "-l",
+                "-i"
+            ]
+        }
+    }
+}

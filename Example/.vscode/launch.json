@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Debug HelloWorld",
+            "type": "lldb-dap",
+            "request": "attach",
+            "preLaunchTask": "_launch_helloworld",
+            "debuggerRoot": "${workspaceFolder}",
+            "attachCommands": [
+                "process connect connect://localhost:6667",
+            ],
+            "internalConsoleOptions": "openOnSessionStart",
+            "timeout": 1000,
+        },
+    ],
+    "options": {
+        "console": "integratedTerminal",
+    }
+}

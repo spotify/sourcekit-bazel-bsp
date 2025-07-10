@@ -1,0 +1,12 @@
+.DS_Store
+default.profraw
+Package.resolved
+.build
+/.*-build
+/Packages
+/*.xcodeproj
+/*.sublime-project
+/*.sublime-workspace
+/.swiftpm
+.*.sw?
+__pycache__
