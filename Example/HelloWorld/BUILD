@@ -6,6 +6,7 @@ swift_library(
     name = "HelloWorldTestsLib",
     module_name = "HelloWorldTestsLib",
     testonly = True,
+    tags = ["manual"],
     srcs = glob(["HelloWorldTests/*.swift"]),
     deps = [":HelloWorldLib"],
 )
@@ -41,22 +42,27 @@ swift_library(
     deps = [":TodoModels", ":TodoObjCSupport"],
 )
 
+genrule(
+    name = "CreateTestCoverageManifest",
+    srcs = ["Sources/BazelApp.swift"],
+    outs = [
+        "CoverageManifest.instrumented_files",
+    ],
+    cmd = "echo $(SRCS) > $@",
+)
+
 ios_unit_test(
     name = "HelloWorldTests",
-    minimum_os_version = "18.4",
-    bundle_id = "com.example.HelloWorldTests",
-    platform_type = "ios",
-    test_host = ":HelloWorld",
+    minimum_os_version = "17.0",
+    test_coverage_manifest = "CoverageManifest.instrumented_files",
     deps = [":HelloWorldTestsLib"],
 )
 
 ios_application(
     name = "HelloWorld",
     bundle_id = "com.example.HelloWorld",
-    families = [
-        "iphone",
-    ],
+    families = ["iphone", "ipad"],
     infoplists = ["Resources/Info.plist"],
-    minimum_os_version = "18.4",
+    minimum_os_version = "17.0",
     deps = [":HelloWorldLib"],
 )
