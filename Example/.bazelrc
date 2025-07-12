@@ -18,6 +18,7 @@ common --features=swift.use_global_index_store
 common --features=swift.use_global_module_cache
 build --noworker_sandboxing
 build --spawn_strategy=remote,worker,local
+build --symlink_prefix=custom-out/
 
 # Only for BSP builds
 common:index_build --experimental_convenience_symlinks=ignore
