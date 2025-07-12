@@ -23,7 +23,6 @@ import LanguageServerProtocol
 import LanguageServerProtocolJSONRPC
 
 final class TextDocumentSourceKitOptionsHandler {
-
     let initializedConfig: InitializedServerConfig
 
     private var rootQueryCache: String?
@@ -95,7 +94,7 @@ final class TextDocumentSourceKitOptionsHandler {
         } else {
             let cmd =
                 bazelWrapper
-                + " --output_base=\(outputBase) aquery \"mnemonic('SwiftCompile|ObjcCompile', \(appToBuild))\" --noinclude_artifacts \(flags)"
+                    + " --output_base=\(outputBase) aquery \"mnemonic('SwiftCompile|ObjcCompile', \(appToBuild))\" --noinclude_artifacts \(flags)"
             output = try shell(cmd, cwd: rootUri)
             rootQueryCache = output
         }
@@ -154,7 +153,7 @@ final class TextDocumentSourceKitOptionsHandler {
         for (i, line) in lines.enumerated() {
             if line.starts(with: "  Command Line: (") {
                 idx = i
-                //Also skip the swiftc line for swift targets
+                // Also skip the swiftc line for swift targets
                 if lines[idx + 1].contains("swiftc") {
                     idx += 1
                 }
@@ -194,49 +193,21 @@ final class TextDocumentSourceKitOptionsHandler {
         lines[lines.count - 1] = String(lines[lines.count - 1].dropLast())
 
         // some args are wrapped in single quotes for some reason
-        for i in 0..<lines.count {
-            if lines[i].hasPrefix("'") && lines[i].hasSuffix("'") {
+        for i in 0 ..< lines.count {
+            if lines[i].hasPrefix("'"), lines[i].hasSuffix("'") {
                 lines[i] = String(lines[i].dropFirst().dropLast())
             }
         }
 
-        // remove -Xwrapped-swift (invalid arg)
-        lines = lines.filter { !$0.hasPrefix("-Xwrapped-swift") }
+        // Process compiler arguments with transformations
+        let processedArgs = try processCompilerArguments(
+            rawArguments: lines,
+            language: language
+        )
 
-        // replace bazel SDK env placeholders
-        let sdkRoot = initializedConfig.sdkRoot
-        let devDir = initializedConfig.devDir
-        let outputPath = initializedConfig.outputPath
-        let rootUri = initializedConfig.rootUri
-        let outputBase = initializedConfig.outputBase
+        lines = processedArgs
 
-        lines = lines.map { $0.replacingOccurrences(of: "__BAZEL_XCODE_SDKROOT__", with: sdkRoot) }
-        lines = lines.map {
-            $0.replacingOccurrences(of: "__BAZEL_XCODE_DEVELOPER_DIR__", with: devDir)
-        }
-        lines = lines.map { $0.replacingOccurrences(of: "__BAZEL_EXECUTION_ROOT__", with: rootUri) }
-        lines = lines.map {
-            $0.replacingOccurrences(of: "external/", with: outputBase + "/external/")
-        }
-        lines = lines.map { $0.replacingOccurrences(of: "bazel-out/", with: outputPath + "/") }
-
-        // For Swift, Bazel will print relative paths, but indexing needs absolute paths.
-        for i in 0..<lines.count {
-            if lines[i].hasSuffix(".swift") && !lines[i].hasPrefix("/") {
-                lines[i] = rootUri + "/" + lines[i]
-            }
-        }
-        // Same thing for modulemaps.
-        for i in 0..<lines.count {
-            if lines[i].hasPrefix("-fmodule-map-file=") && lines[i].hasPrefix("-fmodule-map-file=/")
-            {
-                let components = lines[i].components(separatedBy: "-fmodule-map-file=")
-                let proper = rootUri + "/" + components[1]
-                lines[i] = "-fmodule-map-file=" + proper
-            }
-        }
-
-        if language == .objective_c && contentToQuery.hasSuffix(".m") {
+        if language == .objective_c, contentToQuery.hasSuffix(".m") {
             // For Obj-C, add additional arguments that are needed for indexing
             // that Bazel / SK doesn't add by default, and adjust other inconsistencies
             // with Xcode index builds.
@@ -257,6 +228,137 @@ final class TextDocumentSourceKitOptionsHandler {
         logger.info("Finished processing compiler arguments")
 
         return lines
+    }
+
+    /// Processes compiler arguments with transformations
+    func processCompilerArguments(
+        rawArguments: [String],
+        language _: Language
+    ) throws -> [String] {
+        var compilerArguments: [String] = []
+
+        let sdkRoot = initializedConfig.sdkRoot
+        let devDir = initializedConfig.devDir
+        let outputPath = initializedConfig.outputPath
+        let rootUri = initializedConfig.rootUri
+        let outputBase = initializedConfig.outputBase
+
+        var index = 0
+        let count = rawArguments.count
+
+        while index < count {
+            let arg = rawArguments[index]
+
+            // Skip swiftc executable and wrapper arguments
+            if arg.contains("-Xwrapped-swift") || arg.hasSuffix("worker") || arg.hasPrefix("swiftc") {
+                index += 1
+                continue
+            }
+
+            // skip clang
+            if arg.contains("wrapped_clang") {
+                index += 1
+                continue
+            }
+
+            // Replace execution root placeholder
+            if arg.contains("__BAZEL_EXECUTION_ROOT__") {
+                let transformedArg = arg.replacingOccurrences(
+                    of: "__BAZEL_EXECUTION_ROOT__",
+                    with: rootUri
+                )
+                compilerArguments.append(transformedArg)
+                index += 1
+                continue
+            }
+
+            // Skip batch mode (incompatible with -index-file)
+            if arg.contains("-enable-batch-mode") {
+                index += 1
+                continue
+            }
+
+            // Skip index store path arguments (handled later)
+            if arg.contains("-index-store-path") {
+                if index + 1 < count, rawArguments[index + 1].contains("indexstore") {
+                    index += 2
+                    continue
+                }
+            }
+
+            // Skip const-gather-protocols arguments
+            if arg.contains("-Xfrontend"), index + 1 < count {
+                let nextArg = rawArguments[index + 1]
+                if nextArg.contains("-const-gather-protocols-file")
+                    || nextArg.contains("const_protocols_to_gather.json")
+                {
+                    index += 2
+                    continue
+                }
+            }
+
+            // Replace SDK placeholder
+            if arg.contains("__BAZEL_XCODE_SDKROOT__") {
+                let transformedArg = arg.replacingOccurrences(
+                    of: "__BAZEL_XCODE_SDKROOT__",
+                    with: sdkRoot
+                )
+                compilerArguments.append(transformedArg)
+                index += 1
+                continue
+            }
+
+            // replace Xcode Developer Directory
+            if arg.contains("__BAZEL_XCODE_DEVELOPER_DIR__") {
+                let transformedArg = arg.replacingOccurrences(
+                    of: "__BAZEL_XCODE_DEVELOPER_DIR__",
+                    with: devDir
+                )
+                compilerArguments.append(transformedArg)
+                index += 1
+                continue
+            }
+
+            // Transform bazel-out/ paths
+            if arg.contains("bazel-out/") {
+                let transformedArg = arg.replacingOccurrences(of: "bazel-out/", with: outputPath + "/")
+
+                compilerArguments.append(transformedArg)
+                index += 1
+                continue
+            }
+
+            // Transform external/ paths
+            if arg.contains("external/") {
+                let transformedArg = arg.replacingOccurrences(of: "external/", with: outputBase + "/external/")
+                compilerArguments.append(transformedArg)
+                index += 1
+                continue
+            }
+
+            // For Swift, Bazel will print relative paths, but indexing needs absolute paths.
+            if arg.hasSuffix(".swift"), !arg.hasPrefix("/") {
+                let transformedArg = rootUri + "/" + arg
+                compilerArguments.append(transformedArg)
+                index += 1
+                continue
+            }
+
+            // Same thing for modulemaps.
+            if arg.hasPrefix("-fmodule-map-file="), !arg.hasPrefix("-fmodule-map-file=/") {
+                let components = arg.components(separatedBy: "-fmodule-map-file=")
+                let proper = rootUri + "/" + components[1]
+                let transformedArg = "-fmodule-map-file=" + proper
+                compilerArguments.append(transformedArg)
+                index += 1
+                continue
+            }
+
+            compilerArguments.append(arg)
+            index += 1
+        }
+
+        return compilerArguments
     }
 
     func removeArgSingle(_ arg: String, _ lines: inout [String]) {
