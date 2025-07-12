@@ -278,14 +278,6 @@ final class TextDocumentSourceKitOptionsHandler {
                 continue
             }
 
-            // Skip index store path arguments (handled later)
-            if arg.contains("-index-store-path") {
-                if index + 1 < count, rawArguments[index + 1].contains("indexstore") {
-                    index += 2
-                    continue
-                }
-            }
-
             // Skip const-gather-protocols arguments
             if arg.contains("-Xfrontend"), index + 1 < count {
                 let nextArg = rawArguments[index + 1]
