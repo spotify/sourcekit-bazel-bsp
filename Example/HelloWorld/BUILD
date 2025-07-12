@@ -1,6 +1,5 @@
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test")
-load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
-load("@rules_cc//cc:defs.bzl", "objc_library")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library", "swift_interop_hint")
 
 
 swift_library(
@@ -17,6 +16,12 @@ swift_library(
     srcs = glob(["TodoModels/Sources/*.swift"]),
 )
 
+swift_interop_hint(
+    name = "TodoObjCSupport_hint",
+    module_name = "TodoObjCSupport",
+    module_map = "TodoObjCSupport/Sources/module.modulemap",
+)
+
 objc_library(
     name = "TodoObjCSupport",
     srcs = glob(
@@ -26,7 +31,7 @@ objc_library(
         ],
     ),
     hdrs = glob(["TodoObjCSupport/Sources/*.h"]),
-    module_map = "TodoObjCSupport/Sources/module.modulemap",
+    aspect_hints = [":TodoObjCSupport_hint"],
 )
 
 swift_library(
