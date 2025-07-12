@@ -1,5 +1,5 @@
-common --ios_simulator_device="iPhone 15 Pro"
-common --ios_simulator_version="17.5"
+common --ios_simulator_device="iPhone 16 Pro"
+common --ios_simulator_version="18.4"
 
 # All of the following are Debug/Index setup configs inspired by the recommended rules_xcodeproj templates
 

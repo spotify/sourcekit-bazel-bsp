@@ -746,8 +746,8 @@ if __name__ == "__main__":
   main(
       app_name="HelloWorld",
       application_output_path="HelloWorld/HelloWorld.app",
-      minimum_os="17.5",
+      minimum_os="18.4",
       platform_type="ios",
-      sim_device="iPhone 15 Pro",
-      sim_os_version="17.5",
+      sim_device="iPhone 16 Pro",
+      sim_os_version="18.4",
   )

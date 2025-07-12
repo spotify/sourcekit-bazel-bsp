@@ -12,33 +12,33 @@ swift_library(
 )
 
 swift_library(
-    name = "HelloWorldLibDep",
-    module_name = "HelloWorldLibDep",
-    srcs = glob(["HelloWorldLibDep/Sources/*.swift"]),
+    name = "TodoModels",
+    module_name = "TodoModels",
+    srcs = glob(["TodoModels/Sources/*.swift"]),
 )
 
 objc_library(
-    name = "ObjCDep",
+    name = "TodoObjCSupport",
     srcs = glob(
         [
-            "ObjCDep/Sources/*.h",
-            "ObjCDep/Sources/*.m",
+            "TodoObjCSupport/Sources/*.h",
+            "TodoObjCSupport/Sources/*.m",
         ],
     ),
-    hdrs = glob(["ObjCDep/Sources/*.h"]),
-    module_map = "ObjCDep/Sources/module.modulemap",
+    hdrs = glob(["TodoObjCSupport/Sources/*.h"]),
+    module_map = "TodoObjCSupport/Sources/module.modulemap",
 )
 
 swift_library(
     name = "HelloWorldLib",
     module_name = "HelloWorldLib",
     srcs = glob(["HelloWorldLib/Sources/*.swift"]),
-    deps = [":HelloWorldLibDep", ":ObjCDep"],
+    deps = [":TodoModels", ":TodoObjCSupport"],
 )
 
 ios_unit_test(
     name = "HelloWorldTests",
-    minimum_os_version = "17.5",
+    minimum_os_version = "18.4",
     bundle_id = "com.example.HelloWorldTests",
     platform_type = "ios",
     test_host = ":HelloWorld",
@@ -52,6 +52,6 @@ ios_application(
         "iphone",
     ],
     infoplists = ["Resources/Info.plist"],
-    minimum_os_version = "17.5",
+    minimum_os_version = "18.4",
     deps = [":HelloWorldLib"],
 )

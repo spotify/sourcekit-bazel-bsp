@@ -23,8 +23,8 @@ import SwiftUI
 struct HelloWorldApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView().onAppear {
-                print("HelloWorldApp onAppear")
+            TodoListView().onAppear {
+                print("TodoListView onAppear")
             }
         }
     }

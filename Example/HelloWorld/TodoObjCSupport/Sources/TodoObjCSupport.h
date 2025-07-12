@@ -17,13 +17,4 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#import <UIKit/UIKit.h>
-
-@interface SomeObjCType
-    : UIViewController <UITableViewDelegate, UITableViewDataSource>
-
-@property(strong, nonatomic) UITableView *tableView;
-
-@property(strong, nonatomic) NSArray *data;
-
-@end
+#import "SKDateDistanceCalculator.h"

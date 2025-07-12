@@ -17,4 +17,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#import "ObjCType.h"
+import Foundation
+
+public struct TodoItem: Identifiable, Codable {
+    public let id: UUID
+    public var title: String
+    public var isCompleted: Bool
+    public var createdAt: Date
+
+    public init(title: String, isCompleted: Bool = false) {
+        self.id = UUID()
+        self.title = title
+        self.isCompleted = isCompleted
+        self.createdAt = Date()
+    }
+}
