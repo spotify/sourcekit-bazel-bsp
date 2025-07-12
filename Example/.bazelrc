@@ -16,6 +16,7 @@ common --features=swift.cacheable_swiftmodules
 common --features=swift.index_while_building
 common --features=swift.use_global_index_store
 common --features=swift.use_global_module_cache
+common --features=swift.emit_swiftsourceinfo
 build --noworker_sandboxing
 build --spawn_strategy=remote,worker,local
 
