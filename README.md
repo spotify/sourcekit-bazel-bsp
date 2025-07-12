@@ -23,22 +23,22 @@
 ## Requirements
 
 - Swift 6.1+ toolchain (equivalent to Xcode 16.4+)
-    - Note that even though sourcekit-bazel-bsp itself is completely detached from Xcode, **you will still need to have Xcode installed on your machine to do any sort of actual Apple development.** This is because installing Xcode is currently the only way to get access to and manage the platform toolchains, so even though this tool allows you to break free from the Xcode IDE itself, you still need to have it around for toolchain reasons. In order to completely avoid Xcode, we would need Apple to detach it from the toolchains and all their related tooling.
+  - Note that even though sourcekit-bazel-bsp itself is completely detached from Xcode, **you will still need to have Xcode installed on your machine to do any sort of actual Apple development.** This is because installing Xcode is currently the only way to get access to and manage the platform toolchains, so even though this tool allows you to break free from the Xcode IDE itself, you still need to have it around for toolchain reasons. In order to completely avoid Xcode, we would need Apple to detach it from the toolchains and all their related tooling.
 
 ## Initial Setup Instructions
 
 ### Cursor / VSCode
 
 - Make sure your Bazel project is configured to generate Swift/Obj-C indexing data and debug symbols, either by default or under a specific config.
-    - Detailed information on this is currently WIP, but you can check out the example project for an example.
+  - Detailed information on this is currently WIP, but you can check out the example project for an example.
 - Download and install [the official Swift extension](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) for Cursor / VSCode.
 - Copy the .bsp/ folder on this repository to the root of the repository you'd like to use this tool for.
-- Edit the `argv` fields in `.bsp/apple.json` to match the details for your app / setup. You can see all available options by running `sourcekit-bazel-bsp serve --help`.
+- Edit the `argv` fields in `.bsp/config.json` to match the details for your app / setup. You can see all available options by running `sourcekit-bazel-bsp serve --help`.
 - On Cursor / VSCode, open a workspace containing the repository in question.
 - On the settings page for the Swift extension, enable `SourceKit-LSP: Background Indexing` at the **workspace level**. It **has** to be workspace settings; this specific setting is not supported at the folder level.
 - Reload your workspace (`Cmd+Shift+P -> Reload Window`)
 
-After following these steps, the `SourceKit Language Server` output tab (*Cmd+Shift+U*) should show up when opening Swift files, and indexing-related actions will start popping up at the bottom of the IDE after a while alongside a new `SourceKit-LSP: Indexing` output tab.
+After following these steps, the `SourceKit Language Server` output tab (_Cmd+Shift+U_) should show up when opening Swift files, and indexing-related actions will start popping up at the bottom of the IDE after a while alongside a new `SourceKit-LSP: Indexing` output tab.
 
 ### Other IDEs
 

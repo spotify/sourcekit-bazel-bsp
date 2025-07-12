@@ -6,9 +6,9 @@ This is a simple **iOS** app that lets you see sourcekit-bazel-bsp in action. Th
 
 - Make sure you fulfill the toolchain requirements for sourcekit-bazel-bsp, available at the main README.
 - Install [bazelisk](https://github.com/bazelbuild/bazelisk) if you haven't already.
-	- On macOS: `brew install bazelisk`
+  - On macOS: `brew install bazelisk`
 - On the parent folder, build sourcekit-bazel-bsp for debug: `swift build`
-- Open the `.bsp/apple.json` file and edit `(your pwd here)` to be your absolute path to this folder. Here's an example of how the first argument should look like: `"/Users/myuser/Desktop/Repos/sourcekit-bazel-bsp/Example/../.build/arm64-apple-macosx/debug/sourcekit-bazel-bsp"`
+- Open the `.bsp/config.json` file and edit `(your pwd here)` to be your absolute path to this folder. Here's an example of how the first argument should look like: `"/Users/myuser/Desktop/Repos/sourcekit-bazel-bsp/Example/../.build/arm64-apple-macosx/debug/sourcekit-bazel-bsp"`
 - On Cursor, open a workspace **targeting this specific folder.**
 - On the settings page for the Swift extension, enable `SourceKit-LSP: Background Indexing` at the **workspace level**. It **has** to be workspace settings; this specific setting is not supported at the folder level.
 - Reload your workspace (`Cmd+Shift+P -> Reload Window`)
@@ -20,7 +20,7 @@ After performing these steps, you should already be able to see the basic indexi
 
 - To run a regular build: Cmd+Shift+B -> `Build HelloWorld`
 - To run a debug build, launch the simulator and attach `lldb`: Cmd+Shift+D -> `Debug HelloWorld (Example)`
-	- This requires a **iOS 18.4 iPhone 16 Pro** simulator installed as this is what the example project is currently configured for. Make sure you have one available, as otherwise the build will fail.
+  - This requires a **iOS 18.4 iPhone 16 Pro** simulator installed as this is what the example project is currently configured for. Make sure you have one available, as otherwise the build will fail.
 - To test: Cmd+Shift+P -> `Run Test Task` -> `Test HelloWorldTests`
 
 ## Considerations
