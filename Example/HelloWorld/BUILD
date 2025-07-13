@@ -1,5 +1,6 @@
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library", "swift_interop_hint")
+load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template_rule")
 
 
 swift_library(
@@ -66,7 +67,7 @@ swift_library(
     name = "HelloWorldLib",
     module_name = "HelloWorldLib",
     srcs = glob(["HelloWorldLib/Sources/*.swift"]),
-    deps = [":TodoModels", ":TodoObjCSupport", ":GeneratedDummy"],
+    deps = [":TodoModels", ":TodoObjCSupport", ":GeneratedDummy", ":ExpandedTemplate"],
 )
 
 genrule(
@@ -93,3 +94,20 @@ ios_application(
     minimum_os_version = "17.0",
     deps = [":HelloWorldLib", ":GeneratedDummy"],
 )
+
+expand_template_rule(
+    name = "ExpandTemplateSwiftFile",
+    template = "template.swift.tpl",
+    out = "ExpandedTemplate.swift",
+    substitutions = {
+        "{{CLASS_NAME}}": "ExpandedTemplate",
+        "{{MESSAGE}}": "Hello from expanded template!",
+    },
+)
+
+swift_library(
+    name = "ExpandedTemplate",
+    module_name = "ExpandedTemplate", 
+    srcs = [":ExpandTemplateSwiftFile"],
+)
+
