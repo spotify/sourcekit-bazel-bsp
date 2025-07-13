@@ -28,7 +28,6 @@ struct InitializeRequestHandler {
         initializedConfig: InitializedServerConfig,
     ) throws -> InitializeBuildResponse {
         let capabilities = request.capabilities
-        let outputPath = initializedConfig.outputPath
         let watchers: [FileSystemWatcher]?
         let rootUri = initializedConfig.rootUri
         if let filesToWatch = initializedConfig.baseConfig.filesToWatch {
@@ -50,7 +49,7 @@ struct InitializeRequestHandler {
                 inverseSourcesProvider: true,
                 dependencySourcesProvider: true,
                 resourcesProvider: true,
-                outputPathsProvider: false,  // FIXME
+                outputPathsProvider: false, // FIXME:
                 buildTargetChangedProvider: true,
                 canReload: true,
             ),
