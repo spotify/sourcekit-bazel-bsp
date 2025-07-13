@@ -35,11 +35,38 @@ objc_library(
     aspect_hints = [":TodoObjCSupport_hint"],
 )
 
+genrule(
+    name = "GenerateDummySwiftFile",
+    outs = [
+        "GeneratedDummy.swift",
+    ],
+    cmd = """
+cat > $@ << 'EOF'
+// This is a generated Swift file
+import Foundation
+
+struct GeneratedDummy {
+    static let message = "Hello from generated Swift file!"
+    
+    static func greet() -> String {
+        return message
+    }
+}
+EOF
+""",
+)
+
+swift_library(
+    name = "GeneratedDummy",
+    module_name = "GeneratedDummy",
+    srcs = [":GenerateDummySwiftFile"],
+)
+
 swift_library(
     name = "HelloWorldLib",
     module_name = "HelloWorldLib",
     srcs = glob(["HelloWorldLib/Sources/*.swift"]),
-    deps = [":TodoModels", ":TodoObjCSupport"],
+    deps = [":TodoModels", ":TodoObjCSupport", ":GeneratedDummy"],
 )
 
 genrule(
@@ -64,5 +91,5 @@ ios_application(
     families = ["iphone", "ipad"],
     infoplists = ["Resources/Info.plist"],
     minimum_os_version = "17.0",
-    deps = [":HelloWorldLib"],
+    deps = [":HelloWorldLib", ":GeneratedDummy"],
 )
