@@ -29,8 +29,8 @@
 
 ### Cursor / VSCode
 
-- Make sure your Bazel project is configured to generate Swift/Obj-C indexing data and debug symbols, either by default or under a specific config.
-  - Detailed information on this is currently WIP, but you can check out the example project for an example.
+- Make sure your Bazel project is using compatible versions of all iOS-related Bazel rulesets and is configured to generate Swift/Obj-C indexing data and debug symbols, either by default or under a specific config.
+  - Detailed information on this is currently WIP, but you can currently check out the [example project](./Example) for an example.
 - Download and install [the official Swift extension](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) for Cursor / VSCode.
 - Copy the .bsp/ folder on this repository to the root of the repository you'd like to use this tool for.
 - Edit the `argv` fields in `.bsp/config.json` to match the details for your app / setup. You can see all available options by running `sourcekit-bazel-bsp serve --help`.
@@ -38,12 +38,10 @@
 - On the settings page for the Swift extension, enable `SourceKit-LSP: Background Indexing` at the **workspace level**. It **has** to be workspace settings; this specific setting is not supported at the folder level.
 - Reload your workspace (`Cmd+Shift+P -> Reload Window`)
 
-After following these steps, the `SourceKit Language Server` output tab (_Cmd+Shift+U_) should show up when opening Swift files, and indexing-related actions will start popping up at the bottom of the IDE after a while alongside a new `SourceKit-LSP: Indexing` output tab.
+After following these steps, the `SourceKit Language Server` output tab (_Cmd+Shift+U_) should show up when opening Swift or Obj-C files, and indexing-related actions will start popping up at the bottom of the IDE after a while alongside a new `SourceKit-LSP: Indexing` output tab when working with those files.
+
+If you experience any trouble trying to get it to work, check out the [Example/ folder](./Example) for a test project with a pre-configured Bazel and `.bsp` setup. The example project also contains instructions on how to debug sourcekit-bazel-bsp that can help you find and fix the problem.
 
 ### Other IDEs
 
 The setup instructions depend on how the IDE integrates with LSPs. You should then search for instructions on how to install sourcekit-lsp on your IDE of choice and enable background indexing. After that, follow the `.bsp/` related steps from the above instructions. Keep in mind that this since project is developed specifically with Cursor / VSCode in mind, we cannot say how well sourcekit-bazel-bsp would work with other IDEs.
-
-## Example Project
-
-This repo contains an example project with a pre-prepared Bazel and `.bsp` configuration. Check it out if you want to see this project working on a controlled environment. Make sure to first read the README on that folder to make sure its configured correctly before trying it out.
