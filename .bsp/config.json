@@ -10,7 +10,7 @@
 		"swift"
 	],
 	"argv": [
-		"(abs_path_to_a_sourcekit-bazel-bsp_binary)",
+		"(path_to_a_sourcekit-bazel-bsp_binary)",
 		"--app",
 		"//path/to/your:apptarget"
 	]

@@ -8,7 +8,6 @@ This is a simple **iOS** app that lets you see sourcekit-bazel-bsp in action. Th
 - Install [bazelisk](https://github.com/bazelbuild/bazelisk) if you haven't already.
   - On macOS: `brew install bazelisk`
 - On the parent folder, build sourcekit-bazel-bsp for debug: `swift build`
-- Open the `.bsp/config.json` file and edit `(your pwd here)` to be your absolute path to this folder. Here's an example of how the first argument should look like: `"/Users/myuser/Desktop/Repos/sourcekit-bazel-bsp/Example/../.build/arm64-apple-macosx/debug/sourcekit-bazel-bsp"`
 - On Cursor, open a workspace **targeting this specific folder.**
 - On the settings page for the Swift extension, enable `SourceKit-LSP: Background Indexing` at the **workspace level**. It **has** to be workspace settings; this specific setting is not supported at the folder level.
 - Reload your workspace (`Cmd+Shift+P -> Reload Window`)
@@ -29,4 +28,4 @@ See the main README for a description of what is and isn't supported at the mome
 
 ## Troubleshooting
 
-If something weird (or nothing) happens, check the `SourceKit-LSP: Indexing` logs for details of what may have happened. If you don't see that option at all, you can instead log sourcekit-bazel-bsp by running `log stream --process sourcekit-bazel-bsp --info` on a terminal session. If you see no logs there when interacting with the IDE, that means one or more of the above steps were not followed correctly (most likely the path on the `.bsp/` file).
+If something weird (or nothing) happens, check the `SourceKit-LSP: Indexing` logs for details of what may have happened. If you don't see that option at all, you can instead log sourcekit-bazel-bsp by running `log stream --process sourcekit-bazel-bsp --info` on a terminal session. If you see no logs there when interacting with the IDE, that means one or more of the above steps were not followed correctly (most likely the build step).

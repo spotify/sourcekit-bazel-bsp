@@ -10,7 +10,7 @@
 		"swift"
 	],
 	"argv": [
-		"(your_pwd_here)/../.build/arm64-apple-macosx/debug/sourcekit-bazel-bsp",
+		".bsp/sourcekit-bazel-bsp",
 		"serve",
 		"--target",
 		"//HelloWorld",
