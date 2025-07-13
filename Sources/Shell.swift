@@ -47,8 +47,12 @@ func shell(
 
     task.arguments = ["-c", cmd]
     task.standardInput = nil
+    logger.logFullObjectInMultipleLogMessages(
+        level: .info,
+        header: "Running shell",
+        cmd,
+    )
 
-    logger.info("Running shell: \(cmd, privacy: .public)")
     try task.run()
 
     let data = stdout.fileHandleForReading.readDataToEndOfFile()
