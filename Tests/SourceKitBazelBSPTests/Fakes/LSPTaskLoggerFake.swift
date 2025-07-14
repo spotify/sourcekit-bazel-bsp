@@ -18,32 +18,15 @@
 // under the License.
 
 import BuildServerProtocol
-import Foundation
-import LanguageServerProtocol
-import LanguageServerProtocolJSONRPC
 
-final class TaskLogger {
-    private weak var connection: JSONRPCConnection?
+@testable import SourceKitBazelBSP
 
-    init(connection: JSONRPCConnection) {
-        self.connection = connection
-    }
-
+final class LSPTaskLoggerFake: LSPTaskLogger {
     func startWorkTask(id: TaskId, title: String) {
-        connection?.send(
-            TaskStartNotification(
-                taskId: id,
-                data: WorkDoneProgressTask(title: title).encodeToLSPAny()
-            )
-        )
+        unimplemented()
     }
 
     func finishTask(id: TaskId, status: StatusCode) {
-        connection?.send(
-            TaskFinishNotification(
-                taskId: id,
-                status: .ok,
-            )
-        )
+        unimplemented()
     }
 }

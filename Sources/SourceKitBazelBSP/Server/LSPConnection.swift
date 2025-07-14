@@ -18,44 +18,40 @@
 // under the License.
 
 import BuildServerProtocol
+import Foundation
 import LanguageServerProtocol
 import LanguageServerProtocolJSONRPC
 
-@testable import SourceKitBazelBSP
+package protocol LSPTaskLogger: AnyObject {
+    func startWorkTask(id: TaskId, title: String)
+    func finishTask(id: TaskId, status: StatusCode)
+}
 
-final class LSPConnectionFake: LSPConnection {
-
-    nonisolated(unsafe) private(set) var startCalled = false
-    nonisolated(unsafe) private(set) var startReceivedHandler: MessageHandler?
-
+/// Extends the original sourcekit-lsp `Connection` type to include JSONRPCConnection's start method
+/// and task logging utilities.
+package protocol LSPConnection: Connection, LSPTaskLogger, AnyObject {
     func start(
         receiveHandler: MessageHandler,
         closeHandler: @escaping @Sendable () async -> Void
-    ) {
-        startCalled = true
-        startReceivedHandler = receiveHandler
+    )
+}
+
+extension JSONRPCConnection: LSPConnection {
+    package func startWorkTask(id: TaskId, title: String) {
+        send(
+            TaskStartNotification(
+                taskId: id,
+                data: WorkDoneProgressTask(title: title).encodeToLSPAny()
+            )
+        )
     }
 
-    func nextRequestID() -> LanguageServerProtocol.RequestID {
-        unimplemented()
-    }
-
-    func send(_ notification: some NotificationType) {
-        unimplemented()
-    }
-
-    func send<Request>(
-        _ request: Request, id: LanguageServerProtocol.RequestID,
-        reply: @escaping @Sendable (LanguageServerProtocol.LSPResult<Request.Response>) -> Void
-    ) where Request: LanguageServerProtocol.RequestType {
-        unimplemented()
-    }
-
-    func startWorkTask(id: TaskId, title: String) {
-        unimplemented()
-    }
-
-    func finishTask(id: TaskId, status: StatusCode) {
-        unimplemented()
+    package func finishTask(id: TaskId, status: StatusCode) {
+        send(
+            TaskFinishNotification(
+                taskId: id,
+                status: .ok,
+            )
+        )
     }
 }

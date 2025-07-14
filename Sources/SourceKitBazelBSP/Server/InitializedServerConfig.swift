@@ -17,48 +17,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import BuildServerProtocol
 import Foundation
-import LanguageServerProtocol
-import LanguageServerProtocolJSONRPC
-import os
 
-package struct BaseServerConfig {
-    let bazelWrapper: String
-    let targets: [String]
-    let indexFlags: [String]
-    let filesToWatch: String?
-
-    package init(
-        bazelWrapper: String,
-        targets: [String],
-        indexFlags: [String],
-        filesToWatch: String?
-    ) {
-        self.bazelWrapper = bazelWrapper
-        self.targets = targets
-        self.indexFlags = indexFlags
-        self.filesToWatch = filesToWatch
-    }
-
-    // FIXME: Temporary hack
-    var appTarget: String {
-        targets[0]
-    }
-
-    var aqueryString: String {
-        var query = ""
-        for target in self.targets {
-            if query == "" {
-                query = "deps(\(target))"
-            } else {
-                query += " union deps(\(target))"
-            }
-        }
-        return query
-    }
-}
-
+/// The full configuration of the server, including all information needed to operate the BSP.
+/// Created by the BSP based on the initial `BaseServerConfig`` when the LSP sends us the `initialize` request.
 struct InitializedServerConfig {
     let baseConfig: BaseServerConfig
     let rootUri: String

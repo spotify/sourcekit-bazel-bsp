@@ -17,16 +17,24 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 import LanguageServerProtocolJSONRPC
 
-/// Extends the original sourcekit-lsp `Connection` type to include JSONRPCConnection's start method.
-package protocol LSPConnection: Connection {
-    func start(
-        receiveHandler: MessageHandler,
-        closeHandler: @escaping @Sendable () async -> Void
-    )
-}
+/// FIXME: To be removed, not needed anymore
+final class TaskLogger {
+    private weak var connection: LSPTaskLogger?
 
-extension JSONRPCConnection: LSPConnection {}
+    init(connection: LSPTaskLogger) {
+        self.connection = connection
+    }
+
+    func startWorkTask(id: TaskId, title: String) {
+        connection?.startWorkTask(id: id, title: title)
+    }
+
+    func finishTask(id: TaskId, status: StatusCode) {
+        connection?.finishTask(id: id, status: status)
+    }
+}
