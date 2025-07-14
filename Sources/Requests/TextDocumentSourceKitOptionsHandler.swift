@@ -230,6 +230,11 @@ final class TextDocumentSourceKitOptionsHandler {
         }
 
         logger.info("Finished processing compiler arguments")
+        logger.logFullObjectInMultipleLogMessages(
+            level: .debug,
+            header: "Parsed compiler arguments",
+            lines.joined(separator: "\n"),
+        )
 
         return lines
     }
