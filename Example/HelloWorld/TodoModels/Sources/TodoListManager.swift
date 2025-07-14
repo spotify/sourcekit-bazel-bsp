@@ -56,7 +56,8 @@ public final class TodoListManager: ObservableObject {
 
     private func loadTodoItems() {
         if let data = userDefaults.data(forKey: todoItemsKey),
-           let decoded = try? JSONDecoder().decode([TodoItem].self, from: data) {
+            let decoded = try? JSONDecoder().decode([TodoItem].self, from: data)
+        {
             todoItems = decoded
         }
     }

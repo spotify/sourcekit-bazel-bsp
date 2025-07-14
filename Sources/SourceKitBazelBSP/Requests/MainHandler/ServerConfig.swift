@@ -23,11 +23,23 @@ import LanguageServerProtocol
 import LanguageServerProtocolJSONRPC
 import os
 
-struct BaseServerConfig {
+package struct BaseServerConfig {
     let bazelWrapper: String
     let targets: [String]
     let indexFlags: [String]
     let filesToWatch: String?
+
+    package init(
+        bazelWrapper: String,
+        targets: [String],
+        indexFlags: [String],
+        filesToWatch: String?
+    ) {
+        self.bazelWrapper = bazelWrapper
+        self.targets = targets
+        self.indexFlags = indexFlags
+        self.filesToWatch = filesToWatch
+    }
 
     // FIXME: Temporary hack
     var appTarget: String {

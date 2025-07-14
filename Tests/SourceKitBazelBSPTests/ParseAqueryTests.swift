@@ -20,14 +20,17 @@
 import BuildServerProtocol
 import LanguageServerProtocol
 import LanguageServerProtocolJSONRPC
-@testable import sourcekit_bazel_bsp
-import XCTest
+import Testing
 
-final class ParseAqueryTests: XCTestCase {
+@testable import SourceKitBazelBSP
+
+@Suite("ParseAqueryTests") struct ParseAqueryTests {
+    @Test("parses the aquery output")
     func testProcessCompilerArguments_complexRealWorldExample() throws {
         // Given
 
-        let mockSdkRoot = "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
+        let mockSdkRoot =
+            "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
         let mockDevDir = "/Applications/Xcode.app/Contents/Developer"
         let mockOutputPath = "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out"
         let mockRootUri = "/Users/user/Documents/demo-ios-project"
@@ -44,7 +47,7 @@ final class ParseAqueryTests: XCTestCase {
             outputBase: mockOutputBase
         )
 
-        XCTAssertEqual(result, expectedResult)
+        #expect(result == expectedResult)
     }
 }
 
@@ -65,7 +68,8 @@ private let exampleInput: [String] = [
     "-module-cache-path", "bazel-out/ios_sim_arm64-fastbuild/bin/_swift_module_cache",
     "-Ibazel-out/ios_sim_arm64-fastbuild/bin/external/swift_protobuf",
     "-Ibazel-out/ios_sim_arm64-fastbuild/bin/external/ExampleSDK/Headers",
-    "-Xcc", "-fmodule-map-file=bazel-out/ios_sim_arm64-fastbuild/bin/external/ExampleSDK/module.modulemap",
+    "-Xcc",
+    "-fmodule-map-file=bazel-out/ios_sim_arm64-fastbuild/bin/external/ExampleSDK/module.modulemap",
     "-Fexternal/ExampleSDK/Example.xcframework/ios-simulator",
     "-Xcc", "-Fexternal/ExampleSDK/Another.xcframework/ios-simulator",
     "-Xcc", "-Iexternal/ExampleSDK/include",
@@ -82,20 +86,26 @@ private let exampleInput: [String] = [
 /// Expected result of processing the example input.
 private let expectedResult: [String] = [
     "exec",
-    "-sdk", "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk",
+    "-sdk",
+    "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk",
     "-debug-prefix-map", "/Applications/Xcode.app/Contents/Developer=/PLACEHOLDER_DEVELOPER_DIR",
     "-file-prefix-map", "/Users/user/Documents/demo-ios-project=/PLACEHOLDER_EXECUTION_ROOT",
-    "-emit-module-path", "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-fastbuild/bin/Example.swiftmodule",
-    "-module-cache-path", "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-fastbuild/bin/_swift_module_cache",
+    "-emit-module-path",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-fastbuild/bin/Example.swiftmodule",
+    "-module-cache-path",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-fastbuild/bin/_swift_module_cache",
     "-I/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-fastbuild/bin/external/swift_protobuf",
     "-I/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-fastbuild/bin/external/ExampleSDK/Headers",
-    "-Xcc", "-fmodule-map-file=/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-fastbuild/bin/external/ExampleSDK/module.modulemap",
+    "-Xcc",
+    "-fmodule-map-file=/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-fastbuild/bin/external/ExampleSDK/module.modulemap",
     "-F/private/var/tmp/_bazel_user/hash123/external/ExampleSDK/Example.xcframework/ios-simulator",
-    "-Xcc", "-F/private/var/tmp/_bazel_user/hash123/external/ExampleSDK/Another.xcframework/ios-simulator",
+    "-Xcc",
+    "-F/private/var/tmp/_bazel_user/hash123/external/ExampleSDK/Another.xcframework/ios-simulator",
     "-Xcc", "-I/private/var/tmp/_bazel_user/hash123/external/ExampleSDK/include",
     "-Xcc", "-iquote/private/var/tmp/_bazel_user/hash123/external/ExampleSDK/Headers",
     "-Xcc", "-isystem/private/var/tmp/_bazel_user/hash123/external/ExampleSDK/SystemHeaders",
-    "-Xcc", "-fmodule-map-file=/private/var/tmp/_bazel_user/hash123/external/ExampleSDK/module.modulemap",
+    "-Xcc",
+    "-fmodule-map-file=/private/var/tmp/_bazel_user/hash123/external/ExampleSDK/module.modulemap",
     "-fmodule-map-file=/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-fastbuild/bin/Generated.modulemap",
     "/Users/user/Documents/demo-ios-project/Source/Example/ExampleFile.swift",
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-fastbuild/bin/Generated.swift",

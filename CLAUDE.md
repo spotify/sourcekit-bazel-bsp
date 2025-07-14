@@ -12,7 +12,7 @@ The project itself is built using Swift Package Manager. There is also a `Exampl
 
 ### For the tool itself
 - **Build the project**: `swift build`
-- **Debug build**: `swift build -c debug` 
+- **Debug build**: `swift build`
 - **Release build**: `swift build -c release`
 - **Run tests**: `swift test`
 
@@ -24,22 +24,22 @@ The project itself is built using Swift Package Manager. There is also a `Exampl
 
 ### Core Components
 
-1. **BSP Server** (`Sources/Commands/Serve/BSPServer.swift`)
+1. **BSP Server** (`BSPServer.swift`)
    - Main server implementation using JSONRPCConnection
    - Handles client lifecycle and message routing
 
-2. **Message Handler** (`Sources/Requests/MainHandler/BSPServerMessageHandler.swift`)
+2. **Message Handler** (`BSPServerMessageHandler.swift`)
    - Protocol defining BSP request/notification handling
    - Routes incoming requests to appropriate handlers
 
-3. **Request Handlers** (`Sources/Requests/`)
+3. **Request Handlers** (`Requests/`)
    - `InitializeRequestHandler.swift` - BSP initialization
    - `WorkspaceBuildTargetsHandler.swift` - Target discovery
    - `BuildTargetSourcesHandler.swift` - Source file resolution
    - `TextDocumentSourceKitOptionsHandler.swift` - SourceKit configuration
    - `PrepareTargetHandler.swift` - Build preparation
 
-4. **Command Structure** (`Sources/Commands/`)
+4. **Command Structure** (`Commands/`)
    - Uses Swift ArgumentParser for CLI interface
    - Main entry point in `SourcekitBazelBsp.swift`
 

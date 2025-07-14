@@ -94,7 +94,7 @@ final class TextDocumentSourceKitOptionsHandler {
         } else {
             let cmd =
                 bazelWrapper
-                    + " --output_base=\(outputBase) aquery \"mnemonic('SwiftCompile|ObjcCompile', \(appToBuild))\" --noinclude_artifacts \(flags)"
+                + " --output_base=\(outputBase) aquery \"mnemonic('SwiftCompile|ObjcCompile', \(appToBuild))\" --noinclude_artifacts \(flags)"
             output = try shell(cmd, cwd: rootUri)
             rootQueryCache = output
         }
@@ -193,7 +193,7 @@ final class TextDocumentSourceKitOptionsHandler {
         lines[lines.count - 1] = String(lines[lines.count - 1].dropLast())
 
         // some args are wrapped in single quotes for some reason
-        for i in 0 ..< lines.count {
+        for i in 0..<lines.count {
             if lines[i].hasPrefix("'"), lines[i].hasSuffix("'") {
                 lines[i] = String(lines[i].dropFirst().dropLast())
             }
