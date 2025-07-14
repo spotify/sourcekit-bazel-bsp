@@ -18,9 +18,7 @@
 // under the License.
 
 import ArgumentParser
-import BuildServerProtocol
 import Foundation
-import LanguageServerProtocolJSONRPC
 import OSLog
 import SourceKitBazelBSP
 
@@ -48,22 +46,14 @@ struct Serve: ParsableCommand {
 
     func run() throws {
         let logger = Logger(subsystem: "sourcekit-bazel-bsp", category: "serve-command")
-        logger.info("`serve` invoked, initializing BSP server")
-
-        let connection = JSONRPCConnection(
-            name: "sourcekit-lsp",
-            protocol: bspRegistry,
-            inFD: FileHandle.standardInput,
-            outFD: FileHandle.standardOutput
+        logger.info("`serve` invoked, initializing BSP server...")
+        let config = BaseServerConfig(
+            bazelWrapper: bazelWrapper,
+            targets: target,
+            indexFlags: indexFlag.map { "--" + $0 },
+            filesToWatch: filesToWatch
         )
-        try BSPServer(
-            baseConfig: BaseServerConfig(
-                bazelWrapper: bazelWrapper,
-                targets: target,
-                indexFlags: indexFlag.map { "--" + $0 },
-                filesToWatch: filesToWatch
-            ),
-            connection: connection
-        ).run()
+        let server = BSPServer(baseConfig: config)
+        try server.run()
     }
 }

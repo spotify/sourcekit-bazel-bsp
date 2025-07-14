@@ -29,27 +29,33 @@ package final class BSPServer {
     let baseConfig: BaseServerConfig
     let connection: JSONRPCConnection
 
-    package init(
-        baseConfig: BaseServerConfig,
-        connection: JSONRPCConnection
-    ) {
+    package init(baseConfig: BaseServerConfig) {
         self.baseConfig = baseConfig
-        self.connection = connection
+        self.connection = JSONRPCConnection(
+            name: "sourcekit-lsp",
+            protocol: bspRegistry,
+            inFD: FileHandle.standardInput,
+            outFD: FileHandle.standardOutput
+        )
     }
 
     package func run() throws {
-        logger.info("Initializing the BSP server...")
+        logger.info("Connecting to sourcekit-lsp...")
+
         connection.start(
             receiveHandler: BSPServerMessageHandlerImpl(
                 baseConfig: baseConfig,
                 connection: connection
             ),
             closeHandler: {
+                logger.info("Connection closed, exiting.")
                 // Use _Exit to avoid running static destructors due to https://github.com/swiftlang/swift/issues/55112.
                 // (Copied from sourcekit-lsp)
                 _Exit(0)
             }
         )
+
+        logger.info("Connection established, parking main thread.")
 
         // Park the main function by sleeping for 10 years.
         // All request handling is done on other threads and sourcekit-bazel-bsp exits by calling `_Exit` when it receives a
