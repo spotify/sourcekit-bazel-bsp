@@ -53,6 +53,12 @@ final class TextDocumentSourceKitOptionsHandler {
             request.language,
             request.textDocument.uri,
         )
+
+        // If no compiler arguments are found, return nil to avoid sourcekit indexing with no input files
+        if args.isEmpty {
+            return nil
+        }
+
         return TextDocumentSourceKitOptionsResponse(
             compilerArguments: args,
             workingDirectory: initializedConfig.rootUri
