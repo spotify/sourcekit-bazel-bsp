@@ -42,5 +42,9 @@ let package = Package(
                 ),
             ],
         ),
+        .testTarget(
+            name: "SourceKitBazelBSPTests",
+            dependencies: ["SourceKitBazelBSP"]
+        ),
     ]
 )

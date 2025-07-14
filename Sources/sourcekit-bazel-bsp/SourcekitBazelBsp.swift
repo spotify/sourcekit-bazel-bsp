@@ -18,7 +18,6 @@
 // under the License.
 
 import ArgumentParser
-
 @main
 struct SourcekitBazelBsp: ParsableCommand {
     static let configuration = CommandConfiguration(
