@@ -22,6 +22,7 @@ import Foundation
 import LanguageServerProtocol
 import LanguageServerProtocolJSONRPC
 
+// FIXME: To make one per-file once we finish refactoring the code
 let logger = makeBSPLogger()
 
 /// The higher-level class that bootstraps and manages the BSP server.
@@ -29,6 +30,30 @@ package final class SourceKitBazelBSPServer {
 
     let connection: LSPConnection
     let handler: MessageHandler
+
+    private static func makeBSPMessageHandler(
+        baseConfig: BaseServerConfig,
+        connection: JSONRPCConnection
+    ) -> BSPMessageHandler {
+        // FIXME: Will divide BSPServerMessageHandlerImpl into multiple classes, just doing one thing at a time.
+        let baseHandler = BSPServerMessageHandlerImpl(
+            baseConfig: baseConfig,
+            connection: connection
+        )
+        let handler = BSPMessageHandler()
+        handler.register(requestHandler: baseHandler.initializeBuild)
+        handler.register(requestHandler: baseHandler.workspaceBuildTargets)
+        handler.register(requestHandler: baseHandler.buildTargetSources)
+        handler.register(requestHandler: baseHandler.prepareTarget)
+        handler.register(requestHandler: baseHandler.textDocumentSourceKitOptions)
+        handler.register(requestHandler: baseHandler.waitForBuildSystemUpdates)
+        handler.register(requestHandler: baseHandler.buildShutdown)
+        handler.register(notificationHandler: baseHandler.cancelRequest)
+        handler.register(notificationHandler: baseHandler.onBuildExit)
+        handler.register(notificationHandler: baseHandler.onBuildInitialized)
+        handler.register(notificationHandler: baseHandler.onWatchedFilesDidChange)
+        return handler
+    }
 
     package convenience init(
         baseConfig: BaseServerConfig,
@@ -41,29 +66,7 @@ package final class SourceKitBazelBSPServer {
             inFD: inputHandle,
             outFD: outputHandle
         )
-        let baseHandler = BSPServerMessageHandlerImpl(
-            baseConfig: baseConfig,
-            connection: connection
-        )
-        // FIXME: Will be divided into multiple handlers, just doing one thing at a time
-        let requestHandlers = BSPMessageHandler.RequestHandlers(
-            initializeBuild: baseHandler.initializeBuild,
-            waitForBuildSystemUpdates: baseHandler.waitForBuildSystemUpdates,
-            buildTargetPrepare: baseHandler.prepareTarget,
-            buildShutdown: baseHandler.buildShutdown,
-            workspaceBuildTargets: baseHandler.workspaceBuildTargets,
-            buildTargetSources: baseHandler.buildTargetSources,
-        )
-        let notificationHandlers = BSPMessageHandler.NotificationHandlers(
-            cancelRequest: baseHandler.cancelRequest,
-            onBuildExit: baseHandler.onBuildExit,
-            onBuildInitialized: baseHandler.onBuildInitialized,
-            onWatchedFilesDidChange: baseHandler.onWatchedFilesDidChange,
-        )
-        let handler = BSPMessageHandler(
-            requestHandlers: requestHandlers,
-            notificationHandlers: notificationHandlers
-        )
+        let handler = Self.makeBSPMessageHandler(baseConfig: baseConfig, connection: connection)
         self.init(connection: connection, handler: handler)
     }
 

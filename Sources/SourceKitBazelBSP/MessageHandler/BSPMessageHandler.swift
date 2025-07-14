@@ -24,57 +24,51 @@ import LanguageServerProtocol
 import struct os.OSAllocatedUnfairLock
 
 /// Base object that can handle receiving and replying to BSP requests and notifications.
-/// It does not provide any functionality by itself; all handling logic is intended to be passed
-/// to the `requestHandlers` and `notificationHandlers` properties.
+/// It does not provide any functionality by itself; all handling logic is intended to be registered
+/// as `requestHandlers` and `notificationHandlers`.
 final class BSPMessageHandler: MessageHandler {
 
     // We currently use a single-threaded setup for simplicity,
     // but we can eventually reply asynchronously if we find a need for it.
     private let lock: OSAllocatedUnfairLock<Void> = .init()
 
-    nonisolated(unsafe) let requestHandlers: RequestHandlers
-    nonisolated(unsafe) let notificationHandlers: NotificationHandlers
+    nonisolated(unsafe) private var requestHandlers: [String: AnyRequestHandler] = [:]
+    nonisolated(unsafe) private var notificationHandlers: [String: AnyNotificationHandler] = [:]
 
-    init(
-        requestHandlers: RequestHandlers = .init(),
-        notificationHandlers: NotificationHandlers = .init()
+    init() {}
+
+    func register<Request: RequestType>(
+        requestHandler: @escaping BSPRequestHandler<Request>
     ) {
-        self.requestHandlers = requestHandlers
-        self.notificationHandlers = notificationHandlers
+        // Doesn't handle thread-safety on purpose as this is supposed to be called
+        // before the server actually starts handling requests.
+        requestHandlers[Request.method] = AnyRequestHandler(
+            handler: requestHandler
+        )
+    }
+
+    func register<Notification: NotificationType>(
+        notificationHandler: @escaping BSPNotificationHandler<Notification>
+    ) {
+        // Doesn't handle thread-safety on purpose as this is supposed to be called
+        // before the server actually starts handling requests.
+        notificationHandlers[Notification.method] = AnyNotificationHandler(
+            handler: notificationHandler
+        )
     }
 
     func handle<Notification: NotificationType>(_ notification: Notification) {
         lock.lock()
         defer { lock.unlock() }
-        let method = Notification.method
-        logger.info("Handling notification: \(method, privacy: .public)")
+        logger.info(
+            "Received notification: \(Notification.method, privacy: .public)"
+        )
         do {
-            switch notification {
-            case let notification as CancelRequestNotification:
-                try _handle(notification, using: notificationHandlers.cancelRequest)
-            case let notification as OnBuildExitNotification:
-                try _handle(notification, using: notificationHandlers.onBuildExit)
-            case let notification as OnBuildInitializedNotification:
-                try _handle(notification, using: notificationHandlers.onBuildInitialized)
-            case let notification as OnWatchedFilesDidChangeNotification:
-                try _handle(notification, using: notificationHandlers.onWatchedFilesDidChange)
-            default:
-                logger.error("Unexpected notification: \(method, privacy: .public)")
-                throw ResponseError.methodNotFound(type(of: notification).method)
-            }
+            let handler = try getHandler(for: notification)
+            try handler(notification)
         } catch {
             logger.error("Error while handling BSP notification: \(error.localizedDescription)")
         }
-    }
-
-    private func _handle<N: NotificationType>(
-        _ notification: N, using handler: BSPNotificationHandler<N>?
-    ) throws {
-        guard let handler = handler else {
-            logger.error("Missing notification handler for: \(N.method, privacy: .public)")
-            throw ResponseError.internalError("Missing notification handler for: \(N.method)")
-        }
-        try handler(notification)
     }
 
     func handle<Request: RequestType>(
@@ -84,55 +78,53 @@ final class BSPMessageHandler: MessageHandler {
     ) {
         lock.lock()
         defer { lock.unlock() }
-        let method = Request.method
-        let requestType = String(describing: type(of: request))
-        // Trick to get past Swift typechecking weirdness.
-        // For some reason Swift doesn't understand that the downcasted requests can still fulfill
-        // `reply`'s type requirements. sourcekit-lsp uses the same trick under the hood.
-        func _handle<R: RequestType>(
-            _ request: R, using handler: BSPRequestHandler<R>?
-        ) {
-            guard let handler = handler else {
-                logger.error("Missing request handler for: \(method, privacy: .public)")
-                reply(
-                    .failure(ResponseError.internalError("Missing request handler for: \(method)")))
-                return
-            }
-            do {
-                let response = try handler(request, id) as! Request.Response
-                logger.info("Responding to \(method, privacy: .public)")
-                reply(.success(response))
-            } catch {
-                logger.error(
-                    "Error while responding to \(method, privacy: .public): \(error.localizedDescription, privacy: .public)"
-                )
-                reply(
-                    .failure(
-                        ResponseError.internalError(
-                            "Error while responding to \(method): \(error.localizedDescription)")))
-            }
-        }
         logger.info(
-            "Handling request: \(method, privacy: .public) (\(requestType, privacy: .public))"
+            "Received request: \(Request.method, privacy: .public)"
         )
-        switch request {
-        case let request as BuildShutdownRequest:
-            _handle(request, using: requestHandlers.buildShutdown)
-        case let request as BuildTargetSourcesRequest:
-            _handle(request, using: requestHandlers.buildTargetSources)
-        case let request as InitializeBuildRequest:
-            _handle(request, using: requestHandlers.initializeBuild)
-        case let request as TextDocumentSourceKitOptionsRequest:
-            _handle(request, using: requestHandlers.textDocumentSourceKitOptions)
-        case let request as WorkspaceBuildTargetsRequest:
-            _handle(request, using: requestHandlers.workspaceBuildTargets)
-        case let request as WorkspaceWaitForBuildSystemUpdatesRequest:
-            _handle(request, using: requestHandlers.waitForBuildSystemUpdates)
-        case let request as BuildTargetPrepareRequest:
-            _handle(request, using: requestHandlers.prepareTarget)
-        default:
-            logger.error("Unexpected request: \(method, privacy: .public)")
-            reply(.failure(ResponseError.methodNotFound(method)))
+        do {
+            let handler = try getHandler(for: request, id, reply)
+            let response = try handler(request, id)
+            logger.info("Replying to \(Request.method, privacy: .public)")
+            reply(.success(response))
+        } catch {
+            logger.error("Error while handling BSP request: \(error.localizedDescription)")
+            if let responseError = error as? ResponseError {
+                reply(.failure(responseError))
+            } else {
+                reply(.failure(ResponseError.internalError(error.localizedDescription)))
+            }
         }
+    }
+
+    private func getHandler<Notification: NotificationType>(
+        for notification: Notification
+    ) throws -> BSPNotificationHandler<Notification> {
+        guard let erasedHandler = notificationHandlers[Notification.method] else {
+            throw ResponseError.methodNotFound(Notification.method)
+        }
+        guard let handler = erasedHandler.handler as? BSPNotificationHandler<Notification> else {
+            // This should never happen with the current implementation, but let's log it just in case.
+            throw ResponseError.internalError(
+                "Found notification, but it had the wrong type! (\(Notification.method))"
+            )
+        }
+        return handler
+    }
+
+    private func getHandler<Request: RequestType>(
+        for request: Request,
+        _ id: RequestID,
+        _ reply: @escaping (LSPResult<Request.Response>) -> Void
+    ) throws -> BSPRequestHandler<Request> {
+        guard let erasedHandler = requestHandlers[Request.method] else {
+            throw ResponseError.methodNotFound(Request.method)
+        }
+        guard let handler = erasedHandler.handler as? BSPRequestHandler<Request> else {
+            // This should never happen with the current implementation, but let's log it just in case.
+            throw ResponseError.internalError(
+                "Found request, but it had the wrong type! (\(Request.method))"
+            )
+        }
+        return handler
     }
 }

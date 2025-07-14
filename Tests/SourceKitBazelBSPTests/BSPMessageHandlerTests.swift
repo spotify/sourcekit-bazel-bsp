@@ -26,26 +26,6 @@ import Testing
 
 @Suite struct BSPMessageHandlerTests {
     @Test
-    func registeredButMissingRequestHandler() throws {
-        let handler = BSPMessageHandler()
-        let request = BuildTargetSourcesRequest(
-            targets: [BuildTargetIdentifier(uri: try URI(string: "file:///test"))],
-        )
-        var receivedResponse: LSPResult<BuildTargetSourcesResponse>?
-        handler.handle(request, id: RequestID.number(1)) { result in
-            receivedResponse = result
-        }
-        let result = try #require(receivedResponse)
-        switch result {
-        case .success:
-            Issue.record("Expected failure but got success!")
-        case .failure(let error):
-            #expect(error.code == .internalError)
-            #expect(error.message == "Missing request handler for: buildTarget/sources")
-        }
-    }
-
-    @Test
     func unknownRequestHandler() throws {
         let handler = BSPMessageHandler()
         struct FakeRequest: RequestType {
@@ -71,9 +51,8 @@ import Testing
     func successfulRequest() throws {
         let mockResponse = BuildTargetSourcesResponse(items: [])
 
-        let handler = BSPMessageHandler(
-            requestHandlers: .init(buildTargetSources: { _, _ in mockResponse }),
-        )
+        let handler = BSPMessageHandler()
+        handler.register(requestHandler: { (_: BuildTargetSourcesRequest, _) in mockResponse })
 
         let request = BuildTargetSourcesRequest(
             targets: [BuildTargetIdentifier(uri: try URI(string: "file:///test"))],
@@ -96,9 +75,8 @@ import Testing
     @Test
     func failedRequest() throws {
         let mockError = ResponseError.internalError("Test error")
-        let handler = BSPMessageHandler(
-            requestHandlers: .init(buildTargetSources: { _, _ in throw mockError }),
-        )
+        let handler = BSPMessageHandler()
+        handler.register(requestHandler: { (_: BuildTargetSourcesRequest, _) in throw mockError })
 
         let request = BuildTargetSourcesRequest(
             targets: [BuildTargetIdentifier(uri: try URI(string: "file:///test"))],
@@ -114,18 +92,35 @@ import Testing
         case .success:
             Issue.record("Expected failure but got success!")
         case .failure(let error):
-            let responseError = ResponseError.internalError(
-                "Error while responding to buildTarget/sources: \(mockError.localizedDescription)")
-            #expect(error == responseError)
+            #expect(error == mockError)
         }
+    }
+
+    @Test
+    func unknownNotification() throws {
+        var initialized = false
+        let handler = BSPMessageHandler()
+
+        handler.register(notificationHandler: { (_: OnBuildInitializedNotification) in
+            initialized = true
+        })
+
+        // Some other notification type that is not the one we registered for
+        let notification = CancelRequestNotification(id: RequestID.number(1))
+        handler.handle(notification)
+
+        // Since notifications don't currently throw errors on failure, we're just checking the tool didn't crash
+        #expect(initialized == false)
     }
 
     @Test
     func successfulNotification() throws {
         var initialized = false
-        let handler = BSPMessageHandler(
-            notificationHandlers: .init(onBuildInitialized: { _ in initialized = true }),
-        )
+        let handler = BSPMessageHandler()
+
+        handler.register(notificationHandler: { (_: OnBuildInitializedNotification) in
+            initialized = true
+        })
 
         let notification = OnBuildInitializedNotification()
         handler.handle(notification)
