@@ -22,8 +22,7 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocolJSONRPC
 import OSLog
-
-let logger = Logger(subsystem: "sourcekit-bazel-bsp", category: "serve-command")
+import SourceKitBazelBSP
 
 struct Serve: ParsableCommand {
     @Option(help: "The name of the Bazel CLI to invoke (e.g. 'bazelisk')")
