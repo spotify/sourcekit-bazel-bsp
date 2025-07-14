@@ -22,6 +22,8 @@ import Foundation
 import OSLog
 import SourceKitBazelBSP
 
+private let logger = makeBSPLogger()
+
 struct Serve: ParsableCommand {
     @Option(help: "The name of the Bazel CLI to invoke (e.g. 'bazelisk')")
     var bazelWrapper: String = "bazel"
@@ -52,7 +54,6 @@ struct Serve: ParsableCommand {
     var filesToWatch: String?
 
     func run() throws {
-        let logger = Logger(subsystem: "sourcekit-bazel-bsp", category: "serve-command")
         logger.info("`serve` invoked, initializing BSP server...")
         let config = BaseServerConfig(
             bazelWrapper: bazelWrapper,
@@ -61,6 +62,6 @@ struct Serve: ParsableCommand {
             filesToWatch: filesToWatch
         )
         let server = SourceKitBazelBSPServer(baseConfig: config)
-        try server.run()
+        server.run()
     }
 }

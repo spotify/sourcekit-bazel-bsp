@@ -22,8 +22,9 @@ import Foundation
 import LanguageServerProtocol
 import LanguageServerProtocolJSONRPC
 
-let logger = makeBSPLogger(withCategory: "bsp-server")
+let logger = makeBSPLogger()
 
+/// The higher-level class that bootstraps and manages the BSP server.
 package final class SourceKitBazelBSPServer {
 
     let connection: LSPConnection
@@ -40,7 +41,29 @@ package final class SourceKitBazelBSPServer {
             inFD: inputHandle,
             outFD: outputHandle
         )
-        let handler = BSPServerMessageHandlerImpl(baseConfig: baseConfig, connection: connection)
+        let baseHandler = BSPServerMessageHandlerImpl(
+            baseConfig: baseConfig,
+            connection: connection
+        )
+        // FIXME: Will be divided into multiple handlers, just doing one thing at a time
+        let requestHandlers = BSPMessageHandler.RequestHandlers(
+            initializeBuild: baseHandler.initializeBuild,
+            waitForBuildSystemUpdates: baseHandler.waitForBuildSystemUpdates,
+            buildTargetPrepare: baseHandler.prepareTarget,
+            buildShutdown: baseHandler.buildShutdown,
+            workspaceBuildTargets: baseHandler.workspaceBuildTargets,
+            buildTargetSources: baseHandler.buildTargetSources,
+        )
+        let notificationHandlers = BSPMessageHandler.NotificationHandlers(
+            cancelRequest: baseHandler.cancelRequest,
+            onBuildExit: baseHandler.onBuildExit,
+            onBuildInitialized: baseHandler.onBuildInitialized,
+            onWatchedFilesDidChange: baseHandler.onWatchedFilesDidChange,
+        )
+        let handler = BSPMessageHandler(
+            requestHandlers: requestHandlers,
+            notificationHandlers: notificationHandlers
+        )
         self.init(connection: connection, handler: handler)
     }
 
@@ -52,7 +75,10 @@ package final class SourceKitBazelBSPServer {
         self.handler = handler
     }
 
-    package func run(parkThread: Bool = true) throws {
+    /// Launches a connection to sourcekit-lsp and wires it to our  BSP server.
+    /// This code never returns; it locks the thread it was called from until
+    /// we get a shutdown request from sourcekit-lsp.
+    package func run(parkThread: Bool = true) {
         logger.info("Connecting to sourcekit-lsp...")
 
         connection.start(

@@ -21,6 +21,6 @@ import Foundation
 import OSLog
 
 /// Simple helper to create loggers under the `sourcekit-bazel-bsp` subsystem.
-package func makeBSPLogger(withCategory category: String) -> Logger {
+package func makeBSPLogger(withCategory category: String = #fileID) -> Logger {
     Logger(subsystem: "sourcekit-bazel-bsp", category: category)
 }
