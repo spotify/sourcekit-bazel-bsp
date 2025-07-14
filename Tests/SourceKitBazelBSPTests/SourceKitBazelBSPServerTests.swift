@@ -26,7 +26,7 @@ import Testing
 
 @Suite struct SourceKitBazelBSPServerTests {
     @Test
-    func runAttachesHandler() throws {
+    func runAttachesHandler() {
         let mockConnection = LSPConnectionFake()
         let mockHandler = MessageHandlerFake()
 
@@ -35,7 +35,7 @@ import Testing
             handler: mockHandler
         )
 
-        try server.run(parkThread: false)
+        server.run(parkThread: false)
 
         #expect(mockConnection.startCalled == true)
         #expect(mockConnection.startReceivedHandler === mockHandler)

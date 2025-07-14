@@ -35,7 +35,10 @@ final class BSPMessageHandler: MessageHandler {
     nonisolated(unsafe) let requestHandlers: RequestHandlers
     nonisolated(unsafe) let notificationHandlers: NotificationHandlers
 
-    init(requestHandlers: RequestHandlers, notificationHandlers: NotificationHandlers) {
+    init(
+        requestHandlers: RequestHandlers = .init(),
+        notificationHandlers: NotificationHandlers = .init()
+    ) {
         self.requestHandlers = requestHandlers
         self.notificationHandlers = notificationHandlers
     }
@@ -60,7 +63,7 @@ final class BSPMessageHandler: MessageHandler {
                 throw ResponseError.methodNotFound(type(of: notification).method)
             }
         } catch {
-            logger.error("Error while handling BSP notification: \(error)")
+            logger.error("Error while handling BSP notification: \(error.localizedDescription)")
         }
     }
 
@@ -79,6 +82,8 @@ final class BSPMessageHandler: MessageHandler {
         id: RequestID,
         reply: @escaping (LSPResult<Request.Response>) -> Void
     ) {
+        lock.lock()
+        defer { lock.unlock() }
         let method = Request.method
         let requestType = String(describing: type(of: request))
         // Trick to get past Swift typechecking weirdness.
@@ -88,8 +93,9 @@ final class BSPMessageHandler: MessageHandler {
             _ request: R, using handler: BSPRequestHandler<R>?
         ) {
             guard let handler = handler else {
-                logger.error("Unexpected request: \(method, privacy: .public)")
-                reply(.failure(ResponseError.methodNotFound(method)))
+                logger.error("Missing request handler for: \(method, privacy: .public)")
+                reply(
+                    .failure(ResponseError.internalError("Missing request handler for: \(method)")))
                 return
             }
             do {
@@ -97,13 +103,15 @@ final class BSPMessageHandler: MessageHandler {
                 logger.info("Responding to \(method, privacy: .public)")
                 reply(.success(response))
             } catch {
-                let msg = "Error while responding to \(method): \(error.localizedDescription)"
-                logger.error("\(msg, privacy: .public)")
-                reply(.failure(ResponseError(code: .internalError, message: msg)))  // FIX ME
+                logger.error(
+                    "Error while responding to \(method, privacy: .public): \(error.localizedDescription, privacy: .public)"
+                )
+                reply(
+                    .failure(
+                        ResponseError.internalError(
+                            "Error while responding to \(method): \(error.localizedDescription)")))
             }
         }
-        lock.lock()
-        defer { lock.unlock() }
         logger.info(
             "Handling request: \(method, privacy: .public) (\(requestType, privacy: .public))"
         )
