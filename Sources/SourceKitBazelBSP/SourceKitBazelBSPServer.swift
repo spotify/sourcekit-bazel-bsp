@@ -19,34 +19,44 @@
 
 import BuildServerProtocol
 import Foundation
+import LanguageServerProtocol
 import LanguageServerProtocolJSONRPC
-import OSLog
 
-let logger = Logger(subsystem: "sourcekit-bazel-bsp", category: "bsp-server")
+let logger = makeBSPLogger(withCategory: "bsp-server")
 
-package final class BSPServer {
+package final class SourceKitBazelBSPServer {
 
-    let baseConfig: BaseServerConfig
-    let connection: JSONRPCConnection
+    let connection: LSPConnection
+    let handler: MessageHandler
 
-    package init(baseConfig: BaseServerConfig) {
-        self.baseConfig = baseConfig
-        self.connection = JSONRPCConnection(
+    package convenience init(
+        baseConfig: BaseServerConfig,
+        inputHandle: FileHandle = .standardInput,
+        outputHandle: FileHandle = .standardOutput
+    ) {
+        let connection = JSONRPCConnection(
             name: "sourcekit-lsp",
-            protocol: bspRegistry,
-            inFD: FileHandle.standardInput,
-            outFD: FileHandle.standardOutput
+            protocol: BuildServerProtocol.bspRegistry,
+            inFD: inputHandle,
+            outFD: outputHandle
         )
+        let handler = BSPServerMessageHandlerImpl(baseConfig: baseConfig, connection: connection)
+        self.init(connection: connection, handler: handler)
     }
 
-    package func run() throws {
+    package init(
+        connection: LSPConnection,
+        handler: MessageHandler
+    ) {
+        self.connection = connection
+        self.handler = handler
+    }
+
+    package func run(parkThread: Bool = true) throws {
         logger.info("Connecting to sourcekit-lsp...")
 
         connection.start(
-            receiveHandler: BSPServerMessageHandlerImpl(
-                baseConfig: baseConfig,
-                connection: connection
-            ),
+            receiveHandler: handler,
             closeHandler: {
                 logger.info("Connection closed, exiting.")
                 // Use _Exit to avoid running static destructors due to https://github.com/swiftlang/swift/issues/55112.
@@ -55,9 +65,14 @@ package final class BSPServer {
             }
         )
 
-        logger.info("Connection established, parking main thread.")
+        // For usage with unit tests, since we don't want to block the thread when using mocks
+        guard parkThread else {
+            return
+        }
 
-        // Park the main function by sleeping for 10 years.
+        logger.info("Connection established, parking thread.")
+
+        // Park the thread by sleeping for 10 years.
         // All request handling is done on other threads and sourcekit-bazel-bsp exits by calling `_Exit` when it receives a
         // shutdown notification.
         // (Copied from sourcekit-lsp)
