@@ -47,7 +47,9 @@ struct Serve: ParsableCommand {
     var filesToWatch: String?
 
     func run() throws {
-        logger.info("Serve called")
+        let logger = Logger(subsystem: "sourcekit-bazel-bsp", category: "serve-command")
+        logger.info("`serve` invoked, initializing BSP server")
+
         let connection = JSONRPCConnection(
             name: "sourcekit-lsp",
             protocol: bspRegistry,

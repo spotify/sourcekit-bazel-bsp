@@ -22,7 +22,7 @@ import Foundation
 import LanguageServerProtocolJSONRPC
 import OSLog
 
-package let logger = Logger(subsystem: "sourcekit-bazel-bsp", category: "bsp-server")
+let logger = Logger(subsystem: "sourcekit-bazel-bsp", category: "bsp-server")
 
 package final class BSPServer {
 
@@ -38,7 +38,7 @@ package final class BSPServer {
     }
 
     package func run() throws {
-        logger.info("Starting bazel bsp")
+        logger.info("Initializing the BSP server...")
         connection.start(
             receiveHandler: BSPServerMessageHandlerImpl(
                 baseConfig: baseConfig,
