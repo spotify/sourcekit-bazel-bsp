@@ -206,163 +206,38 @@ final class TextDocumentSourceKitOptionsHandler {
         }
 
         // Process compiler arguments with transformations
-        let processedArgs = try processCompilerArguments(
+        let processedArgs = try CompilerArgumentsProcessor.processCompilerArguments(
             rawArguments: lines,
-            language: language,
-            contentToQuery: contentToQuery
+            sdkRoot: initializedConfig.sdkRoot,
+            devDir: initializedConfig.devDir,
+            outputPath: initializedConfig.outputPath,
+            rootUri: initializedConfig.rootUri,
+            outputBase: initializedConfig.outputBase
         )
 
         lines = processedArgs
 
-        logger.info("Finished processing compiler arguments")
-
-        return lines
-    }
-
-    /// Processes compiler arguments with transformations
-    func processCompilerArguments(
-        rawArguments: [String],
-        language: Language,
-        contentToQuery: String
-    ) throws -> [String] {
-        var compilerArguments: [String] = []
-
-        let sdkRoot = initializedConfig.sdkRoot
-        let devDir = initializedConfig.devDir
-        let outputPath = initializedConfig.outputPath
-        let rootUri = initializedConfig.rootUri
-        let outputBase = initializedConfig.outputBase
-
-        var index = 0
-        let count = rawArguments.count
-
-        let indexingObjCHeader = language == .objective_c && contentToQuery.hasSuffix(".m")
-
-        if indexingObjCHeader {
-            // Xcode index builds adds these arguments to the beginning.
-            compilerArguments.append("-x")
-            compilerArguments.append("objective-c")
-        }
-
-        // Filtering/processing arguments that are either not needed for indexing or cause problems with it
-        while index < count {
-            let arg = rawArguments[index]
-
-            // Skip wrapper arguments
-            if arg.hasPrefix("-Xwrapped-swift") {
-                index += 1
-                continue
-            }
-
-            // Just aligning inconsistencies with Xcode index Obj-C builds.
-            if arg == "-c" && indexingObjCHeader {
-                index += 1
-                continue
-            }
-
-            // Skip batch mode (incompatible with -index-file)
-            if arg.contains("-enable-batch-mode") {
-                index += 1
-                continue
-            }
-
-            // For Swift, swap the index store arg with the global cache.
-            // Bazel handles this a bit differently internally, which is why
-            // we need to do this.
-            if arg == "-index-store-path" {
-                compilerArguments.append("-index-store-path")
-                compilerArguments.append(initializedConfig.indexStorePath)
-                index += 2
-                continue
-            }
-
-            // For Swift, Bazel will print relative paths, but indexing needs absolute paths.
-            if arg.hasSuffix(".swift"), !arg.hasPrefix("/") {
-                let transformedArg = rootUri + "/" + arg
-                compilerArguments.append(transformedArg)
-                index += 1
-                continue
-            }
-
-            // Same as above, but for modulemaps.
-            if arg.hasPrefix("-fmodule-map-file="), !arg.hasPrefix("-fmodule-map-file=/") {
-                let components = arg.components(separatedBy: "-fmodule-map-file=")
-                let proper = rootUri + "/" + components[1]
-                let transformedArg = "-fmodule-map-file=" + proper
-                compilerArguments.append(transformedArg)
-                index += 1
-                continue
-            }
-
-            // Otherwise, just add the argument.
-            compilerArguments.append(arg)
-            index += 1
-        }
-
-        // Now, replace Bazel env placeholders with the actual values
-        for i in 0 ..< compilerArguments.count {
-            let arg = compilerArguments[i]
-
-            if arg.contains(BazelEnvPlaceholder.execRoot.rawValue) {
-                compilerArguments[i] = arg.replacingOccurrences(
-                    of: BazelEnvPlaceholder.execRoot.rawValue,
-                    with: rootUri
-                )
-                continue
-            }
-
-            if arg.contains(BazelEnvPlaceholder.sdkRoot.rawValue) {
-                compilerArguments[i] = arg.replacingOccurrences(
-                    of: BazelEnvPlaceholder.sdkRoot.rawValue,
-                    with: sdkRoot
-                )
-                continue
-            }
-
-            if arg.contains(BazelEnvPlaceholder.devDir.rawValue) {
-                compilerArguments[i] = arg.replacingOccurrences(
-                    of: BazelEnvPlaceholder.devDir.rawValue,
-                    with: devDir
-                )
-                continue
-            }
-
-            // For bazel-out/, we want to replace the symlinks only,
-            // not references to the actual folder.
-            if arg.contains("bazel-out/") && !arg.contains("execroot/_main/bazel-out/") {
-                // FIXME: Need guardrails to make sure this is actually
-                // the bazel-out and not some path who just happens to have
-                // bazel-out/ in its name
-                compilerArguments[i] = arg.replacingOccurrences(
-                    of: "bazel-out/",
-                    with: outputPath + "/"
-                )
-                continue
-            }
-
-            if arg.contains("external/") {
-                // FIXME: Need guardrails to make sure this is actually
-                // the folder we're looking for and not some path who just happens to have
-                // external/ in its name
-                compilerArguments[i] = arg.replacingOccurrences(
-                    of: "external/",
-                    with: outputBase + "/external/"
-                )
-                continue
-            }
-        }
-
-        if indexingObjCHeader {
+        if language == .objective_c, contentToQuery.hasSuffix(".m") {
             // For Obj-C, add additional arguments that are needed for indexing
             // that Bazel / SK doesn't add by default, and adjust other inconsistencies
             // with Xcode index builds.
-            compilerArguments.append("-index-store-path")
-            compilerArguments.append(initializedConfig.indexStorePath)
-            compilerArguments.append("-working-directory")
-            compilerArguments.append(initializedConfig.rootUri)
+            removeArgSingle("-c", &lines)
+            lines.insert("-x", at: 0)
+            lines.insert("objective-c", at: 1)
+            lines.append("-index-store-path")
+            lines.append(initializedConfig.indexStorePath)
+            lines.append("-working-directory")
+            lines.append(initializedConfig.rootUri)
+        } else if language == .swift {
+            // For Swift, swap the index store arg with the global cache.
+            // Bazel handles this a bit differently internally, which is why
+            // we need to do this.
+            editArg("-index-store-path", initializedConfig.indexStorePath, &lines)
         }
 
-        return compilerArguments
+        logger.info("Finished processing compiler arguments")
+
+        return lines
     }
 
     func removeArgSingle(_ arg: String, _ lines: inout [String]) {
@@ -385,5 +260,17 @@ final class TextDocumentSourceKitOptionsHandler {
             return
         }
         lines[idx + 1] = new
+    }
+
+    /// Convenience method for testing - processes compiler arguments using the configured settings
+    func processCompilerArguments(rawArguments: [String]) throws -> [String] {
+        return try CompilerArgumentsProcessor.processCompilerArguments(
+            rawArguments: rawArguments,
+            sdkRoot: initializedConfig.sdkRoot,
+            devDir: initializedConfig.devDir,
+            outputPath: initializedConfig.outputPath,
+            rootUri: initializedConfig.rootUri,
+            outputBase: initializedConfig.outputBase
+        )
     }
 }
