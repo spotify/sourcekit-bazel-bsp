@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "sourcekit-bazel-bsp",
     platforms: [
-        .macOS(.v15)
+        .macOS(.v15),
     ],
     dependencies: [
         .package(
@@ -35,6 +35,20 @@ let package = Package(
                     package: "sourcekit-lsp"
                 ),
             ]
-        )
+        ),
+        .testTarget(
+            name: "sourcekit-bazel-bspTests",
+            dependencies: [
+                "sourcekit-bazel-bsp",
+                .product(
+                    name: "BuildServerProtocol",
+                    package: "sourcekit-lsp"
+                ),
+                .product(
+                    name: "LSPBindings",
+                    package: "sourcekit-lsp"
+                ),
+            ]
+        ),
     ]
 )
