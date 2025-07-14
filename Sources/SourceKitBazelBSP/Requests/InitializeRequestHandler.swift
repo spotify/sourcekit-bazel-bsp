@@ -49,7 +49,7 @@ struct InitializeRequestHandler {
                 inverseSourcesProvider: true,
                 dependencySourcesProvider: true,
                 resourcesProvider: true,
-                outputPathsProvider: false, // FIXME:
+                outputPathsProvider: false,  // FIXME:
                 buildTargetChangedProvider: true,
                 canReload: true,
             ),

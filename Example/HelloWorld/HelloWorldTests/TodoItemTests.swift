@@ -17,8 +17,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import XCTest
 import TodoModels
+import XCTest
 
 @testable import HelloWorldLib
 

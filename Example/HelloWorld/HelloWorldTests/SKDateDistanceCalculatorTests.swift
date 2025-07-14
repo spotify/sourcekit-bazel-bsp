@@ -17,8 +17,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import XCTest
 import TodoObjCSupport
+import XCTest
 
 @testable import HelloWorldLib
 
@@ -30,17 +30,17 @@ class SKDateDistanceCalculatorTests: XCTestCase {
     }
 
     func testDistanceFromNowWithPastDate() {
-        let pastDate = Date().addingTimeInterval(-3600) // 1 hour ago
+        let pastDate = Date().addingTimeInterval(-3600)  // 1 hour ago
         let distance = SKDateDistanceCalculator.distance(fromNow: pastDate)
         XCTAssertGreaterThan(distance, 0)
-        XCTAssertEqual(distance, 3600, accuracy: 1.0) // Allow 1 second tolerance
+        XCTAssertEqual(distance, 3600, accuracy: 1.0)  // Allow 1 second tolerance
     }
 
     func testDistanceFromNowWithFutureDate() {
-        let futureDate = Date().addingTimeInterval(3600) // 1 hour from now
+        let futureDate = Date().addingTimeInterval(3600)  // 1 hour from now
         let distance = SKDateDistanceCalculator.distance(fromNow: futureDate)
         XCTAssertLessThan(distance, 0)
-        XCTAssertEqual(distance, -3600, accuracy: 1.0) // Allow 1 second tolerance
+        XCTAssertEqual(distance, -3600, accuracy: 1.0)  // Allow 1 second tolerance
     }
 
     func testHumanReadableDistanceFromNowWithNilDate() {
@@ -49,7 +49,7 @@ class SKDateDistanceCalculatorTests: XCTestCase {
     }
 
     func testHumanReadableDistanceFromNowWithPastDate() {
-        let pastDate = Date().addingTimeInterval(-3600) // 1 hour ago
+        let pastDate = Date().addingTimeInterval(-3600)  // 1 hour ago
         let result = SKDateDistanceCalculator.humanReadableDistance(fromNow: pastDate)
         XCTAssertNotNil(result)
         if let result = result {
@@ -59,7 +59,7 @@ class SKDateDistanceCalculatorTests: XCTestCase {
     }
 
     func testHumanReadableDistanceFromNowWithFutureDate() {
-        let futureDate = Date().addingTimeInterval(3600) // 1 hour from now
+        let futureDate = Date().addingTimeInterval(3600)  // 1 hour from now
         let result = SKDateDistanceCalculator.humanReadableDistance(fromNow: futureDate)
         XCTAssertNotNil(result)
         if let result = result {
@@ -74,19 +74,19 @@ class SKDateDistanceCalculatorTests: XCTestCase {
     }
 
     func testDistanceFromNowInUnitWithPastDate() {
-        let pastDate = Date().addingTimeInterval(-7200) // 2 hours ago
+        let pastDate = Date().addingTimeInterval(-7200)  // 2 hours ago
         let result = SKDateDistanceCalculator.distance(fromNow: pastDate, in: .hour)
         XCTAssertEqual(result, 2)
     }
 
     func testDistanceFromNowInUnitWithFutureDate() {
-        let futureDate = Date().addingTimeInterval(7200) // 2 hours from now
+        let futureDate = Date().addingTimeInterval(7200)  // 2 hours from now
         let result = SKDateDistanceCalculator.distance(fromNow: futureDate, in: .hour)
         XCTAssertEqual(result, -2)
     }
 
     func testDateDistanceCalculationPerformance() {
-        let testDate = Date().addingTimeInterval(-86400) // 1 day ago
+        let testDate = Date().addingTimeInterval(-86400)  // 1 day ago
 
         measure {
             for _ in 0..<1000 {

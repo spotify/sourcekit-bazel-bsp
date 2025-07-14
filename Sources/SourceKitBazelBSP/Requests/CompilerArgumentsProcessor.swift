@@ -38,7 +38,8 @@ enum CompilerArgumentsProcessor {
             let arg = rawArguments[index]
 
             // Skip swiftc executable and wrapper arguments
-            if arg.contains("-Xwrapped-swift") || arg.hasSuffix("worker") || arg.hasPrefix("swiftc") {
+            if arg.contains("-Xwrapped-swift") || arg.hasSuffix("worker") || arg.hasPrefix("swiftc")
+            {
                 index += 1
                 continue
             }
@@ -109,7 +110,8 @@ enum CompilerArgumentsProcessor {
 
             // Transform bazel-out/ paths
             if arg.contains("bazel-out/") {
-                let transformedArg = arg.replacingOccurrences(of: "bazel-out/", with: outputPath + "/")
+                let transformedArg = arg.replacingOccurrences(
+                    of: "bazel-out/", with: outputPath + "/")
 
                 compilerArguments.append(transformedArg)
                 index += 1
@@ -118,7 +120,8 @@ enum CompilerArgumentsProcessor {
 
             // Transform external/ paths
             if arg.contains("external/") {
-                let transformedArg = arg.replacingOccurrences(of: "external/", with: outputBase + "/external/")
+                let transformedArg = arg.replacingOccurrences(
+                    of: "external/", with: outputBase + "/external/")
                 compilerArguments.append(transformedArg)
                 index += 1
                 continue

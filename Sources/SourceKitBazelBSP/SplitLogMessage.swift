@@ -30,41 +30,41 @@ import OSLog
 ///  - Note: This will only split along newline boundary. If a single line is longer than `maxChunkSize`, it won't be
 ///    split. This is fine for compiler argument splitting since a single argument is rarely longer than 800 characters.
 package func splitLongMultilineMessage(message: String) -> [String] {
-  let maxChunkSize = 800
-  var chunks: [String] = []
-  for line in message.split(separator: "\n", omittingEmptySubsequences: false) {
-    if let lastChunk = chunks.last, lastChunk.utf8.count + line.utf8.count < maxChunkSize {
-      chunks[chunks.count - 1] += "\n" + line
-    } else {
-      if !chunks.isEmpty {
-        // Append an end marker to the last chunk so that os_log doesn't truncate trailing whitespace,
-        // which would modify the source contents.
-        // Empty newlines are important so the offset of the request is correct.
-        chunks[chunks.count - 1] += "\n--- End Chunk"
-      }
-      chunks.append(String(line))
+    let maxChunkSize = 800
+    var chunks: [String] = []
+    for line in message.split(separator: "\n", omittingEmptySubsequences: false) {
+        if let lastChunk = chunks.last, lastChunk.utf8.count + line.utf8.count < maxChunkSize {
+            chunks[chunks.count - 1] += "\n" + line
+        } else {
+            if !chunks.isEmpty {
+                // Append an end marker to the last chunk so that os_log doesn't truncate trailing whitespace,
+                // which would modify the source contents.
+                // Empty newlines are important so the offset of the request is correct.
+                chunks[chunks.count - 1] += "\n--- End Chunk"
+            }
+            chunks.append(String(line))
+        }
     }
-  }
-  return chunks
+    return chunks
 }
 
 extension Logger {
-  package func logFullObjectInMultipleLogMessages(
-    level: OSLogType = .default,
-    header: StaticString,
-    _ subject: String
-  ) {
-    let chunks = splitLongMultilineMessage(message: subject)
-    let maxChunkCount = chunks.count
-    for i in 0..<maxChunkCount {
-      let loggableChunk = i < chunks.count ? chunks[i] : ""
-      self.log(
-        level: level,
-        """
-        \(header, privacy: .public) (\(i + 1)/\(maxChunkCount))
-        \(loggableChunk, privacy: .public)
-        """
-      )
+    package func logFullObjectInMultipleLogMessages(
+        level: OSLogType = .default,
+        header: StaticString,
+        _ subject: String
+    ) {
+        let chunks = splitLongMultilineMessage(message: subject)
+        let maxChunkCount = chunks.count
+        for i in 0..<maxChunkCount {
+            let loggableChunk = i < chunks.count ? chunks[i] : ""
+            self.log(
+                level: level,
+                """
+                \(header, privacy: .public) (\(i + 1)/\(maxChunkCount))
+                \(loggableChunk, privacy: .public)
+                """
+            )
+        }
     }
-  }
 }

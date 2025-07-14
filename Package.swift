@@ -22,24 +22,16 @@ let package = Package(
         .executableTarget(
             name: "sourcekit-bazel-bsp",
             dependencies: [
+                "SourceKitBazelBSP",
                 .product(
                     name: "ArgumentParser",
                     package: "swift-argument-parser"
                 ),
-                .product(
-                    name: "BuildServerProtocol",
-                    package: "sourcekit-lsp"
-                ),
-                .product(
-                    name: "LSPBindings",
-                    package: "sourcekit-lsp"
-                ),
             ]
         ),
-        .testTarget(
-            name: "sourcekit-bazel-bspTests",
+        .target(
+            name: "SourceKitBazelBSP",
             dependencies: [
-                "sourcekit-bazel-bsp",
                 .product(
                     name: "BuildServerProtocol",
                     package: "sourcekit-lsp"
@@ -48,7 +40,11 @@ let package = Package(
                     name: "LSPBindings",
                     package: "sourcekit-lsp"
                 ),
-            ]
+            ],
+        ),
+        .testTarget(
+            name: "SourceKitBazelBSPTests",
+            dependencies: ["SourceKitBazelBSP"]
         ),
     ]
 )

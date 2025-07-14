@@ -74,8 +74,8 @@ struct AddTodoView: View {
                         .padding()
                         .background(
                             todoTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            ? Color.gray
-                            : Color.blue
+                                ? Color.gray
+                                : Color.blue
                         )
                         .cornerRadius(12)
                     }
