@@ -17,15 +17,35 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import ArgumentParser
-import SourceKitBazelBSP
+import Foundation
 
-@main
-struct SourcekitBazelBsp: ParsableCommand {
-    static let configuration = CommandConfiguration(
-        abstract: "A Build Server Protocol server for Bazel, for usage with SourceKit-LSP.",
-        version: sourcekitBazelBSPVersion,
-        subcommands: [Serve.self],
-        defaultSubcommand: Serve.self
-    )
+@testable import SourceKitBazelBSP
+
+final class CommandRunnerFake: CommandRunner {
+
+    private(set) var commands: [(command: String, cwd: String?)] = []
+    private var responses: [String: String] = [:]
+    private var errors: [String: Error] = [:]
+
+    func setResponse(for command: String, response: String) {
+        responses[command] = response
+    }
+
+    func setError(for command: String, error: Error) {
+        errors[command] = error
+    }
+
+    func run(_ cmd: String, cwd: String?) throws -> String {
+        commands.append((command: cmd, cwd: cwd))
+
+        if let error = errors[cmd] {
+            throw error
+        }
+
+        return responses[cmd] ?? "Response/error not registered for command: \(cmd)"
+    }
+
+    func clearHistory() {
+        commands.removeAll()
+    }
 }
