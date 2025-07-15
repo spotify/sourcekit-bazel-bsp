@@ -95,7 +95,8 @@ final class BSPServerMessageHandlerImpl: @unchecked Sendable {
                 outputBase: outputBase,
                 outputPath: outputPath,
                 devDir: devDir,
-                sdkRoot: sdkRoot
+                sdkRoot: sdkRoot,
+                devToolchainPath: devDir + "/Toolchains/XcodeDefault.xctoolchain/"
             )
             let result = try InitializeRequestHandler().handle(
                 request: request,

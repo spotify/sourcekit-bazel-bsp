@@ -41,16 +41,4 @@ package struct BaseServerConfig: Equatable {
         self.indexFlags = indexFlags
         self.filesToWatch = filesToWatch
     }
-
-    var aqueryString: String {
-        var query = ""
-        for target in self.targets {
-            if query == "" {
-                query = "deps(\(target))"
-            } else {
-                query += " union deps(\(target))"
-            }
-        }
-        return query
-    }
 }

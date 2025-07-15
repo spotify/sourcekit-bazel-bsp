@@ -19,46 +19,24 @@
 
 import BuildServerProtocol
 import Foundation
-import LanguageServerProtocol
-import LanguageServerProtocolJSONRPC
 
-enum WorkspaceBuildTargetsError: Error, LocalizedError {
-    case invalidQueryOutput
+/// Small abstraction to parse the results of bazel target queries.
+///
+/// FIXME: Currently uses XML, should use proto instead so that we can organize and test this properly
+enum BazelQueryParser {
+    static func parseTargets(
+        from xml: XMLElement,
+        supportedRuleTypes: Set<String>,
+        rootUri: String,
+        toolchainPath: String
+    ) throws -> [(BuildTarget, [URI])] {
 
-    var errorDescription: String? {
-        switch self {
-        case .invalidQueryOutput:
-            return "Query output is not valid XML"
-        }
-    }
-}
+        // FIXME: Most of this logic is hacked together and not thought through, with the
+        // sole intention of getting the example project to work.
+        // Need to understand what exactly we can receive from the queries to know how to properly
+        // parse this info.
 
-final class WorkspaceBuildTargetsHandler {
-
-    let initializedConfig: InitializedServerConfig
-
-    private(set) var targetsToBazelMap: [URI: String] = [:]
-    private(set) var targetsToSrcsMap: [URI: [URI]] = [:]
-    private(set) var srcToTargetsMap: [URI: [URI]] = [:]
-    private var queryCache: XMLElement?
-
-    init(initializedConfig: InitializedServerConfig) {
-        self.initializedConfig = initializedConfig
-    }
-
-    func handle(
-        request: WorkspaceBuildTargetsRequest,
-        id: RequestID
-    ) throws -> WorkspaceBuildTargetsResponse {
-        var targets: [BuildTarget] = []
-
-        let allowedClasses: Set<String> = [
-            "swift_library",
-            "objc_library",
-        ]
-        let xml = try queryTargets(allowedClasses)
-        let rootUri = initializedConfig.rootUri
-        let toolchain = initializedConfig.devDir + "/Toolchains/XcodeDefault.xctoolchain/"
+        var targets: [(BuildTarget, [URI])] = []
         for child in (xml.children ?? []) {
             if child.name != "rule" {
                 continue
@@ -67,54 +45,26 @@ final class WorkspaceBuildTargetsHandler {
                 continue
             }
             let className = childElement.attribute(forName: "class")?.stringValue ?? ""
-            guard allowedClasses.contains(className) else {
+            guard supportedRuleTypes.contains(className) else {
                 continue
             }
-            if var target = try getTargetForLibrary(childElement, className, rootUri) {
-                target.dataKind = .sourceKit
-                target.data = SourceKitBuildTarget(
-                    toolchain: try URI(string: "file://" + toolchain)
-                ).encodeToLSPAny()
-                targets.append(target)
+            if let data = try getTargetForLibrary(childElement, className, rootUri, toolchainPath) {
+                targets.append(data)
             }
         }
-
-        logger.info("Found \(xml.children?.count ?? -1, privacy: .public) targets")
-
-        return WorkspaceBuildTargetsResponse(targets: targets)
+        return targets
     }
 
-    func queryTargets(_ allowedClasses: Set<String>) throws -> XMLElement {
-        if let cached = queryCache {
-            logger.info("Returning cached targets")
-            return cached
-        }
-        logger.info("Querying targets")
-        let bazelWrapper = initializedConfig.baseConfig.bazelWrapper
-        let targets = BazelTargetQuerier.queryDepsString(
-            forTargets: initializedConfig.baseConfig.targets)
-        let args =
-            bazelWrapper
-            + " query \"kind('\(allowedClasses.sorted().joined(separator: "|"))', \(targets))\" --output xml"
-        let output = try shell(args, cwd: initializedConfig.rootUri)
-        logger.info("Finished querying targets")
-        guard let xml = try XMLDocument(xmlString: output).rootElement() else {
-            throw WorkspaceBuildTargetsError.invalidQueryOutput
-        }
-        queryCache = xml
-        logger.info("Will return XML")
-        return xml
-    }
-
-    func getTargetForLibrary(_ childElement: XMLElement, _ className: String, _ rootUri: String)
-        throws -> BuildTarget?
+    static private func getTargetForLibrary(
+        _ childElement: XMLElement, _ className: String, _ rootUri: String, _ toolchainPath: String
+    )
+        throws -> (BuildTarget, [URI])?
     {
         let bazelTarget = childElement.attribute(forName: "name")?.stringValue ?? ""
         guard bazelTarget.starts(with: "//") else {
             // FIXME
             return nil
         }
-        // logger.info("Found target \(bazelTarget, privacy: .public)")
         let isSwift = className.contains("swift")
         let fullPath = rootUri + "/" + bazelTarget.dropFirst(2)
         let uriRaw = bazelTargetToURI(fullPath)
@@ -181,12 +131,6 @@ final class WorkspaceBuildTargetsHandler {
             }
         }
 
-        targetsToBazelMap[uri] = bazelTarget
-        targetsToSrcsMap[uri] = targetSrcs
-        for src in targetSrcs {
-            srcToTargetsMap[src, default: []].append(uri)
-        }
-
         var tags: [BuildTargetTag] = [.library]
         var capabilities = BuildTargetCapabilities(
             canCompile: true,
@@ -194,23 +138,29 @@ final class WorkspaceBuildTargetsHandler {
             canRun: false,
             canDebug: false
         )
+        // FIXME: Not the way to do this
         if bazelTarget.hasSuffix("TestsLib") {
             capabilities.canTest = true
             tags.append(.test)
         }
-
-        return BuildTarget(
-            id: BuildTargetIdentifier(uri: uri),
-            displayName: bazelTarget,
-            baseDirectory: try URI(string: basePath),
-            tags: tags,
-            capabilities: capabilities,
-            languageIds: isSwift ? [.swift] : [.objective_c],
-            dependencies: targetDeps,
+        return (
+            BuildTarget(
+                id: BuildTargetIdentifier(uri: uri),
+                displayName: bazelTarget,
+                baseDirectory: try URI(string: basePath),
+                tags: tags,
+                capabilities: capabilities,
+                languageIds: isSwift ? [.swift] : [.objective_c],
+                dependencies: targetDeps,
+                dataKind: .sourceKit,
+                data: SourceKitBuildTarget(
+                    toolchain: try URI(string: "file://" + toolchainPath)
+                ).encodeToLSPAny()
+            ), targetSrcs
         )
     }
 
-    func bazelTargetToURI(_ bazelTarget: String) -> String {
+    static func bazelTargetToURI(_ bazelTarget: String) -> String {
         return "file://\(bazelTarget.replacingOccurrences(of: ":", with: "___"))"
     }
 }
