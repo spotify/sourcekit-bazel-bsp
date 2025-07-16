@@ -17,33 +17,16 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
-import LanguageServerProtocolJSONRPC
 
-final class TaskLogger {
-    private weak var connection: JSONRPCConnection?
+typealias BSPNotificationHandler<Notification: NotificationType> = (Notification) throws -> Void
 
-    init(connection: JSONRPCConnection) {
-        self.connection = connection
-    }
+/// A type-erased notification handler wrapper to allow for dynamic registration of handlers.
+final class AnyNotificationHandler {
+    let handler: Any
 
-    func startWorkTask(id: TaskId, title: String) {
-        connection?.send(
-            TaskStartNotification(
-                taskId: id,
-                data: WorkDoneProgressTask(title: title).encodeToLSPAny()
-            )
-        )
-    }
-
-    func finishTask(id: TaskId, status: StatusCode) {
-        connection?.send(
-            TaskFinishNotification(
-                taskId: id,
-                status: .ok,
-            )
-        )
+    init<Notification: NotificationType>(handler: @escaping BSPNotificationHandler<Notification>) {
+        self.handler = handler
     }
 }

@@ -23,7 +23,7 @@ import LanguageServerProtocol
 import LanguageServerProtocolJSONRPC
 import os
 
-final class BSPServerMessageHandlerImpl: BSPServerMessageHandler, @unchecked Sendable {
+final class BSPServerMessageHandlerImpl: @unchecked Sendable {
 
     // FIXME: Make it work without locking
     let lock: OSAllocatedUnfairLock<Void> = OSAllocatedUnfairLock<Void>()
