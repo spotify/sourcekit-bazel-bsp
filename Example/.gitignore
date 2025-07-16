@@ -11,6 +11,7 @@
 /.settings
 /bazel.iml
 /bazel-*
+/custom-*
 /output/
 /production
 /.sass-cache

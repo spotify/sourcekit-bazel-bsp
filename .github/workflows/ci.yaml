@@ -17,16 +17,19 @@ jobs:
         run: "sudo xcode-select -s /Applications/Xcode_$XCODE_VERSION.app"
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Build project
+      - name: Lint Swift files
+        run: swift format lint Sources/ Tests/ Example/ --recursive
+      - name: Build sourcekit-bazel-bsp (debug)
         run: swift build
-      - name: Run tests
+      - name: Test sourcekit-bazel-bsp
         run: swift test
-      - name: Build example iOS app
+      - name: Build sourcekit-bazel-bsp (release)
+        run: swift build -c release
+      - name: Build example //HelloWorld iOS app
         run: |
           cd Example
-          bazel build //HelloWorld
-      # TODO: add test target to the example iOS app
-      # - name: Test example iOS app
-      #   run: |
-      #     cd Example
-      #     bazel test //HelloWorld/HelloWorldTests/...
+          bazelisk build //HelloWorld
+      - name: Test example //HelloWorld iOS app
+        run: |
+          cd Example
+          bazelisk test //HelloWorld:HelloWorldTests

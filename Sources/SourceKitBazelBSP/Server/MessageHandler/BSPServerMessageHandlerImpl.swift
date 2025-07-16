@@ -218,7 +218,9 @@ final class BSPServerMessageHandlerImpl: @unchecked Sendable {
         var affectedTargets: Set<URI> = []
         for change in changes {
             let targetsForSrc = workspaceBuildTargetsHandler.srcToTargetsMap[change] ?? []
-            targetsForSrc.forEach { affectedTargets.insert($0) }
+            for target in targetsForSrc {
+                affectedTargets.insert(target)
+            }
         }
         let response = OnBuildTargetDidChangeNotification(
             changes: affectedTargets.map {
