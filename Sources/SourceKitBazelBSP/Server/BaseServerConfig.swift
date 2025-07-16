@@ -24,7 +24,7 @@ import Foundation
 /// Used to bootstrap the connection to sourcekit-lsp, so that later we can create the
 /// more complete `InitializedServerConfig` struct containing all information
 /// needed to operate the server.
-package struct BaseServerConfig {
+package struct BaseServerConfig: Equatable {
     let bazelWrapper: String
     let targets: [String]
     let indexFlags: [String]

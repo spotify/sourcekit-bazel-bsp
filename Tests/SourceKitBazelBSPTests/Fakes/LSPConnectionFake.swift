@@ -52,10 +52,10 @@ final class LSPConnectionFake: LSPConnection {
     }
 
     func startWorkTask(id: TaskId, title: String) {
-        unimplemented()
+        // no-op
     }
 
     func finishTask(id: TaskId, status: StatusCode) {
-        unimplemented()
+        // no-op
     }
 }

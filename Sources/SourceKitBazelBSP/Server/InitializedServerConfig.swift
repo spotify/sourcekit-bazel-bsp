@@ -21,14 +21,13 @@ import Foundation
 
 /// The full configuration of the server, including all information needed to operate the BSP.
 /// Created by the BSP based on the initial `BaseServerConfig`` when the LSP sends us the `initialize` request.
-struct InitializedServerConfig {
+struct InitializedServerConfig: Equatable {
     let baseConfig: BaseServerConfig
     let rootUri: String
     let outputBase: String
     let outputPath: String
     let devDir: String
     let sdkRoot: String
-    let taskLogger: TaskLogger
 
     var indexDatabasePath: String {
         outputPath + "/_global_index_database"
