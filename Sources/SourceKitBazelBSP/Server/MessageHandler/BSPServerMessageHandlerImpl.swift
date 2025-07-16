@@ -95,8 +95,7 @@ final class BSPServerMessageHandlerImpl: @unchecked Sendable {
                 outputBase: outputBase,
                 outputPath: outputPath,
                 devDir: devDir,
-                sdkRoot: sdkRoot,
-                taskLogger: taskLogger
+                sdkRoot: sdkRoot
             )
             let result = try InitializeRequestHandler().handle(
                 request: request,

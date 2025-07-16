@@ -88,9 +88,7 @@ package final class SourceKitBazelBSPServer {
             receiveHandler: handler,
             closeHandler: {
                 logger.info("Connection closed, exiting.")
-                // Use _Exit to avoid running static destructors due to https://github.com/swiftlang/swift/issues/55112.
-                // (Copied from sourcekit-lsp)
-                _Exit(0)
+                safeTerminate(0)
             }
         )
 
