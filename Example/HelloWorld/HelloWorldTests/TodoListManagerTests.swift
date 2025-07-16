@@ -24,14 +24,21 @@ import XCTest
 
 class TodoListManagerTests: XCTestCase {
 
+    let fakeDefaults = UserDefaults(suiteName: "test")!
+
+    override func tearDown() {
+        super.tearDown()
+        fakeDefaults.removeObject(forKey: "todo-items")
+    }
+
     func testTodoListManagerInitialization() {
-        let manager = TodoListManager()
+        let manager = TodoListManager(userDefaults: fakeDefaults)
         XCTAssertNotNil(manager)
         XCTAssertTrue(manager.todoItems.isEmpty)
     }
 
     func testAddTodoItem() {
-        let manager = TodoListManager()
+        let manager = TodoListManager(userDefaults: fakeDefaults)
         let initialCount = manager.todoItems.count
 
         manager.addTodoItem(title: "New Task")
@@ -42,7 +49,7 @@ class TodoListManagerTests: XCTestCase {
     }
 
     func testToggleTodoItem() {
-        let manager = TodoListManager()
+        let manager = TodoListManager(userDefaults: fakeDefaults)
         manager.addTodoItem(title: "Test Task")
 
         guard let item = manager.todoItems.first else {
@@ -57,7 +64,7 @@ class TodoListManagerTests: XCTestCase {
     }
 
     func testDeleteTodoItem() {
-        let manager = TodoListManager()
+        let manager = TodoListManager(userDefaults: fakeDefaults)
         manager.addTodoItem(title: "Task to Delete")
 
         guard let item = manager.todoItems.first else {
@@ -73,16 +80,16 @@ class TodoListManagerTests: XCTestCase {
     }
 
     func testTodoListManagerPersistence() {
-        let manager1 = TodoListManager()
+        let manager1 = TodoListManager(userDefaults: fakeDefaults)
         manager1.addTodoItem(title: "Persistent Task")
 
-        let manager2 = TodoListManager()
+        let manager2 = TodoListManager(userDefaults: fakeDefaults)
         XCTAssertEqual(manager2.todoItems.count, 1)
         XCTAssertEqual(manager2.todoItems.first?.title, "Persistent Task")
     }
 
     func testMultipleTodoItems() {
-        let manager = TodoListManager()
+        let manager = TodoListManager(userDefaults: fakeDefaults)
 
         manager.addTodoItem(title: "Task 1")
         manager.addTodoItem(title: "Task 2")
@@ -95,7 +102,7 @@ class TodoListManagerTests: XCTestCase {
     }
 
     func testToggleNonExistentItem() {
-        let manager = TodoListManager()
+        let manager = TodoListManager(userDefaults: fakeDefaults)
         let fakeItem = TodoItem(title: "Fake Item")
 
         // Should not crash
@@ -104,7 +111,7 @@ class TodoListManagerTests: XCTestCase {
     }
 
     func testDeleteNonExistentItem() {
-        let manager = TodoListManager()
+        let manager = TodoListManager(userDefaults: fakeDefaults)
         let fakeItem = TodoItem(title: "Fake Item")
 
         // Should not crash
@@ -113,7 +120,7 @@ class TodoListManagerTests: XCTestCase {
     }
 
     func testEmptyTitleHandling() {
-        let manager = TodoListManager()
+        let manager = TodoListManager(userDefaults: fakeDefaults)
         manager.addTodoItem(title: "")
 
         XCTAssertEqual(manager.todoItems.count, 1)
@@ -121,7 +128,7 @@ class TodoListManagerTests: XCTestCase {
     }
 
     func testVeryLongTitle() {
-        let manager = TodoListManager()
+        let manager = TodoListManager(userDefaults: fakeDefaults)
         let longTitle = String(repeating: "A", count: 1000)
         manager.addTodoItem(title: longTitle)
 
@@ -130,7 +137,7 @@ class TodoListManagerTests: XCTestCase {
     }
 
     func testTodoListManagerPerformance() {
-        let manager = TodoListManager()
+        let manager = TodoListManager(userDefaults: fakeDefaults)
 
         measure {
             for i in 0..<100 {

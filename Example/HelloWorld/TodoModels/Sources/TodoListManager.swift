@@ -23,10 +23,11 @@ import SwiftUI
 public final class TodoListManager: ObservableObject {
     @Published public var todoItems: [TodoItem] = []
 
-    private let userDefaults = UserDefaults.standard
+    private let userDefaults: UserDefaults
     private let todoItemsKey = "todo-items"
 
-    public init() {
+    public init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
         loadTodoItems()
     }
 
