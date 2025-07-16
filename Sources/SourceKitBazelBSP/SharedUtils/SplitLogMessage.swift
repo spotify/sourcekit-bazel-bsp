@@ -20,7 +20,7 @@
 // Based on the same file in sourcekit-lsp, which we can't use directly due to it currently being `package` scoped.
 // os_log has a maximum message length, so longer messages need to be split into multiple logs.
 
-import OSLog
+import BSPLogging
 
 /// Splits `message` on newline characters such that each chunk is at most `maxChunkSize` bytes long.
 ///
@@ -48,9 +48,9 @@ package func splitLongMultilineMessage(message: String) -> [String] {
     return chunks
 }
 
-extension Logger {
+extension SwiftLogger {
     package func logFullObjectInMultipleLogMessages(
-        level: OSLogType = .default,
+        level: SwiftLogger.Level = .info,
         header: StaticString,
         _ subject: String
     ) {
@@ -61,8 +61,8 @@ extension Logger {
             self.log(
                 level: level,
                 """
-                \(header, privacy: .public) (\(i + 1)/\(maxChunkCount))
-                \(loggableChunk, privacy: .public)
+                \(header) (\(i + 1)/\(maxChunkCount))
+                \(loggableChunk)
                 """
             )
         }

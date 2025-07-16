@@ -79,7 +79,7 @@ final class WorkspaceBuildTargetsHandler {
             }
         }
 
-        logger.info("Found \(xml.children?.count ?? -1, privacy: .public) targets")
+        logger.info("Found \(xml.children?.count ?? -1) targets")
 
         return WorkspaceBuildTargetsResponse(targets: targets)
     }
@@ -113,7 +113,7 @@ final class WorkspaceBuildTargetsHandler {
             // FIXME
             return nil
         }
-        // logger.info("Found target \(bazelTarget, privacy: .public)")
+        // logger.info("Found target \(bazelTarget)")
         let isSwift = className.contains("swift")
         let fullPath = rootUri + "/" + bazelTarget.dropFirst(2)
         let uriRaw = bazelTargetToURI(fullPath)

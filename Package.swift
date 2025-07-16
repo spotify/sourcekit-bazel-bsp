@@ -17,12 +17,17 @@ let package = Package(
             url: "https://github.com/apple/sourcekit-lsp",
             revision: "12da8e5f54809b642701dd0dd6e145d3e0c67bc4"
         ),
+        .package(
+            url: "https://github.com/apple/swift-log",
+            revision: "3d8596ed08bd13520157f0355e35caed215ffbfa"
+        ),
     ],
     targets: [
         .executableTarget(
             name: "sourcekit-bazel-bsp",
             dependencies: [
                 "SourceKitBazelBSP",
+                "BSPLogging",
                 .product(
                     name: "ArgumentParser",
                     package: "swift-argument-parser"
@@ -32,6 +37,7 @@ let package = Package(
         .target(
             name: "SourceKitBazelBSP",
             dependencies: [
+                "BSPLogging",
                 .product(
                     name: "BuildServerProtocol",
                     package: "sourcekit-lsp"
@@ -45,6 +51,12 @@ let package = Package(
         .testTarget(
             name: "SourceKitBazelBSPTests",
             dependencies: ["SourceKitBazelBSP"]
+        ),
+        .target(
+            name: "BSPLogging",
+            dependencies: [
+                .product(name: "Logging", package: "swift-log")
+            ]
         ),
     ]
 )

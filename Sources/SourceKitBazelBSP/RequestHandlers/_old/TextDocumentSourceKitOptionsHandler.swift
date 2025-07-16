@@ -43,11 +43,11 @@ final class TextDocumentSourceKitOptionsHandler {
         }
         let targetUri = request.target.uri
         logger.info(
-            "Getting SKOptions for \(targetUri.stringValue, privacy: .public), language: \(request.language, privacy: .public)"
+            "Getting SKOptions for \(targetUri.stringValue), language: \(request.language)"
         )
         // FIXME: error handling
         let bazelTarget = targetsToBazelMap[targetUri]!
-        logger.info("Target is: \(bazelTarget, privacy: .public)")
+        logger.info("Target is: \(bazelTarget)")
         let args = try getCompilerArguments(
             bazelTarget,
             request.language,
@@ -79,10 +79,10 @@ final class TextDocumentSourceKitOptionsHandler {
             contentToQuery = parsedFile
         }
         if let cachedArgs = queryCache[cacheKey] {
-            logger.info("Returning cached compiler arguments for \(cacheKey, privacy: .public)")
+            logger.info("Returning cached compiler arguments for \(cacheKey)")
             return cachedArgs
         }
-        logger.info("Getting compiler arguments for \(cacheKey, privacy: .public)")
+        logger.info("Getting compiler arguments for \(cacheKey)")
         let bazelWrapper = initializedConfig.baseConfig.bazelWrapper
         let appToBuild = initializedConfig.baseConfig.aqueryString
         let outputBase = initializedConfig.outputBase
@@ -143,10 +143,10 @@ final class TextDocumentSourceKitOptionsHandler {
         }
         if idx == -1 {
             logger.error(
-                "No module entry found in the aquery for \(contentToQuery, privacy: .public)")
+                "No module entry found in the aquery for \(contentToQuery)")
             return []
         }
-        logger.info("Found module for \(bazelTarget, privacy: .public) at \(idx, privacy: .public)")
+        logger.info("Found module for \(bazelTarget) at \(idx)")
         // now, get the first index of the line that starts with "Command Line: ("
         lines = Array(lines.dropFirst(idx + 1))
         idx = -1
@@ -164,7 +164,7 @@ final class TextDocumentSourceKitOptionsHandler {
             logger.error("No command line entry found")
             return []
         }
-        logger.info("Found command line entry at \(idx, privacy: .public)")
+        logger.info("Found command line entry at \(idx)")
 
         // now, find where the arguments end
         lines = Array(lines.dropFirst(idx + 1))
@@ -181,7 +181,7 @@ final class TextDocumentSourceKitOptionsHandler {
             return []
         }
 
-        logger.info("Found where the args end at \(idx, privacy: .public)")
+        logger.info("Found where the args end at \(idx)")
         lines = Array(lines.dropLast(lines.count - idx - 1))
 
         // the spaced lines are the compiler arguments

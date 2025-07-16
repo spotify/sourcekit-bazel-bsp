@@ -46,7 +46,7 @@ final class PrepareTargetHandler {
         // FIXME: error handling
         let bazelTargets = targets.map { targetsToBazelMap[$0]! }
 
-        logger.info("Building \(bazelTargets.count, privacy: .public) targets")
+        logger.info("Building \(bazelTargets.count) targets")
 
         // FIXME: find out how to properly only build the specific targets
         let bazelWrapper = initializedConfig.baseConfig.bazelWrapper

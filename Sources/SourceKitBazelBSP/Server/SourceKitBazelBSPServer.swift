@@ -17,13 +17,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import BSPLogging
 import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 import LanguageServerProtocolJSONRPC
 
-// FIXME: To make one per-file once we finish refactoring the code
-let logger = makeBSPLogger()
+let logger = SwiftLogger(label: "sourcekit-bazel-bsp:\(#fileID)")
 
 /// The higher-level class that bootstraps and manages the BSP server.
 package final class SourceKitBazelBSPServer {

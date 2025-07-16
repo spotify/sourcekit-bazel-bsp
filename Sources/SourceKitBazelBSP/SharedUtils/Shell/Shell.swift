@@ -46,7 +46,7 @@ struct ShellCommandRunner: CommandRunner {
         task.arguments = ["-c", cmd]
         task.standardInput = nil
 
-        logger.info("Running shell: \(cmd, privacy: .public)")
+        logger.info("Running shell: \(cmd)")
         try task.run()
 
         // Drain stdout/err first to avoid deadlocking when the output is buffered.
@@ -82,7 +82,7 @@ func shell(_ cmd: String, cwd: String? = nil) throws -> String {
     task.arguments = ["-c", cmd]
     task.standardInput = nil
 
-    logger.info("Running shell: \(cmd, privacy: .public)")
+    logger.info("Running shell: \(cmd)")
     try task.run()
 
     // Drain stdout/err first to avoid deadlocking when the output is buffered.

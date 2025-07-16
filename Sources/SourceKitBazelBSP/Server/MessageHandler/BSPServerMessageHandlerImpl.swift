@@ -66,13 +66,13 @@ final class BSPServerMessageHandlerImpl: @unchecked Sendable {
             id: taskId, title: "Indexing: Initializing sourcekit-bazel-bsp")
         do {
             let rootUri = request.rootUri.arbitrarySchemeURL.path
-            logger.info("rootUri: \(rootUri, privacy: .public)")
+            logger.info("rootUri: \(rootUri)")
             let regularOutputBase = URL(
                 fileURLWithPath: try shell(
                     baseConfig.bazelWrapper + " info output_base",
                     cwd: rootUri
                 ))
-            logger.info("regularOutputBase: \(regularOutputBase, privacy: .public)")
+            logger.info("regularOutputBase: \(regularOutputBase)")
             let lastPath = regularOutputBase.lastPathComponent
             let outputBase =
                 regularOutputBase
@@ -80,13 +80,13 @@ final class BSPServerMessageHandlerImpl: @unchecked Sendable {
                 .appendingPathComponent("\(lastPath)-sourcekit-bazel-bsp")
                 .path
             // let outputBase = rootUri + "/bazel-out-sourcekit-bazel-bsp"
-            logger.info("outputBase: \(outputBase, privacy: .public)")
+            logger.info("outputBase: \(outputBase)")
             let flags = baseConfig.indexFlags.joined(separator: " ")
             let outputPath = try shell(
                 baseConfig.bazelWrapper + " --output_base=\(outputBase) info output_path \(flags)",
                 cwd: rootUri
             )
-            logger.info("outputPath: \(outputPath, privacy: .public)")
+            logger.info("outputPath: \(outputPath)")
             let devDir = try shell("xcode-select --print-path")
             let sdkRoot = try shell("xcrun --sdk iphonesimulator --show-sdk-path")
             self.initializedConfig = InitializedServerConfig(

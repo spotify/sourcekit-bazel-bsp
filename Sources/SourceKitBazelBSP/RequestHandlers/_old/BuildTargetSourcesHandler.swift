@@ -36,12 +36,12 @@ final class BuildTargetSourcesHandler {
     ) throws -> BuildTargetSourcesResponse {
         let targets = request.targets.map { $0.uri }
 
-        logger.info("Getting sources for \(targets.count, privacy: .public) targets")
+        logger.info("Getting sources for \(targets.count) targets")
 
         var srcs: [SourcesItem] = []
         for targetUri in targets {
             guard let targetSrcs = srcsMap[targetUri] else {
-                logger.error("Target \(targetUri.stringValue, privacy: .public) not found")
+                logger.error("Target \(targetUri.stringValue) not found")
                 return BuildTargetSourcesResponse(items: [])
             }
             let target = BuildTargetIdentifier(uri: targetUri)
@@ -55,7 +55,7 @@ final class BuildTargetSourcesHandler {
         let count = srcs.reduce(0) { $0 + $1.sources.count }
 
         logger.info(
-            "Returning \(srcs.count, privacy: .public) source specs (\(count, privacy: .public) total source entries)"
+            "Returning \(srcs.count) source specs (\(count) total source entries)"
         )
 
         return BuildTargetSourcesResponse(items: srcs)

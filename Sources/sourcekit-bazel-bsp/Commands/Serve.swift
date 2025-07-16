@@ -18,11 +18,11 @@
 // under the License.
 
 import ArgumentParser
+import BSPLogging
 import Foundation
-import OSLog
 import SourceKitBazelBSP
 
-private let logger = makeBSPLogger()
+let logger = SwiftLogger(label: "sourcekit-bazel-bsp:\(#fileID)")
 
 struct Serve: ParsableCommand {
     @Option(help: "The name of the Bazel CLI to invoke (e.g. 'bazelisk')")
@@ -52,8 +52,17 @@ struct Serve: ParsableCommand {
             "Comma separated list of file globs to watch for changes."
     )
     var filesToWatch: String?
+    
+    @Flag(
+        help:
+            "Use FileHandler as backend which will be stored at ~/bazel-bsp.log. Default is to use OSLog as backend"
+    )
+    var logToFile: Bool = false
 
     func run() throws {
+        // setup logging as early as we can
+        BSPLogging.setup(logToFile: logToFile)
+        
         logger.info("`serve` invoked, initializing BSP server...")
         let config = BaseServerConfig(
             bazelWrapper: bazelWrapper,

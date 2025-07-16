@@ -62,7 +62,7 @@ final class BSPMessageHandler: MessageHandler {
     func handle<Notification: NotificationType>(_ notification: Notification) {
         lock.withLockUnchecked { state in
             logger.info(
-                "Received notification: \(Notification.method, privacy: .public)"
+                "Received notification: \(Notification.method)"
             )
             do {
                 let handler = try getHandler(for: notification, state: state)
@@ -80,12 +80,12 @@ final class BSPMessageHandler: MessageHandler {
     ) {
         lock.withLockUnchecked { state in
             logger.info(
-                "Received request: \(Request.method, privacy: .public)"
+                "Received request: \(Request.method)"
             )
             do {
                 let handler = try getHandler(for: request, id, reply, state: state)
                 let response = try handler(request, id)
-                logger.info("Replying to \(Request.method, privacy: .public)")
+                logger.info("Replying to \(Request.method)")
                 reply(.success(response))
             } catch {
                 logger.error("Error while handling BSP request: \(error.localizedDescription)")
