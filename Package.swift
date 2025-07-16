@@ -17,6 +17,10 @@ let package = Package(
             url: "https://github.com/apple/sourcekit-lsp",
             revision: "12da8e5f54809b642701dd0dd6e145d3e0c67bc4"
         ),
+        .package(
+            url: "https://github.com/apple/swift-protobuf.git",
+            revision: "102a647b573f60f73afdce5613a51d71349fe507"
+        ),
     ],
     targets: [
         .executableTarget(
@@ -46,5 +50,19 @@ let package = Package(
             name: "SourceKitBazelBSPTests",
             dependencies: ["SourceKitBazelBSP"]
         ),
+        .target(
+            name: "ActionParser",
+            dependencies: [
+                .product(name: "SwiftProtobuf", package: "swift-protobuf")
+            ]
+        ),
+        .testTarget(
+            name: "ActionParserTests",
+            dependencies: ["ActionParser"],
+            path: "Tests/ActionParserTests",
+            resources: [
+                .copy("Resources/actions.pb")
+            ],
+        )
     ]
 )
