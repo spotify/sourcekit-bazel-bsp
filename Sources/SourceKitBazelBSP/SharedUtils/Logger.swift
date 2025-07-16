@@ -17,27 +17,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import BuildServerProtocol
-import LanguageServerProtocol
-import LanguageServerProtocolJSONRPC
-import Testing
+import Foundation
+import OSLog
 
-@testable import SourceKitBazelBSP
-
-@Suite struct SourceKitBazelBSPServerTests {
-    @Test
-    func runAttachesHandler() {
-        let mockConnection = LSPConnectionFake()
-        let mockHandler = MessageHandlerFake()
-
-        let server = SourceKitBazelBSPServer(
-            connection: mockConnection,
-            handler: mockHandler
-        )
-
-        server.run(parkThread: false)
-
-        #expect(mockConnection.startCalled == true)
-        #expect(mockConnection.startReceivedHandler === mockHandler)
-    }
+/// Simple helper to create loggers under the `sourcekit-bazel-bsp` subsystem.
+package func makeBSPLogger(withCategory category: String = #fileID) -> Logger {
+    Logger(subsystem: "sourcekit-bazel-bsp", category: category)
 }

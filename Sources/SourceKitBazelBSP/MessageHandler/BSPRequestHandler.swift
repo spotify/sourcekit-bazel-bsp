@@ -17,27 +17,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import BuildServerProtocol
+import Foundation
 import LanguageServerProtocol
-import LanguageServerProtocolJSONRPC
-import Testing
 
-@testable import SourceKitBazelBSP
+typealias BSPRequestHandler<Request: RequestType> = (
+    (Request, RequestID) throws -> Request.Response
+)
 
-@Suite struct SourceKitBazelBSPServerTests {
-    @Test
-    func runAttachesHandler() {
-        let mockConnection = LSPConnectionFake()
-        let mockHandler = MessageHandlerFake()
+/// A type-erased request handler wrapper to allow for dynamic registration of handlers.
+final class AnyRequestHandler {
+    let handler: Any
 
-        let server = SourceKitBazelBSPServer(
-            connection: mockConnection,
-            handler: mockHandler
-        )
-
-        server.run(parkThread: false)
-
-        #expect(mockConnection.startCalled == true)
-        #expect(mockConnection.startReceivedHandler === mockHandler)
+    init<Request: RequestType>(handler: @escaping BSPRequestHandler<Request>) {
+        self.handler = handler
     }
 }

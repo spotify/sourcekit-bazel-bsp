@@ -17,10 +17,16 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import Foundation
-import OSLog
+import BuildServerProtocol
 
-/// Simple helper to create loggers under the `sourcekit-bazel-bsp` subsystem.
-package func makeBSPLogger(withCategory category: String) -> Logger {
-    Logger(subsystem: "sourcekit-bazel-bsp", category: category)
+@testable import SourceKitBazelBSP
+
+final class LSPTaskLoggerFake: LSPTaskLogger {
+    func startWorkTask(id: TaskId, title: String) {
+        unimplemented()
+    }
+
+    func finishTask(id: TaskId, status: StatusCode) {
+        unimplemented()
+    }
 }
