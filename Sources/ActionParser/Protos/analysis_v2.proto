@@ -16,8 +16,6 @@ syntax = "proto3";
 
 package analysis;
 
-import "build.proto";
-
 option java_package = "com.google.devtools.build.lib.analysis";
 option java_outer_classname = "AnalysisProtosV2";
 
@@ -251,7 +249,7 @@ message ConfiguredTarget {
   // the Target defined in this file because blaze_query.Target is much heavier
   // and will output proto results similar to what users are familiar with from
   // regular blaze query.
-  blaze_query.Target target = 1;
+  Target target = 1;
 
   // DEPRECATED. Use configuration_id instead.
   Configuration configuration = 2 [deprecated = true];

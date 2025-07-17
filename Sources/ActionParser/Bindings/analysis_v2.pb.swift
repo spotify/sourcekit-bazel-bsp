@@ -445,8 +445,8 @@ public struct Analysis_ConfiguredTarget: Sendable {
   /// the Target defined in this file because blaze_query.Target is much heavier
   /// and will output proto results similar to what users are familiar with from
   /// regular blaze query.
-  public var target: BlazeQuery_Target {
-    get {return _target ?? BlazeQuery_Target()}
+  public var target: Analysis_Target {
+    get {return _target ?? Analysis_Target()}
     set {_target = newValue}
   }
   /// Returns true if `target` has been explicitly set.
@@ -475,7 +475,7 @@ public struct Analysis_ConfiguredTarget: Sendable {
 
   public init() {}
 
-  fileprivate var _target: BlazeQuery_Target? = nil
+  fileprivate var _target: Analysis_Target? = nil
   fileprivate var _configuration: Analysis_Configuration? = nil
 }
 
@@ -1273,11 +1273,6 @@ extension Analysis_ConfiguredTarget: SwiftProtobuf.Message, SwiftProtobuf._Messa
     3: .standard(proto: "configuration_id"),
   ]
 
-  public var isInitialized: Bool {
-    if let v = self._target, !v.isInitialized {return false}
-    return true
-  }
-
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
@@ -1324,11 +1319,6 @@ extension Analysis_CqueryResult: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     1: .same(proto: "results"),
     2: .same(proto: "configurations"),
   ]
-
-  public var isInitialized: Bool {
-    if !SwiftProtobuf.Internal.areAllInitialized(self.results) {return false}
-    return true
-  }
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
