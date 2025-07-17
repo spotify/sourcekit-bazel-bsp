@@ -90,7 +90,8 @@ final class TextDocumentSourceKitOptionsHandler {
         }
         logger.info("Getting compiler arguments for \(cacheKey, privacy: .public)")
         let bazelWrapper = initializedConfig.baseConfig.bazelWrapper
-        let appToBuild = initializedConfig.baseConfig.aqueryString
+        let appToBuild = BazelTargetQuerier.queryDepsString(
+            forTargets: initializedConfig.baseConfig.targets)
         let outputBase = initializedConfig.outputBase
         let rootUri = initializedConfig.rootUri
         let flags = initializedConfig.baseConfig.indexFlags.joined(separator: " ")

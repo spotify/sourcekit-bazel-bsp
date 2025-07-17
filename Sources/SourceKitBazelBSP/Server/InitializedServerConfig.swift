@@ -28,6 +28,7 @@ struct InitializedServerConfig: Equatable {
     let outputPath: String
     let devDir: String
     let sdkRoot: String
+    let devToolchainPath: String
 
     var indexDatabasePath: String {
         outputPath + "/_global_index_database"

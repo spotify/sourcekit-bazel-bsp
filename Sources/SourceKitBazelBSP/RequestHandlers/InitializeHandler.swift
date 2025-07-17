@@ -23,6 +23,17 @@ import LanguageServerProtocol
 
 package let sourcekitBazelBSPVersion = "0.0.1"
 
+enum InitializeHandlerError: Error, LocalizedError {
+    case toolchainNotFound(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .toolchainNotFound(let path):
+            return "Could not determine Xcode toolchain location from path: \(path)"
+        }
+    }
+}
+
 /// Handles the `initialize` request.
 ///
 /// This is the first request that the LSP sends, and it contains the initial configuration
@@ -107,6 +118,11 @@ final class InitializeHandler {
         // Collecting the rest of the env's details
         let devDir = try commandRunner.run("xcode-select --print-path")
         let sdkRoot = try commandRunner.run("xcrun --sdk iphonesimulator --show-sdk-path")
+        let toolchain = try getToolchainPath(with: commandRunner)
+
+        logger.debug("devDir: \(devDir, privacy: .public)")
+        logger.debug("sdkRoot: \(sdkRoot, privacy: .public)")
+        logger.debug("toolchain: \(toolchain, privacy: .public)")
 
         return InitializedServerConfig(
             baseConfig: baseConfig,
@@ -114,8 +130,24 @@ final class InitializeHandler {
             outputBase: outputBase,
             outputPath: outputPath,
             devDir: devDir,
-            sdkRoot: sdkRoot
+            sdkRoot: sdkRoot,
+            devToolchainPath: toolchain
         )
+    }
+
+    func getToolchainPath(
+        with commandRunner: CommandRunner
+    ) throws -> String {
+        // Trick to get the Xcode toolchain path, since there's no dedicated command for it
+        // In theory this should be just devDir + Toolchains/XcodeDefault.xctoolchain,
+        // but I think we should make it dynamic just in case
+        let swiftPath = try commandRunner.run("xcrun --find swift")
+        let expectedSwiftPathSuffix = "usr/bin/swift"
+        guard swiftPath.hasSuffix(expectedSwiftPathSuffix) else {
+            throw InitializeHandlerError.toolchainNotFound(swiftPath)
+        }
+        let toolchain = swiftPath.dropLast(expectedSwiftPathSuffix.count)
+        return String(toolchain)
     }
 
     func buildResponse(
