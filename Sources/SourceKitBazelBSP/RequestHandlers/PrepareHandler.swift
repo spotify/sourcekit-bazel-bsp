@@ -77,7 +77,7 @@ final class PrepareHandler {
     func build(
         bazelLabels labelsToBuild: [String]
     ) throws {
-        logger.info("Will build \(labelsToBuild.count, privacy: .public) targets")
+        logger.info("Will build \(labelsToBuild.count) targets")
 
         // Build the provided targets, on our special output base and taking into account special index flags.
         _ = try commandRunner.bazelIndexAction(

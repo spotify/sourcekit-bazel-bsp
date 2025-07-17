@@ -61,8 +61,8 @@ extension Logger {
             self.log(
                 level: level,
                 """
-                \(header, privacy: .public) (\(i + 1)/\(maxChunkCount))
-                \(loggableChunk, privacy: .public)
+                \(header) (\(i + 1)/\(maxChunkCount))
+                \(loggableChunk)
                 """
             )
         }

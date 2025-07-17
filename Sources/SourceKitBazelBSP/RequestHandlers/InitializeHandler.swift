@@ -88,7 +88,7 @@ final class InitializeHandler {
         baseConfig: BaseServerConfig,
     ) throws -> InitializedServerConfig {
         let rootUri = request.rootUri.arbitrarySchemeURL.path
-        logger.debug("rootUri: \(rootUri, privacy: .public)")
+        logger.debug("rootUri: \(rootUri)")
         let regularOutputBase = URL(
             fileURLWithPath: try commandRunner.bazel(
                 baseConfig: baseConfig,
@@ -96,7 +96,7 @@ final class InitializeHandler {
                 cmd: "info output_base"
             )
         )
-        logger.debug("regularOutputBase: \(regularOutputBase, privacy: .public)")
+        logger.debug("regularOutputBase: \(regularOutputBase)")
 
         // Setup the special output base path where we will run indexing commands from.
         let regularOutputBaseLastPath = regularOutputBase.lastPathComponent
@@ -105,7 +105,7 @@ final class InitializeHandler {
             .deletingLastPathComponent()
             .appendingPathComponent("\(regularOutputBaseLastPath)-sourcekit-bazel-bsp")
             .path
-        logger.debug("outputBase: \(outputBase, privacy: .public)")
+        logger.debug("outputBase: \(outputBase)")
 
         // Now, get the full output path based on the above output base.
         let outputPath = try commandRunner.bazelIndexAction(
@@ -114,16 +114,16 @@ final class InitializeHandler {
             cmd: "info output_path",
             rootUri: rootUri
         )
-        logger.debug("outputPath: \(outputPath, privacy: .public)")
+        logger.debug("outputPath: \(outputPath)")
 
         // Collecting the rest of the env's details
         let devDir = try commandRunner.run("xcode-select --print-path")
         let sdkRoot = try commandRunner.run("xcrun --sdk iphonesimulator --show-sdk-path")
         let toolchain = try getToolchainPath(with: commandRunner)
 
-        logger.debug("devDir: \(devDir, privacy: .public)")
-        logger.debug("sdkRoot: \(sdkRoot, privacy: .public)")
-        logger.debug("toolchain: \(toolchain, privacy: .public)")
+        logger.debug("devDir: \(devDir)")
+        logger.debug("sdkRoot: \(sdkRoot)")
+        logger.debug("toolchain: \(toolchain)")
 
         return InitializedServerConfig(
             baseConfig: baseConfig,

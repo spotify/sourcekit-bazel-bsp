@@ -81,7 +81,7 @@ final class BazelTargetQuerier {
         let depsQuery = Self.queryDepsString(forTargets: config.targets)
         let cacheKey = "\(kindsFilter)+\(depsQuery)"
 
-        logger.info("Processing query request for \(cacheKey, privacy: .public)")
+        logger.info("Processing query request for \(cacheKey)")
 
         if let cached = queryCache[cacheKey] {
             logger.debug("Returning cached results")
