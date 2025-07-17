@@ -18,3 +18,5 @@ archive_override(
 
 
 bazel_dep(name = "apple_support", version = "1.22.1", repo_name = "build_bazel_apple_support")
+
+bazel_dep(name = "aspect_bazel_lib", version = "2.9.3")

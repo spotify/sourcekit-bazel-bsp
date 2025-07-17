@@ -1,5 +1,6 @@
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library", "swift_interop_hint")
+load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template_rule")
 
 
 swift_library(
@@ -35,11 +36,38 @@ objc_library(
     aspect_hints = [":TodoObjCSupport_hint"],
 )
 
+genrule(
+    name = "GenerateDummySwiftFile",
+    outs = [
+        "GeneratedDummy.swift",
+    ],
+    cmd = """
+cat > $@ << 'EOF'
+// This is a generated Swift file
+import Foundation
+
+struct GeneratedDummy {
+    static let message = "Hello from generated Swift file!"
+    
+    static func greet() -> String {
+        return message
+    }
+}
+EOF
+""",
+)
+
+swift_library(
+    name = "GeneratedDummy",
+    module_name = "GeneratedDummy",
+    srcs = [":GenerateDummySwiftFile"],
+)
+
 swift_library(
     name = "HelloWorldLib",
     module_name = "HelloWorldLib",
     srcs = glob(["HelloWorldLib/Sources/*.swift"]),
-    deps = [":TodoModels", ":TodoObjCSupport"],
+    deps = [":TodoModels", ":TodoObjCSupport", ":GeneratedDummy", ":ExpandedTemplate"],
 )
 
 genrule(
@@ -64,5 +92,22 @@ ios_application(
     families = ["iphone", "ipad"],
     infoplists = ["Resources/Info.plist"],
     minimum_os_version = "17.0",
-    deps = [":HelloWorldLib"],
+    deps = [":HelloWorldLib", ":GeneratedDummy"],
 )
+
+expand_template_rule(
+    name = "ExpandTemplateSwiftFile",
+    template = "template.swift.tpl",
+    out = "ExpandedTemplate.swift",
+    substitutions = {
+        "{{CLASS_NAME}}": "ExpandedTemplate",
+        "{{MESSAGE}}": "Hello from expanded template!",
+    },
+)
+
+swift_library(
+    name = "ExpandedTemplate",
+    module_name = "ExpandedTemplate", 
+    srcs = [":ExpandTemplateSwiftFile"],
+)
+
