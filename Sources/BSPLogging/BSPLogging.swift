@@ -25,21 +25,45 @@ public typealias SwiftLogger = Logging.Logger
 public typealias OSLogger = os.Logger
 
 public struct BSPLogging {
-    public static func setup(logToFile: Bool) {
+    public static func setup(logToFile: Bool, logLevel: SwiftLogger.Level) {
         LoggingSystem.bootstrap { label in
             let osLogger = os.Logger(
                 subsystem: "sourcekit-bazel-bsp",
                 category: #fileID
             )
-            if logToFile, let handler = try? FileLogHandler(label: label) {
+            if logToFile, let handler = try? FileLogHandler(
+                logLevel: logLevel,
+                label: label,
+                truncate: true
+            ) {
                 osLogger.debug("FileLogHandler initialized")
                 return handler
             } else {
-                let handler = OSLogHandler(subsystem: label)
+                let handler = OSLogHandler(logLevel: logLevel, subsystem: label)
                 osLogger.debug("OSLogHandler initialized")
                 return handler
             }
         }
+    }
+}
+
+/// Since FileLogHandler is a struct and don't have lifecycle deinit method.
+/// A simple wrapper for FileHandle so it can close the file descriptor during deinit method.
+private class FileHandleWrapper: @unchecked Sendable {
+    
+    let fileHandle: FileHandle
+    
+    init(fileURL: URL) throws {
+        let fileHandle = try FileHandle(forWritingTo: fileURL)
+        self.fileHandle = fileHandle
+    }
+
+    deinit {
+        try? self.fileHandle.close()
+    }
+    
+    func write(contentsOf data: Data) throws {
+        try? self.fileHandle.write(contentsOf: data)
     }
 }
 
@@ -51,7 +75,7 @@ public struct FileLogHandler: LogHandler, Sendable {
     private let label: String
     private let fileName: String
     private let fileURL: URL
-    private let fileHandle: FileHandle
+    private let fileHandle: FileHandleWrapper
     private let dateFormatter: DateFormatter
     
     public subscript(metadataKey metadataKey: String) -> SwiftLogger.Metadata.Value? {
@@ -69,6 +93,7 @@ public struct FileLogHandler: LogHandler, Sendable {
         label: String = "sourcekit-bazel-bsp",
         fileName: String = "bazel-bsp.log",
         fileDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
+        truncate: Bool = false
     ) throws {
         self.logLevel = logLevel
         self.metadata = metadata
@@ -81,9 +106,12 @@ public struct FileLogHandler: LogHandler, Sendable {
         
         if !FileManager.default.fileExists(atPath: fileURL.path()) {
             FileManager.default.createFile(atPath: fileURL.path(), contents: nil, attributes: nil)
+        } else if truncate {
+            // Truncate existing file
+            try Data().write(to: fileURL)
         }
         
-        self.fileHandle = try FileHandle(forWritingTo: fileURL)
+        self.fileHandle = try FileHandleWrapper(fileURL: fileURL)
     }
 
     public func log(
@@ -96,7 +124,7 @@ public struct FileLogHandler: LogHandler, Sendable {
         line: UInt
     ) {
         let timestamp = self.dateFormatter.string(from: Date())
-        let logEntry = "[\(timestamp)] [\(label)] [\(level.rawValue)] \(message)"
+        let logEntry = "[\(timestamp)] [\(label)] [\(level.rawValue)] \(message)\n"
         self.writeToFile(logEntry)
     }
     
@@ -124,9 +152,11 @@ public struct OSLogHandler: LogHandler, Sendable {
     public let logger: OSLogger
     
     public init(
+        logLevel: SwiftLogger.Level = .info,
         subsystem: String = "sourcekit-bazel-bsp",
         category: String = #fileID
     ) {
+        self.logLevel = logLevel
         self.logger = OSLogger(subsystem: subsystem, category: category)
     }
     

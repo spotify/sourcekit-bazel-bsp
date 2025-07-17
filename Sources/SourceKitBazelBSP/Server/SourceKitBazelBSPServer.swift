@@ -23,7 +23,7 @@ import Foundation
 import LanguageServerProtocol
 import LanguageServerProtocolJSONRPC
 
-let logger = SwiftLogger(label: "sourcekit-bazel-bsp:\(#fileID)")
+let logger = SwiftLogger(label: "sourcekit-bazel-bsp")
 
 /// The higher-level class that bootstraps and manages the BSP server.
 package final class SourceKitBazelBSPServer {
