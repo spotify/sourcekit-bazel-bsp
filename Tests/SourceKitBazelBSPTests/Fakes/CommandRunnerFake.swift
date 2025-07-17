@@ -45,7 +45,9 @@ final class CommandRunnerFake: CommandRunner {
         return responses[cmd] ?? "Response/error not registered for command: \(cmd)"
     }
 
-    func clearHistory() {
+    func reset() {
         commands.removeAll()
+        responses.removeAll()
+        errors.removeAll()
     }
 }
