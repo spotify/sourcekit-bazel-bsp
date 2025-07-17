@@ -35,32 +35,30 @@ final class BSPMessageHandler: MessageHandler {
 
     // We currently use a single-threaded setup for simplicity,
     // but we can eventually reply asynchronously if we find a need for it.
-    private let lock: OSAllocatedUnfairLock<State> = .init(uncheckedState: State())
+    private let lock: OSAllocatedUnfairLock<Void> = .init()
+    // FIXME: Can't put state into the lock for now because of recursiveness in the registration.
+    nonisolated(unsafe) private var state: State = State()
 
     init() {}
 
     func register<Request: RequestType>(
         requestHandler: @escaping BSPRequestHandler<Request>
     ) {
-        lock.withLockUnchecked { state in
-            state.requestHandlers[Request.method] = AnyRequestHandler(
-                handler: requestHandler
-            )
-        }
+        state.requestHandlers[Request.method] = AnyRequestHandler(
+            handler: requestHandler
+        )
     }
 
     func register<Notification: NotificationType>(
         notificationHandler: @escaping BSPNotificationHandler<Notification>
     ) {
-        lock.withLockUnchecked { state in
-            state.notificationHandlers[Notification.method] = AnyNotificationHandler(
-                handler: notificationHandler
-            )
-        }
+        state.notificationHandlers[Notification.method] = AnyNotificationHandler(
+            handler: notificationHandler
+        )
     }
 
     func handle<Notification: NotificationType>(_ notification: Notification) {
-        lock.withLockUnchecked { state in
+        lock.withLockUnchecked {
             logger.info(
                 "Received notification: \(Notification.method, privacy: .public)"
             )
@@ -78,7 +76,7 @@ final class BSPMessageHandler: MessageHandler {
         id: RequestID,
         reply: @escaping (LSPResult<Request.Response>) -> Void
     ) {
-        lock.withLockUnchecked { state in
+        lock.withLockUnchecked {
             logger.info(
                 "Received request: \(Request.method, privacy: .public)"
             )

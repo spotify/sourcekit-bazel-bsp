@@ -22,72 +22,86 @@
 @implementation SKDateDistanceCalculator
 
 + (NSTimeInterval)distanceFromNow:(NSDate *)date {
-    if (!date) {
-        return 0.0;
-    }
+  if (!date) {
+    return 0.0;
+  }
 
-    NSDate *now = [NSDate date];
-    return [now timeIntervalSinceDate:date];
+  NSDate *now = [NSDate date];
+  return [now timeIntervalSinceDate:date];
 }
 
 + (NSString *)humanReadableDistanceFromNow:(NSDate *)date {
-    if (!date) {
-        return @"Invalid date";
-    }
+  if (!date) {
+    return @"Invalid date";
+  }
 
-    NSTimeInterval timeInterval = [self distanceFromNow:date];
-    BOOL isPast = timeInterval > 0;
+  NSTimeInterval timeInterval = [self distanceFromNow:date];
+  BOOL isPast = timeInterval > 0;
 
-    NSCalendar *calendar = [NSCalendar currentCalendar];
-    NSDateComponents *components = [calendar components:NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay | NSCalendarUnitHour | NSCalendarUnitMinute | NSCalendarUnitSecond
-                                               fromDate:isPast ? date : [NSDate date]
-                                                 toDate:isPast ? [NSDate date] : date
-                                                options:0];
+  NSCalendar *calendar = [NSCalendar currentCalendar];
+  NSDateComponents *components =
+      [calendar components:NSCalendarUnitYear | NSCalendarUnitMonth |
+                           NSCalendarUnitDay | NSCalendarUnitHour |
+                           NSCalendarUnitMinute | NSCalendarUnitSecond
+                  fromDate:isPast ? date : [NSDate date]
+                    toDate:isPast ? [NSDate date] : date
+                   options:0];
 
-    NSString *suffix = isPast ? @"ago" : @"from now";
+  NSString *suffix = isPast ? @"ago" : @"from now";
 
-    if (components.year > 0) {
-        return [NSString stringWithFormat:@"%ld year%@ %@", (long)components.year, components.year == 1 ? @"" : @"s", suffix];
-    } else if (components.month > 0) {
-        return [NSString stringWithFormat:@"%ld month%@ %@", (long)components.month, components.month == 1 ? @"" : @"s", suffix];
-    } else if (components.day > 0) {
-        return [NSString stringWithFormat:@"%ld day%@ %@", (long)components.day, components.day == 1 ? @"" : @"s", suffix];
-    } else if (components.hour > 0) {
-        return [NSString stringWithFormat:@"%ld hour%@ %@", (long)components.hour, components.hour == 1 ? @"" : @"s", suffix];
-    } else if (components.minute > 0) {
-        return [NSString stringWithFormat:@"%ld minute%@ %@", (long)components.minute, components.minute == 1 ? @"" : @"s", suffix];
-    } else {
-        return [NSString stringWithFormat:@"%ld second%@ %@", (long)components.second, components.second == 1 ? @"" : @"s", suffix];
-    }
+  if (components.year > 0) {
+    return
+        [NSString stringWithFormat:@"%ld year%@ %@", (long)components.year,
+                                   components.year == 1 ? @"" : @"s", suffix];
+  } else if (components.month > 0) {
+    return
+        [NSString stringWithFormat:@"%ld month%@ %@", (long)components.month,
+                                   components.month == 1 ? @"" : @"s", suffix];
+  } else if (components.day > 0) {
+    return [NSString stringWithFormat:@"%ld day%@ %@", (long)components.day,
+                                      components.day == 1 ? @"" : @"s", suffix];
+  } else if (components.hour > 0) {
+    return
+        [NSString stringWithFormat:@"%ld hour%@ %@", (long)components.hour,
+                                   components.hour == 1 ? @"" : @"s", suffix];
+  } else if (components.minute > 0) {
+    return
+        [NSString stringWithFormat:@"%ld minute%@ %@", (long)components.minute,
+                                   components.minute == 1 ? @"" : @"s", suffix];
+  } else {
+    return
+        [NSString stringWithFormat:@"%ld second%@ %@", (long)components.second,
+                                   components.second == 1 ? @"" : @"s", suffix];
+  }
 }
 
 + (NSInteger)distanceFromNow:(NSDate *)date inUnit:(NSCalendarUnit)unit {
-    if (!date) {
-        return 0;
-    }
+  if (!date) {
+    return 0;
+  }
 
-    NSCalendar *calendar = [NSCalendar currentCalendar];
-    NSDateComponents *components = [calendar components:unit
-                                               fromDate:date
-                                                 toDate:[NSDate date]
-                                                options:0];
+  NSCalendar *calendar = [NSCalendar currentCalendar];
+  NSDateComponents *components = [calendar components:unit
+                                             fromDate:date
+                                               toDate:[NSDate date]
+                                              options:0];
 
-    switch (unit) {
-        case NSCalendarUnitYear:
-            return components.year;
-        case NSCalendarUnitMonth:
-            return components.month;
-        case NSCalendarUnitDay:
-            return components.day;
-        case NSCalendarUnitHour:
-            return components.hour;
-        case NSCalendarUnitMinute:
-            return components.minute;
-        case NSCalendarUnitSecond:
-            return components.second;
-        default:
-            return 0;
-    }
+  switch (unit) {
+  case NSCalendarUnitYear:
+    return components.year;
+  case NSCalendarUnitMonth:
+    return components.month;
+  case NSCalendarUnitDay:
+    return components.day;
+  case NSCalendarUnitHour:
+    return components.hour;
+  case NSCalendarUnitMinute:
+    return components.minute;
+  case NSCalendarUnitSecond:
+    return components.second;
+  default:
+    return 0;
+  }
 }
 
 @end
