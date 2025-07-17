@@ -21,6 +21,8 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
+private let logger = makeFileLevelBSPLogger()
+
 /// Handles the `buildTarget/sources` request.
 ///
 /// Returns the sources for the provided target based on previously gathered information.

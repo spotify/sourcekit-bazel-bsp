@@ -21,6 +21,8 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
+private let logger = makeFileLevelBSPLogger()
+
 /// Handles the `textDocument/sourceKitOptions` request.
 ///
 /// Returns the compiler arguments for the provided target based on previously gathered information.

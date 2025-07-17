@@ -22,7 +22,7 @@ import Foundation
 import OSLog
 import SourceKitBazelBSP
 
-private let logger = makeBSPLogger()
+private let logger = makeFileLevelBSPLogger()
 
 struct Serve: ParsableCommand {
     @Option(help: "The name of the Bazel CLI to invoke (e.g. 'bazelisk')")
