@@ -6,3 +6,6 @@ https://github.com/apple/sourcekit-lsp
 
 This project uses code from swift-argument-parser:
 https://github.com/apple/swift-argument-parser
+
+This project uses code from swift-protobuf:
+https://github.com/apple/swift-protobuf
