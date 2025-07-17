@@ -5,7 +5,10 @@
       "label": "Build HelloWorld",
       "type": "shell",
       "command": "bazelisk",
-      "args": ["build", "//HelloWorld"],
+      "args": [
+        "build",
+        "//HelloWorld"
+      ],
       "group": {
         "kind": "build",
         "isDefault": true
@@ -19,7 +22,10 @@
       "label": "Test HelloWorldTests",
       "type": "shell",
       "command": "bazelisk",
-      "args": ["test", "//HelloWorld:HelloWorldTests"],
+      "args": [
+        "test",
+        "//HelloWorld:HelloWorldTests"
+      ],
       "group": {
         "kind": "test",
         "isDefault": true
@@ -63,9 +69,9 @@
       }
     },
     {
-      "label": "Stream SourceKit Logs",
+      "label": "Stream SourceKitBazelBSP Logs",
       "type": "shell",
-      "command": "log stream --process sourcekit-bazel-bsp --info",
+      "command": "log stream --process sourcekit-bazel-bsp --debug",
       "problemMatcher": [],
       "isBackground": false,
       "presentation": {
