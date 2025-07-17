@@ -28,4 +28,4 @@ See the main README for a description of what is and isn't supported at the mome
 
 ## Troubleshooting
 
-If something weird (or nothing) happens, check the `SourceKit-LSP: Indexing` logs for details of what may have happened. If you don't see that option at all, first run `Cmd+S`  on a Swift file to see if that does the trick, and if it's still not there, you can instead log sourcekit-bazel-bsp by running `log stream --process sourcekit-bazel-bsp --info` on a terminal session. If you see no logs there when interacting with the IDE, that means one or more of the above steps were not followed correctly (most likely the build step).
+If something weird (or nothing) happens, check the `SourceKit-LSP: Indexing` logs for details of what may have happened. If you don't see that option at all, first run `Cmd+S` on a Swift file to see if that does the trick, and if it's still not there, try logging sourcekit-bazel-bsp directly by following the troubleshooting instructions in the main README.

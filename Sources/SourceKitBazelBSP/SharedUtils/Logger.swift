@@ -20,7 +20,7 @@
 import Foundation
 import OSLog
 
-/// Simple helper to create loggers under the `sourcekit-bazel-bsp` subsystem.
+/// Simple helper to create loggers under the `com.spotify.sourcekit-bazel-bsp` subsystem.
 package func makeFileLevelBSPLogger(withCategory category: String = #fileID) -> Logger {
-    Logger(subsystem: "sourcekit-bazel-bsp", category: category)
+    Logger(subsystem: "com.spotify.sourcekit-bazel-bsp", category: category)
 }
