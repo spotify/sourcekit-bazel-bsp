@@ -22,7 +22,6 @@ import BSPLogging
 import Foundation
 import SourceKitBazelBSP
 
-let logger = SwiftLogger(label: "sourcekit-bazel-bsp")
 
 struct Serve: ParsableCommand {
     @Option(help: "The name of the Bazel CLI to invoke (e.g. 'bazelisk')")
@@ -62,7 +61,7 @@ struct Serve: ParsableCommand {
     func run() throws {
         // setup logging as early as we can
         BSPLogging.setup(logToFile: logToFile, logLevel: .info)
-        
+        let logger = SwiftLogger(label: "sourcekit-bazel-bsp")
         logger.info("`serve` invoked, initializing BSP server...")
         let config = BaseServerConfig(
             bazelWrapper: bazelWrapper,
