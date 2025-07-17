@@ -64,38 +64,3 @@ struct ShellCommandRunner: CommandRunner {
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
-
-// FIXME: To be removed once the refactor is complete
-// Just keeping it around to make PRs smaller
-func shell(_ cmd: String, cwd: String? = nil) throws -> String {
-    let task = Process()
-    let stdout = Pipe()
-    let stderr = Pipe()
-
-    task.standardOutput = stdout
-    task.standardError = stderr
-    task.executableURL = URL(fileURLWithPath: "/bin/zsh")
-    if let cwd {
-        task.currentDirectoryURL = URL(fileURLWithPath: cwd)
-    }
-
-    task.arguments = ["-c", cmd]
-    task.standardInput = nil
-
-    logger.info("Running shell: \(cmd, privacy: .public)")
-    try task.run()
-
-    // Drain stdout/err first to avoid deadlocking when the output is buffered.
-    let data = stdout.fileHandleForReading.readDataToEndOfFile()
-    let stderrData = stderr.fileHandleForReading.readDataToEndOfFile()
-    let output = String(data: data, encoding: .utf8) ?? ""
-
-    task.waitUntilExit()
-
-    guard task.terminationStatus == 0 else {
-        let stderrString: String = String(data: stderrData, encoding: .utf8) ?? "(no stderr)"
-        throw ShellCommandRunnerError.failed(cmd, stderrString)
-    }
-
-    return output.trimmingCharacters(in: .whitespacesAndNewlines)
-}

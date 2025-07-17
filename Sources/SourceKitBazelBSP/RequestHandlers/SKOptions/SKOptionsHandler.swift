@@ -20,23 +20,60 @@
 import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
-import LanguageServerProtocolJSONRPC
 
-final class TextDocumentSourceKitOptionsHandler {
-    let initializedConfig: InitializedServerConfig
+/// Handles the `textDocument/sourceKitOptions` request.
+///
+/// Returns the compiler arguments for the provided target based on previously gathered information.
+final class SKOptionsHandler {
+
+    private let initializedConfig: InitializedServerConfig
+    private let targetStore: BazelTargetStore
+    private let commandRunner: CommandRunner
+
+    private weak var connection: LSPConnection?
 
     private var rootQueryCache: String?
     private var queryCache: [String: [String]] = [:]
 
-    init(initializedConfig: InitializedServerConfig) {
+    init(
+        initializedConfig: InitializedServerConfig,
+        targetStore: BazelTargetStore,
+        commandRunner: CommandRunner = ShellCommandRunner(),
+        connection: LSPConnection? = nil,
+    ) {
         self.initializedConfig = initializedConfig
+        self.targetStore = targetStore
+        self.commandRunner = commandRunner
+        self.connection = connection
+    }
+
+    func textDocumentSourceKitOptions(
+        _ request: TextDocumentSourceKitOptionsRequest,
+        _ id: RequestID
+    ) throws -> TextDocumentSourceKitOptionsResponse? {
+        let taskId = TaskId(id: "getSKOptions-\(id.description)")
+        connection?.startWorkTask(
+            id: taskId,
+            title: "Indexing: Getting compiler arguments"
+        )
+        do {
+            let result = try handle(
+                request: request
+            )
+            connection?.finishTask(id: taskId, status: .ok)
+            return result
+        } catch {
+            connection?.finishTask(id: taskId, status: .error)
+            throw error
+        }
     }
 
     func handle(
-        request: TextDocumentSourceKitOptionsRequest,
-        id: RequestID,
-        targetsToBazelMap: [URI: String],
+        request: TextDocumentSourceKitOptionsRequest
     ) throws -> TextDocumentSourceKitOptionsResponse? {
+
+        // FIXME: This entire class is pending refactors.
+
         // Ignore header requests
         if request.textDocument.uri.stringValue.hasSuffix(".h") {
             return nil
@@ -45,14 +82,17 @@ final class TextDocumentSourceKitOptionsHandler {
         logger.info(
             "Getting SKOptions for \(targetUri.stringValue, privacy: .public), language: \(request.language, privacy: .public)"
         )
-        // FIXME: error handling
-        let bazelTarget = targetsToBazelMap[targetUri]!
+        let bazelTarget = try targetStore.bazelTargetLabel(forBSPURI: targetUri)
         logger.info("Target is: \(bazelTarget, privacy: .public)")
         let args = try getCompilerArguments(
             bazelTarget,
             request.language,
             request.textDocument.uri,
         )
+        // If no compiler arguments are found, return nil to avoid sourcekit indexing with no input files
+        if args.isEmpty {
+            return nil
+        }
         return TextDocumentSourceKitOptionsResponse(
             compilerArguments: args,
             workingDirectory: initializedConfig.rootUri
@@ -83,20 +123,18 @@ final class TextDocumentSourceKitOptionsHandler {
             return cachedArgs
         }
         logger.info("Getting compiler arguments for \(cacheKey, privacy: .public)")
-        let bazelWrapper = initializedConfig.baseConfig.bazelWrapper
         let appToBuild = BazelTargetQuerier.queryDepsString(
             forTargets: initializedConfig.baseConfig.targets)
-        let outputBase = initializedConfig.outputBase
-        let rootUri = initializedConfig.rootUri
-        let flags = initializedConfig.baseConfig.indexFlags.joined(separator: " ")
         var output: String
         if let cachedRoot = rootQueryCache {
             output = cachedRoot
         } else {
             let cmd =
-                bazelWrapper
-                + " --output_base=\(outputBase) aquery \"mnemonic('SwiftCompile|ObjcCompile', \(appToBuild))\" --noinclude_artifacts \(flags)"
-            output = try shell(cmd, cwd: rootUri)
+                "aquery \"mnemonic('SwiftCompile|ObjcCompile', \(appToBuild))\" --noinclude_artifacts"
+            output = try commandRunner.bazelIndexAction(
+                initializedConfig: initializedConfig,
+                cmd: cmd
+            )
             rootQueryCache = output
         }
         logger.info("Parsing compiler arguments...")
