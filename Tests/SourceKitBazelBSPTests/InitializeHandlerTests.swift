@@ -29,7 +29,6 @@ import Testing
     @Test
     func makeConfigGathersCorrectInformation() throws {
         let commandRunner = CommandRunnerFake()
-        let connection = LSPConnectionFake()
         let baseConfig = BaseServerConfig(
             bazelWrapper: "mybazel",
             targets: ["//HelloWorld"],
@@ -41,6 +40,7 @@ import Testing
         let outputPath = "/_bazel_user/abc123-sourcekit-bazel-bsp/exec"
         let devDir = "/Applications/Xcode.app/Contents/Developer"
         let sdkRoot = "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimu.sdk"
+        let toolchain = "/a/b/Toolchains/XcodeDefault.xctoolchain/"
 
         commandRunner.setResponse(for: "mybazel info output_base", response: outputBase)
         commandRunner.setResponse(
@@ -51,11 +51,11 @@ import Testing
         commandRunner.setResponse(for: "xcode-select --print-path", response: devDir)
         commandRunner.setResponse(
             for: "xcrun --sdk iphonesimulator --show-sdk-path", response: sdkRoot)
+        commandRunner.setResponse(for: "xcrun --find swift", response: toolchain + "usr/bin/swift")
 
         let handler = InitializeHandler(
             baseConfig: baseConfig,
-            commandRunner: commandRunner,
-            connection: connection
+            commandRunner: commandRunner
         )
 
         let rootUri = "file:///path/to/project"
@@ -74,14 +74,14 @@ import Testing
                     outputBase: outputBase + "-sourcekit-bazel-bsp",
                     outputPath: outputPath,
                     devDir: devDir,
-                    sdkRoot: sdkRoot
+                    sdkRoot: sdkRoot,
+                    devToolchainPath: toolchain
                 ))
     }
 
     @Test
     func makeConfigWithNoIndexFlags() throws {
         let commandRunner = CommandRunnerFake()
-        let connection = LSPConnectionFake()
         let baseConfig = BaseServerConfig(
             bazelWrapper: "mybazel",
             targets: ["//HelloWorld"],
@@ -91,6 +91,7 @@ import Testing
 
         let outputBase = "/_bazel_user/abc123"
         let outputPath = "/_bazel_user/abc123-sourcekit-bazel-bsp/exec"
+        let toolchain = "/a/b/Toolchains/XcodeDefault.xctoolchain/"
 
         commandRunner.setResponse(for: "mybazel info output_base", response: outputBase)
         commandRunner.setResponse(
@@ -98,11 +99,11 @@ import Testing
                 "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info output_path",
             response: outputPath
         )
+        commandRunner.setResponse(for: "xcrun --find swift", response: toolchain + "usr/bin/swift")
 
         let handler = InitializeHandler(
             baseConfig: baseConfig,
-            commandRunner: commandRunner,
-            connection: connection
+            commandRunner: commandRunner
         )
 
         let rootUri = "file:///path/to/project"
@@ -119,7 +120,6 @@ import Testing
     @Test
     func makeConfigWithMultipleIndexFlags() throws {
         let commandRunner = CommandRunnerFake()
-        let connection = LSPConnectionFake()
         let baseConfig = BaseServerConfig(
             bazelWrapper: "mybazel",
             targets: ["//HelloWorld"],
@@ -129,6 +129,7 @@ import Testing
 
         let outputBase = "/_bazel_user/abc123"
         let outputPath = "/_bazel_user/abc123-sourcekit-bazel-bsp/exec"
+        let toolchain = "/a/b/Toolchains/XcodeDefault.xctoolchain/"
 
         commandRunner.setResponse(for: "mybazel info output_base", response: outputBase)
         commandRunner.setResponse(
@@ -136,11 +137,11 @@ import Testing
                 "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info output_path --config=index1 --config=index2",
             response: outputPath
         )
+        commandRunner.setResponse(for: "xcrun --find swift", response: toolchain + "usr/bin/swift")
 
         let handler = InitializeHandler(
             baseConfig: baseConfig,
-            commandRunner: commandRunner,
-            connection: connection
+            commandRunner: commandRunner
         )
 
         let rootUri = "file:///path/to/project"
