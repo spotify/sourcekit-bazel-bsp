@@ -19,6 +19,8 @@
 
 import Foundation
 
+private let logger = makeFileLevelBSPLogger()
+
 enum ShellCommandRunnerError: LocalizedError {
     case failed(String, String)
 

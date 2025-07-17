@@ -23,6 +23,8 @@ import LanguageServerProtocol
 
 import struct os.OSAllocatedUnfairLock
 
+private let logger = makeFileLevelBSPLogger()
+
 /// Base object that can handle receiving and replying to BSP requests and notifications.
 /// It does not provide any functionality by itself; all handling logic is intended to be registered
 /// as `requestHandlers` and `notificationHandlers`.

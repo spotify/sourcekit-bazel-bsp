@@ -19,6 +19,8 @@
 
 import Foundation
 
+private let logger = makeFileLevelBSPLogger()
+
 enum BazelTargetQuerierError: Error, LocalizedError {
     case noKinds
     case noTargets

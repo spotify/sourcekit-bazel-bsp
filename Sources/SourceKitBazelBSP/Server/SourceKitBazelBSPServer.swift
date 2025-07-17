@@ -22,8 +22,7 @@ import Foundation
 import LanguageServerProtocol
 import LanguageServerProtocolJSONRPC
 
-// FIXME: To make one per-file once we finish refactoring the code
-let logger = makeBSPLogger()
+private let logger = makeFileLevelBSPLogger()
 
 /// The higher-level class that bootstraps and manages the BSP server.
 package final class SourceKitBazelBSPServer {

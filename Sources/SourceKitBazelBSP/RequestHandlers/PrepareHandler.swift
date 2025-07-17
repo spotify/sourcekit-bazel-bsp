@@ -21,6 +21,8 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
+private let logger = makeFileLevelBSPLogger()
+
 /// Handles the `buildTarget/prepare` request.
 ///
 /// Builds the provided list of targets upon request.

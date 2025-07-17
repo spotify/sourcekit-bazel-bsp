@@ -21,6 +21,8 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
+private let logger = makeFileLevelBSPLogger()
+
 /// Handles the `workspace/buildTargets` request.
 ///
 /// Processes the project's dependency graph and returns it to the LSP.
