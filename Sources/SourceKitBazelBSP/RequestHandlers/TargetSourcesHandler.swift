@@ -44,7 +44,7 @@ final class TargetSourcesHandler {
         _ id: RequestID
     ) throws -> BuildTargetSourcesResponse {
         let targets = request.targets
-        logger.info("Fetching sources for \(targets.count, privacy: .public) targets")
+        logger.info("Fetching sources for \(targets.count) targets")
 
         var srcs: [SourcesItem] = []
         for target in targets {
@@ -61,7 +61,7 @@ final class TargetSourcesHandler {
         let count = srcs.reduce(0) { $0 + $1.sources.count }
 
         logger.info(
-            "Returning \(srcs.count, privacy: .public) source specs (\(count, privacy: .public) total source entries)"
+            "Returning \(srcs.count) source specs (\(count) total source entries)"
         )
 
         return BuildTargetSourcesResponse(items: srcs)

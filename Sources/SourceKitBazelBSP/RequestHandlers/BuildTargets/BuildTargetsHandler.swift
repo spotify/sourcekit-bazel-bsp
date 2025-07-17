@@ -50,7 +50,7 @@ final class BuildTargetsHandler {
         )
         do {
             let result = try targetStore.fetchTargets()
-            logger.debug("Found \(result.count, privacy: .public) targets")
+            logger.debug("Found \(result.count) targets")
             connection?.finishTask(id: taskId, status: .ok)
             return WorkspaceBuildTargetsResponse(targets: result)
         } catch {
