@@ -51,15 +51,14 @@ let package = Package(
             dependencies: ["SourceKitBazelBSP"]
         ),
         .target(
-            name: "ActionParser",
+            name: "BazelProtobufBindings",
             dependencies: [
                 .product(name: "SwiftProtobuf", package: "swift-protobuf")
             ]
         ),
         .testTarget(
-            name: "ActionParserTests",
-            dependencies: ["ActionParser"],
-            path: "Tests/ActionParserTests",
+            name: "BazelProtobufBindingsTests",
+            dependencies: ["BazelProtobufBindings"],
             resources: [
                 .copy("Resources/actions.pb")
             ],

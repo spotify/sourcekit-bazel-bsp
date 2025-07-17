@@ -17,13 +17,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
-@testable import ActionParser
+@testable import BazelProtobufBindings
 import Foundation
 import Testing
 
-@Suite("ActionParserTests") struct ActionParserTests {
+@Suite("BazelProtobufBindingsTests") struct BazelProtobufBindingsTests {
     @Test("parses action graph from aquery protobuf output")
-    func testActionParser_readBinaryData() throws {
+    func testBazelProtobuf_readBinaryData() throws {
         guard let url = Bundle.module.url(
             forResource: "actions",
             withExtension: "pb"
@@ -37,7 +37,7 @@ import Testing
             return
         }
         
-        guard let actionParser = try? ActionParser.new(data: data) else {
+        guard let actionParser = try? BazelProtobufBindings.new(data: data) else {
             Issue.record("Fail to parse actions.pb")
             return
         }
@@ -59,7 +59,7 @@ import Testing
     }
     
     @Test("testing compiler flags from action graph")
-    func testActionParser_compilerArguments() throws {
+    func testBazelProtobuf_compilerArguments() throws {
         guard let url = Bundle.module.url(
             forResource: "actions",
             withExtension: "pb"
@@ -73,7 +73,7 @@ import Testing
             return
         }
         
-        guard let actionParser = try? ActionParser.new(data: data) else {
+        guard let actionParser = try? BazelProtobufBindings.new(data: data) else {
             Issue.record("Fail to parse actions.pb")
             return
         }

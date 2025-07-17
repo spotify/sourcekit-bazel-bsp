@@ -19,7 +19,7 @@
 
 import Foundation
 
-public struct ActionParser {
+public struct BazelProtobufBindings {
     
     let actionGraph: Analysis_ActionGraphContainer
     
@@ -29,7 +29,7 @@ public struct ActionParser {
 
     public static func new(data: Data) throws -> Self {
         let actionGraph = try Analysis_ActionGraphContainer(serializedBytes: data)
-        return ActionParser(actionGraph: actionGraph)
+        return BazelProtobufBindings(actionGraph: actionGraph)
     }
     
     public func findActionsBy(mnemonic: String) -> [Analysis_Action] {
