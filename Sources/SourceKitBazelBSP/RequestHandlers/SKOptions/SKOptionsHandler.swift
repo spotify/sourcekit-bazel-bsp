@@ -25,9 +25,9 @@ import LanguageServerProtocol
 ///
 /// Returns the compiler arguments for the provided target based on previously gathered information.
 final class SKOptionsHandler {
-
     private let initializedConfig: InitializedServerConfig
     private let targetStore: BazelTargetStore
+    private let commandRunner: CommandRunner
 
     private weak var connection: LSPConnection?
 
@@ -37,10 +37,12 @@ final class SKOptionsHandler {
     init(
         initializedConfig: InitializedServerConfig,
         targetStore: BazelTargetStore,
-        connection: LSPConnection,
+        commandRunner: CommandRunner = ShellCommandRunner(),
+        connection: LSPConnection? = nil,
     ) {
         self.initializedConfig = initializedConfig
         self.targetStore = targetStore
+        self.commandRunner = commandRunner
         self.connection = connection
     }
 
@@ -68,7 +70,6 @@ final class SKOptionsHandler {
     func handle(
         request: TextDocumentSourceKitOptionsRequest
     ) throws -> TextDocumentSourceKitOptionsResponse? {
-
         // FIXME: This entire class is pending refactors.
 
         // Ignore header requests
@@ -86,10 +87,12 @@ final class SKOptionsHandler {
             request.language,
             request.textDocument.uri,
         )
+
         // If no compiler arguments are found, return nil to avoid sourcekit indexing with no input files
         if args.isEmpty {
             return nil
         }
+
         return TextDocumentSourceKitOptionsResponse(
             compilerArguments: args,
             workingDirectory: initializedConfig.rootUri
@@ -120,20 +123,18 @@ final class SKOptionsHandler {
             return cachedArgs
         }
         logger.info("Getting compiler arguments for \(cacheKey, privacy: .public)")
-        let bazelWrapper = initializedConfig.baseConfig.bazelWrapper
         let appToBuild = BazelTargetQuerier.queryDepsString(
             forTargets: initializedConfig.baseConfig.targets)
-        let outputBase = initializedConfig.outputBase
-        let rootUri = initializedConfig.rootUri
-        let flags = initializedConfig.baseConfig.indexFlags.joined(separator: " ")
         var output: String
         if let cachedRoot = rootQueryCache {
             output = cachedRoot
         } else {
             let cmd =
-                bazelWrapper
-                + " --output_base=\(outputBase) aquery \"mnemonic('SwiftCompile|ObjcCompile', \(appToBuild))\" --noinclude_artifacts \(flags)"
-            output = try shell(cmd, cwd: rootUri)
+                "aquery \"mnemonic('SwiftCompile|ObjcCompile', \(appToBuild))\" --noinclude_artifacts"
+            output = try commandRunner.bazelIndexAction(
+                initializedConfig: initializedConfig,
+                cmd: cmd
+            )
             rootQueryCache = output
         }
         logger.info("Parsing compiler arguments...")
@@ -231,7 +232,7 @@ final class SKOptionsHandler {
         lines[lines.count - 1] = String(lines[lines.count - 1].dropLast())
 
         // some args are wrapped in single quotes for some reason
-        for i in 0..<lines.count {
+        for i in 0 ..< lines.count {
             if lines[i].hasPrefix("'"), lines[i].hasSuffix("'") {
                 lines[i] = String(lines[i].dropFirst().dropLast())
             }

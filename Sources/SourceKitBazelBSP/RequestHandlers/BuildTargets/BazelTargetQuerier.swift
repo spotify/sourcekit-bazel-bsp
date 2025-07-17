@@ -22,6 +22,7 @@ import Foundation
 enum BazelTargetQuerierError: Error, LocalizedError {
     case noKinds
     case noTargets
+    case invalidQueryOutput
 
     var errorDescription: String? {
         switch self {
@@ -29,6 +30,8 @@ enum BazelTargetQuerierError: Error, LocalizedError {
             return "A list of kinds is necessary to query targets"
         case .noTargets:
             return "A list of targets is necessary to query targets"
+        case .invalidQueryOutput:
+            return "Query output is not valid XML"
         }
     }
 }
@@ -94,7 +97,7 @@ final class BazelTargetQuerier {
         logger.debug("Finished querying, building result XML")
 
         guard let xml = try XMLDocument(xmlString: output).rootElement() else {
-            throw WorkspaceBuildTargetsError.invalidQueryOutput
+            throw BazelTargetQuerierError.invalidQueryOutput
         }
 
         queryCache[cacheKey] = xml

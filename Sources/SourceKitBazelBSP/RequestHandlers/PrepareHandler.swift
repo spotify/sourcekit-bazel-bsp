@@ -21,7 +21,7 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
-/// Handles the `workspace/prepare` request.
+/// Handles the `buildTarget/prepare` request.
 ///
 /// Builds the provided list of targets upon request.
 final class PrepareHandler {

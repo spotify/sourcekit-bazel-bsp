@@ -35,24 +35,84 @@ package final class SourceKitBazelBSPServer {
         baseConfig: BaseServerConfig,
         connection: JSONRPCConnection
     ) -> BSPMessageHandler {
-        // FIXME: Will divide BSPServerMessageHandlerImpl into multiple classes, just doing one thing at a time.
-        let baseHandler = BSPServerMessageHandlerImpl(
+        let registry = BSPMessageHandler()
+        // We start by only registering the base init and shutdown handlers.
+        // Everything else will be registered post-init.
+        let initHandler = InitializeHandler(
             baseConfig: baseConfig,
             connection: connection
         )
-        let handler = BSPMessageHandler()
-        handler.register(requestHandler: baseHandler.initializeBuild)
-        handler.register(requestHandler: baseHandler.workspaceBuildTargets)
-        handler.register(requestHandler: baseHandler.buildTargetSources)
-        handler.register(requestHandler: baseHandler.prepareTarget)
-        handler.register(requestHandler: baseHandler.textDocumentSourceKitOptions)
-        handler.register(requestHandler: baseHandler.waitForBuildSystemUpdates)
-        handler.register(requestHandler: baseHandler.buildShutdown)
-        handler.register(notificationHandler: baseHandler.cancelRequest)
-        handler.register(notificationHandler: baseHandler.onBuildExit)
-        handler.register(notificationHandler: baseHandler.onBuildInitialized)
-        handler.register(notificationHandler: baseHandler.onWatchedFilesDidChange)
-        return handler
+        let shutdownHandler = ShutdownHandler()
+        registry.register(requestHandler: { (request: InitializeBuildRequest, id: RequestID) in
+            let result = try initHandler.initializeBuild(request, id)
+            Self.registerPostInitHandlers(
+                registry: registry,
+                initializedConfig: result.1,
+                connection: connection
+            )
+            return result.0
+        })
+        registry.register(notificationHandler: shutdownHandler.onBuildExit)
+        registry.register(requestHandler: shutdownHandler.buildShutdown)
+        return registry
+    }
+
+    private static func registerPostInitHandlers(
+        registry: BSPMessageHandler,
+        initializedConfig: InitializedServerConfig,
+        connection: JSONRPCConnection
+    ) {
+        // First, deal with the no-op handlers we cannot or do not want to handle directly.
+        registry.register(notificationHandler: { (notification: OnBuildInitializedNotification) in
+            // no-op
+        })
+        registry.register(notificationHandler: { (notification: CancelRequestNotification) in
+            // no-op, no request canceling since the code today is not async
+        })
+        registry.register(requestHandler: {
+            (request: WorkspaceWaitForBuildSystemUpdatesRequest, id: RequestID) in
+            // FIXME: no-op, no special handling since the code today is not async, but I might be wrong here.
+            return VoidResponse()
+        })
+
+        // Then, register the things we are interested in.
+        // workspace/buildTargets
+        let targetStore = BazelTargetStore(initializedConfig: initializedConfig)
+        let buildTargetsHandler = BuildTargetsHandler(
+            targetStore: targetStore,
+            connection: connection
+        )
+        registry.register(requestHandler: buildTargetsHandler.workspaceBuildTargets)
+
+        // buildTarget/sources
+        let targetSourcesHandler = TargetSourcesHandler(
+            initializedConfig: initializedConfig,
+            targetStore: targetStore
+        )
+        registry.register(requestHandler: targetSourcesHandler.buildTargetSources)
+
+        // textDocument/sourceKitOptions
+        let skOptionsHandler = SKOptionsHandler(
+            initializedConfig: initializedConfig,
+            targetStore: targetStore,
+            connection: connection
+        )
+        registry.register(requestHandler: skOptionsHandler.textDocumentSourceKitOptions)
+
+        // buildTarget/prepare
+        let prepareHandler = PrepareHandler(
+            initializedConfig: initializedConfig,
+            targetStore: targetStore,
+            connection: connection
+        )
+        registry.register(requestHandler: prepareHandler.prepareTarget)
+
+        // OnWatchedFilesDidChangeNotification
+        let watchedFileChangeHandler = WatchedFileChangeHandler(
+            targetStore: targetStore,
+            connection: connection
+        )
+        registry.register(notificationHandler: watchedFileChangeHandler.onWatchedFilesDidChange)
     }
 
     package convenience init(

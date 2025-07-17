@@ -59,7 +59,7 @@ final class InitializeHandler {
     func initializeBuild(
         _ request: InitializeBuildRequest,
         _ id: RequestID
-    ) throws -> InitializeBuildResponse {
+    ) throws -> (InitializeBuildResponse, InitializedServerConfig) {
         let taskId = TaskId(id: "initializeBuild-\(id.description)")
         connection?.startWorkTask(
             id: taskId,
@@ -75,7 +75,7 @@ final class InitializeHandler {
                 and: initializedConfig
             )
             connection?.finishTask(id: taskId, status: .ok)
-            return result
+            return (result, initializedConfig)
         } catch {
             connection?.finishTask(id: taskId, status: .error)
             throw error
