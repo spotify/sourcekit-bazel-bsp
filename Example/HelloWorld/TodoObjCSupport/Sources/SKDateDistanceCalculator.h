@@ -24,21 +24,24 @@
 /**
  * Calculates the time interval between the given date and now
  * @param date The reference date to calculate distance from
- * @return Time interval in seconds (positive if date is in the past, negative if in the future)
+ * @return Time interval in seconds (positive if date is in the past, negative
+ * if in the future)
  */
 + (NSTimeInterval)distanceFromNow:(NSDate *)date;
 
 /**
  * Calculates the distance and returns a human-readable string
  * @param date The reference date to calculate distance from
- * @return A formatted string describing the time distance (e.g., "2 days ago", "3 hours from now")
+ * @return A formatted string describing the time distance (e.g., "2 days ago",
+ * "3 hours from now")
  */
 + (NSString *)humanReadableDistanceFromNow:(NSDate *)date;
 
 /**
  * Calculates the distance in specific units
  * @param date The reference date to calculate distance from
- * @param unit The calendar unit to measure in (e.g., NSCalendarUnitDay, NSCalendarUnitHour)
+ * @param unit The calendar unit to measure in (e.g., NSCalendarUnitDay,
+ * NSCalendarUnitHour)
  * @return The distance in the specified unit
  */
 + (NSInteger)distanceFromNow:(NSDate *)date inUnit:(NSCalendarUnit)unit;
