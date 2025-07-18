@@ -54,6 +54,10 @@ let package = Package(
             name: "BazelProtobufBindings",
             dependencies: [
                 .product(name: "SwiftProtobuf", package: "swift-protobuf")
+            ],
+            exclude: [
+                "README.md",
+                "analysis_v2.proto",
             ]
         ),
         .testTarget(
