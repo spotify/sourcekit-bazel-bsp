@@ -27,22 +27,23 @@ final class CommandRunnerFake: CommandRunner {
     private var responses: [String: String] = [:]
     private var errors: [String: Error] = [:]
 
-    func setResponse(for command: String, response: String) {
-        responses[command] = response
+    func setResponse(for command: String, cwd: String? = nil, response: String) {
+        responses[command + "|" + (cwd ?? "nil")] = response
     }
 
-    func setError(for command: String, error: Error) {
-        errors[command] = error
+    func setError(for command: String, cwd: String? = nil, error: Error) {
+        errors[command + "|" + (cwd ?? "nil")] = error
     }
 
     func run(_ cmd: String, cwd: String?) throws -> String {
         commands.append((command: cmd, cwd: cwd))
 
-        if let error = errors[cmd] {
+        if let error = errors[cmd + "|" + (cwd ?? "nil")] {
             throw error
         }
 
-        return responses[cmd] ?? "Response/error not registered for command: \(cmd)"
+        return responses[cmd + "|" + (cwd ?? "nil")]
+            ?? "Response/error not registered for command: \(cmd)"
     }
 
     func reset() {

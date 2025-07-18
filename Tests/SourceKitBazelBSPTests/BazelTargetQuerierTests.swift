@@ -36,24 +36,26 @@ import Testing
             filesToWatch: nil
         )
 
+        let mockRootUri = "/path/to/project"
         let expectedCommand =
             "bazelisk query \"kind('swift_library', deps(//HelloWorld))\" --output xml"
         runnerMock.setResponse(
             for: expectedCommand,
+            cwd: mockRootUri,
             response: mockXml
         )
 
         let kinds: Set<String> = ["swift_library"]
         let result = try querier.queryTargets(
             forConfig: config,
-            rootUri: "/path/to/project",
+            rootUri: mockRootUri,
             kinds: kinds
         )
 
         let ranCommands = runnerMock.commands
         #expect(ranCommands.count == 1)
         #expect(ranCommands[0].command == expectedCommand)
-        #expect(ranCommands[0].cwd == "/path/to/project")
+        #expect(ranCommands[0].cwd == mockRootUri)
         #expect(result.children?.count == 2)
     }
 
@@ -69,24 +71,26 @@ import Testing
             filesToWatch: nil
         )
 
+        let mockRootUri = "/path/to/project"
         let expectedCommand =
             "bazelisk query \"kind('objc_library|swift_library', deps(//HelloWorld) union deps(//Tests))\" --output xml"
         runnerMock.setResponse(
             for: expectedCommand,
+            cwd: mockRootUri,
             response: mockXml
         )
 
         let kinds: Set<String> = ["swift_library", "objc_library"]
         let result = try querier.queryTargets(
             forConfig: config,
-            rootUri: "/path/to/project",
+            rootUri: mockRootUri,
             kinds: kinds
         )
 
         let ranCommands = runnerMock.commands
         #expect(ranCommands.count == 1)
         #expect(ranCommands[0].command == expectedCommand)
-        #expect(ranCommands[0].cwd == "/path/to/project")
+        #expect(ranCommands[0].cwd == mockRootUri)
         #expect(result.children?.count == 2)
     }
 
@@ -102,10 +106,12 @@ import Testing
             filesToWatch: nil
         )
 
+        let mockRootUri = "/path/to/project"
+
         func run(_ kinds: Set<String>) throws {
             _ = try querier.queryTargets(
                 forConfig: config,
-                rootUri: "/path/to/project",
+                rootUri: mockRootUri,
                 kinds: kinds
             )
         }
@@ -114,10 +120,12 @@ import Testing
 
         runnerMock.setResponse(
             for: "bazel query \"kind('swift_library', deps(//HelloWorld))\" --output xml",
+            cwd: mockRootUri,
             response: mockXml
         )
         runnerMock.setResponse(
             for: "bazel query \"kind('objc_library', deps(//HelloWorld))\" --output xml",
+            cwd: mockRootUri,
             response: mockXml
         )
 

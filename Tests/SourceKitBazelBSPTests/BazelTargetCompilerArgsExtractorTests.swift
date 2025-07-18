@@ -29,14 +29,14 @@ import Testing
     private static func makeMockExtractor() -> (BazelTargetCompilerArgsExtractor, CommandRunnerFake)
     {
         let mockRunner = CommandRunnerFake()
+        let mockRootUri = "/Users/user/Documents/demo-ios-project"
         let expectedAQuery =
             "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', deps(//HelloWorld))\" --noinclude_artifacts"
-        mockRunner.setResponse(for: expectedAQuery, response: exampleAqueryOutput)
+        mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
         let mockSdkRoot =
             "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
         let mockDevDir = "/Applications/Xcode.app/Contents/Developer"
         let mockOutputPath = "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out"
-        let mockRootUri = "/Users/user/Documents/demo-ios-project"
         let mockOutputBase = "/private/var/tmp/_bazel_user/hash123"
         let mockDevToolchainPath =
             "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain"
