@@ -27,11 +27,13 @@ private let logger = makeFileLevelBSPLogger()
 ///
 /// Builds the provided list of targets upon request.
 final class PrepareHandler {
-
     private let initializedConfig: InitializedServerConfig
     private let targetStore: BazelTargetStore
     private let commandRunner: CommandRunner
     private weak var connection: LSPConnection?
+
+    // Prevent redundant builds of the same targets
+    private var didRun = false
 
     init(
         initializedConfig: InitializedServerConfig,
@@ -46,9 +48,15 @@ final class PrepareHandler {
     }
 
     func prepareTarget(
-        _ request: BuildTargetPrepareRequest,
+        _: BuildTargetPrepareRequest,
         _ id: RequestID
     ) throws -> VoidResponse {
+        // FIXME: Invalidate on changes
+        guard !didRun else {
+            logger.info("Build already completed, skipping redundant build")
+            return VoidResponse()
+        }
+
         let taskId = TaskId(id: "buildPrepare-\(id.description)")
         connection?.startWorkTask(id: taskId, title: "Indexing: Building targets")
         do {
@@ -58,6 +66,7 @@ final class PrepareHandler {
             // and these are lost if you build the libs directly. We need those transitions here too.
             try build(bazelLabels: initializedConfig.baseConfig.targets)
             connection?.finishTask(id: taskId, status: .ok)
+            didRun = true
             return VoidResponse()
         } catch {
             connection?.finishTask(id: taskId, status: .error)
@@ -78,6 +87,7 @@ final class PrepareHandler {
         bazelLabels labelsToBuild: [String]
     ) throws {
         logger.info("Will build \(labelsToBuild.count) targets")
+        logger.info("Target to build: \(labelsToBuild)")
 
         // Build the provided targets, on our special output base and taking into account special index flags.
         _ = try commandRunner.bazelIndexAction(
@@ -86,7 +96,7 @@ final class PrepareHandler {
         )
 
         // FIXME: This might not be necessary anymore
-        _ = try commandRunner.run("chmod -R 777 \(initializedConfig.outputBase)")
+        // _ = try commandRunner.run("chmod -R 777 \(initializedConfig.outputBase)")
 
         logger.info("Finished building targets!")
     }

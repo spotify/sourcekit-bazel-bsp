@@ -26,7 +26,6 @@ private let logger = makeFileLevelBSPLogger()
 
 /// The higher-level class that bootstraps and manages the BSP server.
 package final class SourceKitBazelBSPServer {
-
     let connection: LSPConnection
     let handler: MessageHandler
 
@@ -62,16 +61,16 @@ package final class SourceKitBazelBSPServer {
         connection: JSONRPCConnection
     ) {
         // First, deal with the no-op handlers we cannot or do not want to handle directly.
-        registry.register(notificationHandler: { (notification: OnBuildInitializedNotification) in
+        registry.register(notificationHandler: { (_: OnBuildInitializedNotification) in
             // no-op
         })
-        registry.register(notificationHandler: { (notification: CancelRequestNotification) in
+        registry.register(notificationHandler: { (_: CancelRequestNotification) in
             // no-op, no request canceling since the code today is not async
         })
         registry.register(requestHandler: {
-            (request: WorkspaceWaitForBuildSystemUpdatesRequest, id: RequestID) in
+            (_: WorkspaceWaitForBuildSystemUpdatesRequest, _: RequestID) in
             // FIXME: no-op, no special handling since the code today is not async, but I might be wrong here.
-            return VoidResponse()
+            VoidResponse()
         })
 
         // Then, register the things we are interested in.
@@ -96,7 +95,20 @@ package final class SourceKitBazelBSPServer {
             targetStore: targetStore,
             connection: connection
         )
-        registry.register(requestHandler: skOptionsHandler.textDocumentSourceKitOptions)
+        registry.register(requestHandler: { (request: TextDocumentSourceKitOptionsRequest, id: RequestID) in
+            // Handle the optional response type properly - if nil is returned for valid reasons
+            // (like missing module entries), return an empty response instead of nil to prevent connection closure
+            if let response = try skOptionsHandler.textDocumentSourceKitOptions(request, id) {
+                return response
+            } else {
+                // Return an empty response with no compiler arguments rather than nil
+                // This prevents SourceKit LSP from closing the connection
+                return TextDocumentSourceKitOptionsResponse(
+                    compilerArguments: [],
+                    workingDirectory: initializedConfig.rootUri
+                )
+            }
+        })
 
         // buildTarget/prepare
         let prepareHandler = PrepareHandler(
