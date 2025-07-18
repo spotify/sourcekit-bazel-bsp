@@ -70,17 +70,20 @@ final class TargetSourcesHandler {
     func convertToSourceItems(_ targetSrcs: [URI]) -> [SourceItem] {
         var result: [SourceItem] = []
         for src in targetSrcs {
+            let srcString = src.stringValue
             let kind: SourceKitSourceItemKind
-            if src.stringValue.hasSuffix("h") {
+            if srcString.hasSuffix("h") {
                 kind = .header
             } else {
                 kind = .source
             }
-            let language: Language
-            if src.stringValue.hasSuffix("swift") {
+            let language: Language?
+            if srcString.hasSuffix("swift") {
                 language = .swift
-            } else {
+            } else if srcString.hasSuffix("m") || kind == .header {
                 language = .objective_c
+            } else {
+                language = nil
             }
             result.append(
                 SourceItem(
