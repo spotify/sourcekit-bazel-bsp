@@ -33,6 +33,9 @@ final class PrepareHandler {
     private weak var connection: LSPConnection?
 
     // Prevent redundant builds of the same targets
+    // FIXME: Need to understand how exactly this request is dispatched from sourcekit-lsp, as
+    // we see for example multiple build requests for the same target. So we have this
+    // for now just to make sure the example project works.
     private var didRun = false
 
     init(
@@ -51,7 +54,6 @@ final class PrepareHandler {
         _: BuildTargetPrepareRequest,
         _ id: RequestID
     ) throws -> VoidResponse {
-        // FIXME: Invalidate on changes
         guard !didRun else {
             logger.info("Build already completed, skipping redundant build")
             return VoidResponse()
@@ -96,5 +98,9 @@ final class PrepareHandler {
         )
 
         logger.info("Finished building targets!")
+    }
+
+    func invalidateBuildCache() {
+        didRun = false
     }
 }
