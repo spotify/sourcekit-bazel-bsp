@@ -31,6 +31,7 @@ import Testing
         let commandRunner = CommandRunnerFake()
         let connection = LSPConnectionFake()
 
+        let rootUri = "/path/to/project"
         let baseConfig = BaseServerConfig(
             bazelWrapper: "bazel",
             targets: ["//HelloWorld"],
@@ -40,7 +41,7 @@ import Testing
 
         let initializedConfig = InitializedServerConfig(
             baseConfig: baseConfig,
-            rootUri: "/path/to/project",
+            rootUri: rootUri,
             outputBase: "/tmp/output_base",
             outputPath: "/tmp/output_path",
             devDir: "/Applications/Xcode.app/Contents/Developer",
@@ -52,6 +53,7 @@ import Testing
             "bazel --output_base=/tmp/output_base build //HelloWorld --config=index"
         commandRunner.setResponse(
             for: expectedCommand,
+            cwd: rootUri,
             response: "")
 
         let handler = PrepareHandler(
@@ -66,7 +68,7 @@ import Testing
         let ranCommands = commandRunner.commands
         #expect(ranCommands.count == 1)
         #expect(ranCommands[0].command == expectedCommand)
-        #expect(ranCommands[0].cwd == "/path/to/project")
+        #expect(ranCommands[0].cwd == rootUri)
     }
 
     func buildWithMultipleTargets() throws {

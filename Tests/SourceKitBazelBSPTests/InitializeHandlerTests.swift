@@ -110,6 +110,9 @@ import Testing
             response: outputPath
         )
         commandRunner.setResponse(for: "xcrun --find swift", response: toolchain + "usr/bin/swift")
+        commandRunner.setResponse(for: "xcode-select --print-path", response: "foo")
+        commandRunner.setResponse(
+            for: "xcrun --sdk iphonesimulator --show-sdk-path", response: "bar")
 
         let handler = InitializeHandler(
             baseConfig: baseConfig,
@@ -154,6 +157,9 @@ import Testing
             response: outputPath
         )
         commandRunner.setResponse(for: "xcrun --find swift", response: toolchain + "usr/bin/swift")
+        commandRunner.setResponse(for: "xcode-select --print-path", response: "foo")
+        commandRunner.setResponse(
+            for: "xcrun --sdk iphonesimulator --show-sdk-path", response: "bar")
 
         let handler = InitializeHandler(
             baseConfig: baseConfig,
