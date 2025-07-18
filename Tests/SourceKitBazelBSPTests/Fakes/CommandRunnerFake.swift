@@ -21,31 +21,53 @@ import Foundation
 
 @testable import SourceKitBazelBSP
 
+enum CommandRunnerFakeError: Error, LocalizedError {
+    case unregisteredCommand(String, String?)
+
+    var errorDescription: String? {
+        switch self {
+        case .unregisteredCommand(let cmd, let cwd):
+            return "Unexpected command: \(cmd) (cwd: \(cwd ?? "nil"))"
+        }
+    }
+}
+
 final class CommandRunnerFake: CommandRunner {
 
     private(set) var commands: [(command: String, cwd: String?)] = []
     private var responses: [String: String] = [:]
     private var errors: [String: Error] = [:]
 
-    func setResponse(for command: String, response: String) {
-        responses[command] = response
+    func setResponse(for command: String, cwd: String? = nil, response: String) {
+        responses[key(for: command, cwd: cwd)] = response
     }
 
-    func setError(for command: String, error: Error) {
-        errors[command] = error
+    func setError(for command: String, cwd: String? = nil, error: Error) {
+        errors[key(for: command, cwd: cwd)] = error
     }
 
     func run(_ cmd: String, cwd: String?) throws -> String {
         commands.append((command: cmd, cwd: cwd))
 
-        if let error = errors[cmd] {
+        let cacheKey = key(for: cmd, cwd: cwd)
+        if let error = errors[cacheKey] {
             throw error
         }
 
-        return responses[cmd] ?? "Response/error not registered for command: \(cmd)"
+        guard let response = responses[cacheKey] else {
+            throw CommandRunnerFakeError.unregisteredCommand(cmd, cwd)
+        }
+
+        return response
     }
 
-    func clearHistory() {
+    private func key(for command: String, cwd: String?) -> String {
+        return command + "|" + (cwd ?? "nil")
+    }
+
+    func reset() {
         commands.removeAll()
+        responses.removeAll()
+        errors.removeAll()
     }
 }
