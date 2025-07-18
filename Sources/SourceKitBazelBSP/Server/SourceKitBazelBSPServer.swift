@@ -95,20 +95,7 @@ package final class SourceKitBazelBSPServer {
             targetStore: targetStore,
             connection: connection
         )
-        registry.register(requestHandler: { (request: TextDocumentSourceKitOptionsRequest, id: RequestID) in
-            // Handle the optional response type properly - if nil is returned for valid reasons
-            // (like missing module entries), return an empty response instead of nil to prevent connection closure
-            if let response = try skOptionsHandler.textDocumentSourceKitOptions(request, id) {
-                return response
-            } else {
-                // Return an empty response with no compiler arguments rather than nil
-                // This prevents SourceKit LSP from closing the connection
-                return TextDocumentSourceKitOptionsResponse(
-                    compilerArguments: [],
-                    workingDirectory: initializedConfig.rootUri
-                )
-            }
-        })
+        registry.register(requestHandler: skOptionsHandler.textDocumentSourceKitOptions)
 
         // buildTarget/prepare
         let prepareHandler = PrepareHandler(

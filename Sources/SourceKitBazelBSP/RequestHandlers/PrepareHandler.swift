@@ -95,9 +95,6 @@ final class PrepareHandler {
             cmd: "build \(labelsToBuild.joined(separator: " "))"
         )
 
-        // FIXME: This might not be necessary anymore
-        // _ = try commandRunner.run("chmod -R 777 \(initializedConfig.outputBase)")
-
         logger.info("Finished building targets!")
     }
 }

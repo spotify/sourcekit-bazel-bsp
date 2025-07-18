@@ -54,12 +54,6 @@ import Testing
             for: expectedCommand,
             response: "")
 
-        let chmodCommand = "chmod -R 777 /tmp/output_base"
-        commandRunner.setResponse(
-            for: chmodCommand,
-            response: ""
-        )
-
         let handler = PrepareHandler(
             initializedConfig: initializedConfig,
             targetStore: BazelTargetStore(initializedConfig: initializedConfig),
@@ -70,11 +64,9 @@ import Testing
         try handler.build(bazelLabels: baseConfig.targets)
 
         let ranCommands = commandRunner.commands
-        #expect(ranCommands.count == 2)
+        #expect(ranCommands.count == 1)
         #expect(ranCommands[0].command == expectedCommand)
         #expect(ranCommands[0].cwd == "/path/to/project")
-        #expect(ranCommands[1].command == chmodCommand)
-        #expect(ranCommands[1].cwd == nil)
     }
 
     func buildWithMultipleTargets() throws {
@@ -104,12 +96,6 @@ import Testing
             for: expectedCommand,
             response: "Build completed")
 
-        let chmodCommand = "chmod -R 777 /tmp/output_base"
-        commandRunner.setResponse(
-            for: chmodCommand,
-            response: "Done"
-        )
-
         let handler = PrepareHandler(
             initializedConfig: initializedConfig,
             targetStore: BazelTargetStore(initializedConfig: initializedConfig),
@@ -120,10 +106,8 @@ import Testing
         try handler.build(bazelLabels: baseConfig.targets)
 
         let ranCommands = commandRunner.commands
-        #expect(ranCommands.count == 2)
+        #expect(ranCommands.count == 1)
         #expect(ranCommands[0].command == expectedCommand)
         #expect(ranCommands[0].cwd == "/path/to/project")
-        #expect(ranCommands[1].command == chmodCommand)
-        #expect(ranCommands[1].cwd == nil)
     }
 }
