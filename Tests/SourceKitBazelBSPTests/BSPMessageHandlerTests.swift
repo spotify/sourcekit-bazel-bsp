@@ -127,4 +127,51 @@ import Testing
 
         #expect(initialized)
     }
+
+    @Test
+    func testRecursiveRegistration() async throws {
+        // setup mocks
+        let sourcesRequest = BuildTargetSourcesRequest(targets: [])
+        let sourcesResponse = BuildTargetSourcesResponse(items: [])
+        let initRequest = InitializeBuildRequest(
+            displayName: "mockInitRequest",
+            version: "1.0",
+            bspVersion: "2.0",
+            rootUri: URI(filePath: "/Users/BSP", isDirectory: false),
+            capabilities: .init(languageIds: [])
+        )
+        let initResponse = InitializeBuildResponse(
+            displayName: "mockInitResponse",
+            version: "1.0",
+            bspVersion: "2.0",
+            capabilities: .init()
+        )
+
+        // recursive registering
+        let registry = BSPMessageHandler()
+
+        registry.register { (request: InitializeBuildRequest, id: RequestID) in
+            registry.register { (request: BuildTargetSourcesRequest, id: RequestID) in
+                return sourcesResponse
+            }
+            return initResponse
+        }
+
+        // validating handler registered
+        registry.handle(initRequest, id: .number(1)) { result in
+            if case let .success(resp) = result {
+                #expect(resp.displayName == "mockInitResponse")
+            } else {
+                Issue.record("initRequest failed due to handler not found")
+            }
+        }
+
+        registry.handle(sourcesRequest, id: .number(2)) { result in
+            if case let .success(resp) = result {
+                #expect(resp.items.count == 0)
+            } else {
+                Issue.record("sourcesRequest failed due to handler not found")
+            }
+        }
+    }
 }

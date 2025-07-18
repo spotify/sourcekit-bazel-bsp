@@ -37,30 +37,32 @@ final class BSPMessageHandler: MessageHandler {
 
     // We currently use a single-threaded setup for simplicity,
     // but we can eventually reply asynchronously if we find a need for it.
-    private let lock: OSAllocatedUnfairLock<Void> = .init()
-    // FIXME: Can't put state into the lock for now because of recursiveness in the registration.
-    nonisolated(unsafe) private var state: State = State()
+    private let state = LockIsolated<State>(.init())
 
     init() {}
 
     func register<Request: RequestType>(
         requestHandler: @escaping BSPRequestHandler<Request>
     ) {
-        state.requestHandlers[Request.method] = AnyRequestHandler(
-            handler: requestHandler
-        )
+        state.modify { state in
+            state.requestHandlers[Request.method] = AnyRequestHandler(
+                handler: requestHandler
+            )
+        }
     }
 
     func register<Notification: NotificationType>(
         notificationHandler: @escaping BSPNotificationHandler<Notification>
     ) {
-        state.notificationHandlers[Notification.method] = AnyNotificationHandler(
-            handler: notificationHandler
-        )
+        state.modify { state in
+            state.notificationHandlers[Notification.method] = AnyNotificationHandler(
+                handler: notificationHandler
+            )
+        }
     }
 
     func handle<Notification: NotificationType>(_ notification: Notification) {
-        lock.withLockUnchecked {
+        state.read { state in
             logger.info(
                 "Received notification: \(Notification.method)"
             )
@@ -78,7 +80,7 @@ final class BSPMessageHandler: MessageHandler {
         id: RequestID,
         reply: @escaping (LSPResult<Request.Response>) -> Void
     ) {
-        lock.withLockUnchecked {
+        state.read { state in
             logger.info(
                 "Received request: \(Request.method)"
             )
@@ -130,5 +132,26 @@ final class BSPMessageHandler: MessageHandler {
             )
         }
         return handler
+    }
+}
+
+final class LockIsolated<Value>: @unchecked Sendable {
+    private var value: Value
+    private let lock = NSRecursiveLock()
+
+    init(_ value: Value) {
+        self.value = value
+    }
+
+    func read<T>(_ closure: (Value) throws -> T) rethrows -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return try closure(value)
+    }
+
+    func modify<T>(_ closure: (inout Value) throws -> T) rethrows -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return try closure(&value)
     }
 }
