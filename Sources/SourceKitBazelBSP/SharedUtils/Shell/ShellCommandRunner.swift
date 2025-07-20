@@ -26,8 +26,7 @@ enum ShellCommandRunnerError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .failed(let command, let stderr):
-            return "Command `\(command)` failed: \(stderr)"
+        case .failed(let command, let stderr): return "Command `\(command)` failed: \(stderr)"
         }
     }
 }

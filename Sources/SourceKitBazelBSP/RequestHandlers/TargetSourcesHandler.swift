@@ -31,10 +31,7 @@ final class TargetSourcesHandler {
     private let initializedConfig: InitializedServerConfig
     private let targetStore: BazelTargetStore
 
-    init(
-        initializedConfig: InitializedServerConfig,
-        targetStore: BazelTargetStore,
-    ) {
+    init(initializedConfig: InitializedServerConfig, targetStore: BazelTargetStore) {
         self.initializedConfig = initializedConfig
         self.targetStore = targetStore
     }
@@ -50,19 +47,12 @@ final class TargetSourcesHandler {
         for target in targets {
             let targetSrcs = try targetStore.bazelTargetSrcs(forBSPURI: target.uri)
             let sources = convertToSourceItems(targetSrcs)
-            srcs.append(
-                SourcesItem(
-                    target: target,
-                    sources: sources
-                )
-            )
+            srcs.append(SourcesItem(target: target, sources: sources))
         }
 
         let count = srcs.reduce(0) { $0 + $1.sources.count }
 
-        logger.info(
-            "Returning \(srcs.count) source specs (\(count) total source entries)"
-        )
+        logger.info("Returning \(srcs.count) source specs (\(count) total source entries)")
 
         return BuildTargetSourcesResponse(items: srcs)
     }

@@ -30,10 +30,7 @@ final class WatchedFileChangeHandler {
 
     private weak var connection: LSPConnection?
 
-    init(
-        targetStore: BazelTargetStore,
-        connection: LSPConnection,
-    ) {
+    init(targetStore: BazelTargetStore, connection: LSPConnection) {
         self.targetStore = targetStore
         self.connection = connection
     }
@@ -42,9 +39,7 @@ final class WatchedFileChangeHandler {
         // FIXME: This only deals with changes, not deletions or creations
         // For those, we need to invalidate the compilation options cache too
         // and probably also re-compile the app
-        let changes = notification.changes
-            .filter { $0.type == .changed }
-            .map { $0.uri }
+        let changes = notification.changes.filter { $0.type == .changed }.map { $0.uri }
         var affectedTargets: Set<URI> = []
         for change in changes {
             let targetsForSrc = try targetStore.bspURIs(containingSrc: change)
@@ -54,12 +49,7 @@ final class WatchedFileChangeHandler {
         }
         let response = OnBuildTargetDidChangeNotification(
             changes: affectedTargets.map {
-                BuildTargetEvent(
-                    target: BuildTargetIdentifier(uri: $0),
-                    kind: .changed,
-                    dataKind: nil,
-                    data: nil
-                )
+                BuildTargetEvent(target: BuildTargetIdentifier(uri: $0), kind: .changed, dataKind: nil, data: nil)
             }
         )
         connection?.send(response)

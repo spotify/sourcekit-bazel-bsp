@@ -51,14 +51,9 @@ final class SKOptionsHandler {
         _ id: RequestID
     ) throws -> TextDocumentSourceKitOptionsResponse? {
         let taskId = TaskId(id: "getSKOptions-\(id.description)")
-        connection?.startWorkTask(
-            id: taskId,
-            title: "Indexing: Getting compiler arguments"
-        )
+        connection?.startWorkTask(id: taskId, title: "Indexing: Getting compiler arguments")
         do {
-            let result = try handle(
-                request: request
-            )
+            let result = try handle(request: request)
             connection?.finishTask(id: taskId, status: .ok)
             return result
         } catch {
@@ -67,9 +62,7 @@ final class SKOptionsHandler {
         }
     }
 
-    func handle(
-        request: TextDocumentSourceKitOptionsRequest
-    ) throws -> TextDocumentSourceKitOptionsResponse? {
+    func handle(request: TextDocumentSourceKitOptionsRequest) throws -> TextDocumentSourceKitOptionsResponse? {
         let targetUri = request.target.uri
         let bazelTarget = try targetStore.bazelTargetLabel(forBSPURI: targetUri)
 
@@ -85,13 +78,12 @@ final class SKOptionsHandler {
             ) ?? []
 
         // If no compiler arguments are found, return nil to avoid sourcekit indexing with no input files
-        if args.isEmpty {
+        guard !args.isEmpty else {
             return nil
-        } else {
-            return TextDocumentSourceKitOptionsResponse(
-                compilerArguments: args,
-                workingDirectory: initializedConfig.rootUri
-            )
         }
+        return TextDocumentSourceKitOptionsResponse(
+            compilerArguments: args,
+            workingDirectory: initializedConfig.rootUri
+        )
     }
 }

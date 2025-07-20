@@ -28,28 +28,20 @@ final class LSPConnectionFake: LSPConnection {
     nonisolated(unsafe) private(set) var startCalled = false
     nonisolated(unsafe) private(set) var startReceivedHandler: MessageHandler?
 
-    func start(
-        receiveHandler: MessageHandler,
-        closeHandler: @escaping @Sendable () async -> Void
-    ) {
+    func start(receiveHandler: MessageHandler, closeHandler: @escaping @Sendable () async -> Void) {
         startCalled = true
         startReceivedHandler = receiveHandler
     }
 
-    func nextRequestID() -> LanguageServerProtocol.RequestID {
-        unimplemented()
-    }
+    func nextRequestID() -> LanguageServerProtocol.RequestID { unimplemented() }
 
-    func send(_ notification: some NotificationType) {
-        unimplemented()
-    }
+    func send(_ notification: some NotificationType) { unimplemented() }
 
     func send<Request>(
-        _ request: Request, id: LanguageServerProtocol.RequestID,
+        _ request: Request,
+        id: LanguageServerProtocol.RequestID,
         reply: @escaping @Sendable (LanguageServerProtocol.LSPResult<Request.Response>) -> Void
-    ) where Request: LanguageServerProtocol.RequestType {
-        unimplemented()
-    }
+    ) where Request: LanguageServerProtocol.RequestType { unimplemented() }
 
     func startWorkTask(id: TaskId, title: String) {
         // no-op

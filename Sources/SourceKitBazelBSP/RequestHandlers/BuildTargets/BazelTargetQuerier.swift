@@ -28,12 +28,9 @@ enum BazelTargetQuerierError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .noKinds:
-            return "A list of kinds is necessary to query targets"
-        case .noTargets:
-            return "A list of targets is necessary to query targets"
-        case .invalidQueryOutput:
-            return "Query output is not valid XML"
+        case .noKinds: return "A list of kinds is necessary to query targets"
+        case .noTargets: return "A list of targets is necessary to query targets"
+        case .invalidQueryOutput: return "Query output is not valid XML"
         }
     }
 }
@@ -62,13 +59,7 @@ final class BazelTargetQuerier {
         self.commandRunner = commandRunner
     }
 
-    func queryTargets(
-        forConfig config: BaseServerConfig,
-        rootUri: String,
-        kinds: Set<String>
-    ) throws
-        -> XMLElement
-    {
+    func queryTargets(forConfig config: BaseServerConfig, rootUri: String, kinds: Set<String>) throws -> XMLElement {
         guard !kinds.isEmpty else {
             throw BazelTargetQuerierError.noKinds
         }
@@ -90,11 +81,7 @@ final class BazelTargetQuerier {
 
         // We run this one on the main output base since it's not related to the actual indexing bits
         let cmd = "query \"kind('\(kindsFilter)', \(depsQuery))\" --output xml"
-        let output = try commandRunner.bazel(
-            baseConfig: config,
-            rootUri: rootUri,
-            cmd: cmd
-        )
+        let output = try commandRunner.bazel(baseConfig: config, rootUri: rootUri, cmd: cmd)
 
         logger.debug("Finished querying, building result XML")
 

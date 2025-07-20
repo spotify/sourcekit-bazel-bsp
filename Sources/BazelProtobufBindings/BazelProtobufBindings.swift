@@ -20,23 +20,19 @@
 import Foundation
 
 public struct BazelProtobufBindings {
-    
+
     let actionGraph: Analysis_ActionGraphContainer
-    
-    init(actionGraph: Analysis_ActionGraphContainer) {
-        self.actionGraph = actionGraph
-    }
 
     public static func new(data: Data) throws -> Self {
         let actionGraph = try Analysis_ActionGraphContainer(serializedBytes: data)
         return BazelProtobufBindings(actionGraph: actionGraph)
     }
-    
+
     public func findActionsBy(mnemonic: String) -> [Analysis_Action] {
         return actionGraph.actions.filter { $0.mnemonic == mnemonic }
     }
-    
+
     public func getTargetBy(label: String) -> Analysis_Target? {
-         return actionGraph.targets.first { $0.label == label }
+        return actionGraph.targets.first { $0.label == label }
     }
 }

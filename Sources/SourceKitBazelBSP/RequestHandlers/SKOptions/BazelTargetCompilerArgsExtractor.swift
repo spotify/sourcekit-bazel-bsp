@@ -28,8 +28,7 @@ enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidObjCUri(let uri):
-            return "Unexpected non-Swift URI missing root URI prefix: \(uri)"
+        case .invalidObjCUri(let uri): return "Unexpected non-Swift URI missing root URI prefix: \(uri)"
         }
     }
 }
@@ -46,13 +45,9 @@ final class BazelTargetCompilerArgsExtractor {
         self.config = config
     }
 
-    func compilerArgs(
-        forDoc textDocument: URI,
-        inTarget bazelTarget: String,
-        language: Language
-    ) throws -> [String]? {
+    func compilerArgs(forDoc textDocument: URI, inTarget bazelTarget: String, language: Language) throws -> [String]? {
         // Ignore Obj-C header requests, since these don't compile
-        if textDocument.stringValue.hasSuffix(".h") {
+        guard !textDocument.stringValue.hasSuffix(".h") else {
             return nil
         }
 

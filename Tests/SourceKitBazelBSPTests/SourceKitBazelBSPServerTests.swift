@@ -24,16 +24,14 @@ import Testing
 
 @testable import SourceKitBazelBSP
 
-@Suite struct SourceKitBazelBSPServerTests {
+@Suite
+struct SourceKitBazelBSPServerTests {
     @Test
     func runAttachesHandler() {
         let mockConnection = LSPConnectionFake()
         let mockHandler = MessageHandlerFake()
 
-        let server = SourceKitBazelBSPServer(
-            connection: mockConnection,
-            handler: mockHandler
-        )
+        let server = SourceKitBazelBSPServer(connection: mockConnection, handler: mockHandler)
 
         server.run(parkThread: false)
 

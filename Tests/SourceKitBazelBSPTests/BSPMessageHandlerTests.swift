@@ -24,7 +24,8 @@ import Testing
 
 @testable import SourceKitBazelBSP
 
-@Suite struct BSPMessageHandlerTests {
+@Suite
+struct BSPMessageHandlerTests {
     @Test
     func unknownRequestHandler() throws {
         let handler = BSPMessageHandler()
@@ -34,13 +35,10 @@ import Testing
         }
         let request = FakeRequest()
         var receivedResponse: LSPResult<VoidResponse>?
-        handler.handle(request, id: RequestID.number(1)) { result in
-            receivedResponse = result
-        }
+        handler.handle(request, id: RequestID.number(1)) { result in receivedResponse = result }
         let result = try #require(receivedResponse)
         switch result {
-        case .success:
-            Issue.record("Expected failure but got success!")
+        case .success: Issue.record("Expected failure but got success!")
         case .failure(let error):
             #expect(error.code == .methodNotFound)
             #expect(error.message == "method not found: fake/request")
@@ -54,21 +52,16 @@ import Testing
         let handler = BSPMessageHandler()
         handler.register(requestHandler: { (_: BuildTargetSourcesRequest, _) in mockResponse })
 
-        let request = BuildTargetSourcesRequest(
-            targets: [BuildTargetIdentifier(uri: try URI(string: "file:///test"))],
+        let request = BuildTargetSourcesRequest(targets: [BuildTargetIdentifier(uri: try URI(string: "file:///test"))],
         )
 
         var receivedResponse: LSPResult<BuildTargetSourcesResponse>?
-        handler.handle(request, id: RequestID.number(1)) { result in
-            receivedResponse = result
-        }
+        handler.handle(request, id: RequestID.number(1)) { result in receivedResponse = result }
 
         let result = try #require(receivedResponse)
         switch result {
-        case .success(let response):
-            #expect(response == mockResponse)
-        case .failure(let error):
-            Issue.record("Expected success but got error: \(error)")
+        case .success(let response): #expect(response == mockResponse)
+        case .failure(let error): Issue.record("Expected success but got error: \(error)")
         }
     }
 
@@ -78,21 +71,16 @@ import Testing
         let handler = BSPMessageHandler()
         handler.register(requestHandler: { (_: BuildTargetSourcesRequest, _) in throw mockError })
 
-        let request = BuildTargetSourcesRequest(
-            targets: [BuildTargetIdentifier(uri: try URI(string: "file:///test"))],
+        let request = BuildTargetSourcesRequest(targets: [BuildTargetIdentifier(uri: try URI(string: "file:///test"))],
         )
 
         var receivedResponse: LSPResult<BuildTargetSourcesResponse>?
-        handler.handle(request, id: RequestID.number(1)) { result in
-            receivedResponse = result
-        }
+        handler.handle(request, id: RequestID.number(1)) { result in receivedResponse = result }
 
         let result = try #require(receivedResponse)
         switch result {
-        case .success:
-            Issue.record("Expected failure but got success!")
-        case .failure(let error):
-            #expect(error == mockError)
+        case .success: Issue.record("Expected failure but got success!")
+        case .failure(let error): #expect(error == mockError)
         }
     }
 
@@ -101,9 +89,7 @@ import Testing
         var initialized = false
         let handler = BSPMessageHandler()
 
-        handler.register(notificationHandler: { (_: OnBuildInitializedNotification) in
-            initialized = true
-        })
+        handler.register(notificationHandler: { (_: OnBuildInitializedNotification) in initialized = true })
 
         // Some other notification type that is not the one we registered for
         let notification = CancelRequestNotification(id: RequestID.number(1))
@@ -118,9 +104,7 @@ import Testing
         var initialized = false
         let handler = BSPMessageHandler()
 
-        handler.register(notificationHandler: { (_: OnBuildInitializedNotification) in
-            initialized = true
-        })
+        handler.register(notificationHandler: { (_: OnBuildInitializedNotification) in initialized = true })
 
         let notification = OnBuildInitializedNotification()
         handler.handle(notification)

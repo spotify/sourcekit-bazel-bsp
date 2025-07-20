@@ -43,24 +43,17 @@ enum CompilerArgumentsProcessor {
             }
             if line.hasPrefix(actionPrefix) {
                 if language == .swift {
-                    if lines[i + 1] != "  Mnemonic: SwiftCompile" {
-                        continue
-                    }
+                    if lines[i + 1] != "  Mnemonic: SwiftCompile" { continue }
                 } else {
-                    if lines[i + 1] != "  Mnemonic: ObjcCompile" {
-                        continue
-                    }
-                    if lines[i + 2] != "  Target: \(bazelTarget)" {
-                        continue
-                    }
+                    if lines[i + 1] != "  Mnemonic: ObjcCompile" { continue }
+                    if lines[i + 2] != "  Target: \(bazelTarget)" { continue }
                 }
                 idx = i
                 break
             }
         }
         if idx == -1 {
-            logger.error(
-                "No module entry found in the aquery for \(contentToQuery)")
+            logger.error("No module entry found in the aquery for \(contentToQuery)")
             return nil
         }
         // now, get the first index of the line that starts with "Command Line: ("
@@ -70,9 +63,7 @@ enum CompilerArgumentsProcessor {
             if line.starts(with: "  Command Line: (") {
                 idx = i
                 // Also skip the swiftc line for swift targets
-                if lines[idx + 1].contains("swiftc") {
-                    idx += 1
-                }
+                if lines[idx + 1].contains("swiftc") { idx += 1 }
                 break
             }
         }
@@ -177,10 +168,7 @@ enum CompilerArgumentsProcessor {
 
             // Replace execution root placeholder
             if arg.contains("__BAZEL_EXECUTION_ROOT__") {
-                let transformedArg = arg.replacingOccurrences(
-                    of: "__BAZEL_EXECUTION_ROOT__",
-                    with: rootUri
-                )
+                let transformedArg = arg.replacingOccurrences(of: "__BAZEL_EXECUTION_ROOT__", with: rootUri)
                 compilerArguments.append(transformedArg)
                 index += 1
                 continue
@@ -194,10 +182,7 @@ enum CompilerArgumentsProcessor {
 
             // Replace SDK placeholder
             if arg.contains("__BAZEL_XCODE_SDKROOT__") {
-                let transformedArg = arg.replacingOccurrences(
-                    of: "__BAZEL_XCODE_SDKROOT__",
-                    with: sdkRoot
-                )
+                let transformedArg = arg.replacingOccurrences(of: "__BAZEL_XCODE_SDKROOT__", with: sdkRoot)
                 compilerArguments.append(transformedArg)
                 index += 1
                 continue
@@ -205,10 +190,7 @@ enum CompilerArgumentsProcessor {
 
             // Replace Xcode Developer Directory
             if arg.contains("__BAZEL_XCODE_DEVELOPER_DIR__") {
-                let transformedArg = arg.replacingOccurrences(
-                    of: "__BAZEL_XCODE_DEVELOPER_DIR__",
-                    with: devDir
-                )
+                let transformedArg = arg.replacingOccurrences(of: "__BAZEL_XCODE_DEVELOPER_DIR__", with: devDir)
                 compilerArguments.append(transformedArg)
                 index += 1
                 continue
@@ -217,8 +199,7 @@ enum CompilerArgumentsProcessor {
             // Transform bazel-out/ paths
             // FIXME: How to be sure this is actually the placeholder and not an actual "bazel-out" folder?
             if arg.contains("bazel-out/") {
-                let transformedArg = arg.replacingOccurrences(
-                    of: "bazel-out/", with: outputPath + "/")
+                let transformedArg = arg.replacingOccurrences(of: "bazel-out/", with: outputPath + "/")
 
                 compilerArguments.append(transformedArg)
                 index += 1
@@ -228,8 +209,7 @@ enum CompilerArgumentsProcessor {
             // Transform external/ paths
             // FIXME: How to be sure this is actually the placeholder and not an actual "external/"" folder?
             if arg.contains("external/") {
-                let transformedArg = arg.replacingOccurrences(
-                    of: "external/", with: outputBase + "/external/")
+                let transformedArg = arg.replacingOccurrences(of: "external/", with: outputBase + "/external/")
                 compilerArguments.append(transformedArg)
                 index += 1
                 continue

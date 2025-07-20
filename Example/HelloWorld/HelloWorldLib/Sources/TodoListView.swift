@@ -21,8 +21,10 @@ import SwiftUI
 import TodoModels
 
 struct TodoListView: View {
-    @StateObject private var todoManager = TodoListManager()
-    @State private var showingAddTodo = false
+    @StateObject
+    private var todoManager = TodoListManager()
+    @State
+    private var showingAddTodo = false
 
     var body: some View {
         NavigationView {

@@ -25,9 +25,9 @@ import Testing
 
 @testable import SourceKitBazelBSP
 
-@Suite struct BazelTargetCompilerArgsExtractorTests {
-    private static func makeMockExtractor() -> (BazelTargetCompilerArgsExtractor, CommandRunnerFake)
-    {
+@Suite
+struct BazelTargetCompilerArgsExtractorTests {
+    private static func makeMockExtractor() -> (BazelTargetCompilerArgsExtractor, CommandRunnerFake) {
         let mockRunner = CommandRunnerFake()
         let mockRootUri = "/Users/user/Documents/demo-ios-project"
         let expectedAQuery =
@@ -38,8 +38,7 @@ import Testing
         let mockDevDir = "/Applications/Xcode.app/Contents/Developer"
         let mockOutputPath = "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out"
         let mockOutputBase = "/private/var/tmp/_bazel_user/hash123"
-        let mockDevToolchainPath =
-            "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain"
+        let mockDevToolchainPath = "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain"
         let config = InitializedServerConfig(
             baseConfig: BaseServerConfig(
                 bazelWrapper: "bazel",
@@ -84,7 +83,8 @@ import Testing
                 forDoc: URI(
                     filePath:
                         "/Users/user/Documents/demo-ios-project/HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.m",
-                    isDirectory: false),
+                    isDirectory: false
+                ),
                 inTarget: "//HelloWorld:TodoObjCSupport",
                 language: .objective_c,
             )
@@ -100,7 +100,8 @@ import Testing
             forDoc: URI(
                 filePath:
                     "/Users/user/Documents/demo-ios-project/HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.h",
-                isDirectory: false),
+                isDirectory: false
+            ),
             inTarget: "//HelloWorld:TodoObjCSupport",
             language: .objective_c,
         )
@@ -113,9 +114,9 @@ import Testing
 
         let result = try extractor.compilerArgs(
             forDoc: URI(
-                filePath:
-                    "/Users/user/Documents/demo-ios-project/HelloWorld/TodoObjCSupport/Sources/SomethingElse.m",
-                isDirectory: false),
+                filePath: "/Users/user/Documents/demo-ios-project/HelloWorld/TodoObjCSupport/Sources/SomethingElse.m",
+                isDirectory: false
+            ),
             inTarget: "//HelloWorld:TodoObjCSupport",
             language: .objective_c,
         )
@@ -129,9 +130,9 @@ import Testing
         let error = #expect(throws: BazelTargetCompilerArgsExtractorError.self) {
             try extractor.compilerArgs(
                 forDoc: URI(
-                    filePath:
-                        "/random/wrong/prefix/HelloWorld/TodoObjCSupport/Sources/SomethingElse.m",
-                    isDirectory: false),
+                    filePath: "/random/wrong/prefix/HelloWorld/TodoObjCSupport/Sources/SomethingElse.m",
+                    isDirectory: false
+                ),
                 inTarget: "//HelloWorld:TodoObjCSupport",
                 language: .objective_c,
             )
@@ -439,9 +440,8 @@ private let exampleAqueryOutput: String = """
 let expectedSwiftResult: [String] = [
     "-target", "arm64-apple-ios17.0-simulator", "-sdk",
     "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk",
-    "-debug-prefix-map", "/Applications/Xcode.app/Contents/Developer=/PLACEHOLDER_DEVELOPER_DIR",
-    "-file-prefix-map", "/Applications/Xcode.app/Contents/Developer=/PLACEHOLDER_DEVELOPER_DIR",
-    "-emit-object", "-output-file-map",
+    "-debug-prefix-map", "/Applications/Xcode.app/Contents/Developer=/PLACEHOLDER_DEVELOPER_DIR", "-file-prefix-map",
+    "/Applications/Xcode.app/Contents/Developer=/PLACEHOLDER_DEVELOPER_DIR", "-emit-object", "-output-file-map",
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin/HelloWorld/HelloWorldLib.output_file_map.json",
     "-Xfrontend", "-no-clang-module-breadcrumbs", "-emit-module-path",
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin/HelloWorld/HelloWorldLib.swiftmodule",
@@ -449,9 +449,8 @@ let expectedSwiftResult: [String] = [
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin/HelloWorld/HelloWorldLib_objs/HelloWorldLib/Sources/AddTodoView.swift.swiftconstvalues",
     "-Xfrontend", "-const-gather-protocols-file", "-Xfrontend",
     "/private/var/tmp/_bazel_user/hash123/external/rules_swift+/swift/toolchains/config/const_protocols_to_gather.json",
-    "-DDEBUG", "-Onone", "-Xfrontend", "-internalize-at-link", "-Xfrontend",
-    "-no-serialize-debugging-options", "-enable-testing", "-disable-sandbox", "-g",
-    "-module-cache-path",
+    "-DDEBUG", "-Onone", "-Xfrontend", "-internalize-at-link", "-Xfrontend", "-no-serialize-debugging-options",
+    "-enable-testing", "-disable-sandbox", "-g", "-module-cache-path",
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin/_swift_module_cache",
     "-I/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin/HelloWorld",
     "-Xcc", "-iquote.", "-Xcc",
@@ -462,8 +461,8 @@ let expectedSwiftResult: [String] = [
     "/Applications/Xcode.app/Contents/Developer=DEVELOPER_DIR", "-index-store-path",
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/_global_index_store",
     "-index-ignore-system-modules", "-enable-bare-slash-regex", "-Xfrontend", "-disable-clang-spi",
-    "-enable-experimental-feature", "AccessLevelOnImport", "-parse-as-library", "-static", "-Xcc",
-    "-O0", "-Xcc", "-DDEBUG=1", "-Xcc", "-fstack-protector", "-Xcc", "-fstack-protector-all",
+    "-enable-experimental-feature", "AccessLevelOnImport", "-parse-as-library", "-static", "-Xcc", "-O0", "-Xcc",
+    "-DDEBUG=1", "-Xcc", "-fstack-protector", "-Xcc", "-fstack-protector-all",
     "/Users/user/Documents/demo-ios-project/HelloWorld/HelloWorldLib/Sources/AddTodoView.swift",
     "/Users/user/Documents/demo-ios-project/HelloWorld/HelloWorldLib/Sources/HelloWorldApp.swift",
     "/Users/user/Documents/demo-ios-project/HelloWorld/HelloWorldLib/Sources/TodoItemRow.swift",
@@ -472,16 +471,13 @@ let expectedSwiftResult: [String] = [
 
 /// Expected result of processing the example input for the Obj-C file.
 let expectedObjCResult: [String] = [
-    "-x", "objective-c", "-target", "arm64-apple-ios17.0-simulator", "-D_FORTIFY_SOURCE=1",
-    "-fstack-protector",
-    "-fcolor-diagnostics", "-Wall", "-Wthread-safety", "-Wself-assign",
-    "-fno-omit-frame-pointer", "-g",
+    "-x", "objective-c", "-target", "arm64-apple-ios17.0-simulator", "-D_FORTIFY_SOURCE=1", "-fstack-protector",
+    "-fcolor-diagnostics", "-Wall", "-Wthread-safety", "-Wself-assign", "-fno-omit-frame-pointer", "-g",
     "-fdebug-prefix-map=/Users/user/Documents/demo-ios-project=.",
     "-fdebug-prefix-map=/Applications/Xcode.app/Contents/Developer=/PLACEHOLDER_DEVELOPER_DIR",
-    "-Werror=incompatible-sysroot", "-Wshorten-64-to-32", "-Wbool-conversion",
-    "-Wconstant-conversion", "-Wduplicate-method-match", "-Wempty-body", "-Wenum-conversion",
-    "-Wint-conversion", "-Wunreachable-code", "-Wmismatched-return-types",
-    "-Wundeclared-selector", "-Wuninitialized", "-Wunused-function", "-Wunused-variable",
+    "-Werror=incompatible-sysroot", "-Wshorten-64-to-32", "-Wbool-conversion", "-Wconstant-conversion",
+    "-Wduplicate-method-match", "-Wempty-body", "-Wenum-conversion", "-Wint-conversion", "-Wunreachable-code",
+    "-Wmismatched-return-types", "-Wundeclared-selector", "-Wuninitialized", "-Wunused-function", "-Wunused-variable",
     "-iquote", ".", "-iquote",
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin",
     "-MD", "-MF",
@@ -490,11 +486,10 @@ let expectedObjCResult: [String] = [
     "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk",
     "-F/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/System/Library/Frameworks",
     "-F/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks",
-    "-fobjc-arc", "-fexceptions", "-fasm-blocks", "-fobjc-abi-version=2",
-    "-fobjc-legacy-dispatch", "-O0", "-DDEBUG=1", "-fstack-protector", "-fstack-protector-all",
-    "-g", "HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.m", "-o",
+    "-fobjc-arc", "-fexceptions", "-fasm-blocks", "-fobjc-abi-version=2", "-fobjc-legacy-dispatch", "-O0", "-DDEBUG=1",
+    "-fstack-protector", "-fstack-protector-all", "-g", "HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.m",
+    "-o",
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin/HelloWorld/_objs/TodoObjCSupport/arc/SKDateDistanceCalculator.o",
-    "-index-store-path",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/_global_index_store",
+    "-index-store-path", "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/_global_index_store",
     "-working-directory", "/Users/user/Documents/demo-ios-project",
 ]

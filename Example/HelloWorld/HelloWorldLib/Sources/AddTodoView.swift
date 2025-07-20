@@ -22,10 +22,14 @@ import TodoModels
 
 struct AddTodoView: View {
 
-    @ObservedObject var todoManager: TodoListManager
-    @Binding var isPresented: Bool
-    @State private var todoTitle = ""
-    @FocusState private var isTextFieldFocused: Bool
+    @ObservedObject
+    var todoManager: TodoListManager
+    @Binding
+    var isPresented: Bool
+    @State
+    private var todoTitle = ""
+    @FocusState
+    private var isTextFieldFocused: Bool
 
     var body: some View {
         NavigationView {

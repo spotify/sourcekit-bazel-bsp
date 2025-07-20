@@ -24,7 +24,8 @@ import Testing
 
 @testable import SourceKitBazelBSP
 
-@Suite struct PrepareHandlerTests {
+@Suite
+struct PrepareHandlerTests {
 
     @Test
     func buildExecutesCorrectBazelCommand() throws {
@@ -49,12 +50,8 @@ import Testing
             devToolchainPath: "/a/b/XcodeDefault.xctoolchain/"
         )
 
-        let expectedCommand =
-            "bazel --output_base=/tmp/output_base build //HelloWorld --config=index"
-        commandRunner.setResponse(
-            for: expectedCommand,
-            cwd: rootUri,
-            response: "")
+        let expectedCommand = "bazel --output_base=/tmp/output_base build //HelloWorld --config=index"
+        commandRunner.setResponse(for: expectedCommand, cwd: rootUri, response: "")
 
         let handler = PrepareHandler(
             initializedConfig: initializedConfig,
@@ -92,11 +89,8 @@ import Testing
             devToolchainPath: "/a/b/XcodeDefault.xctoolchain/"
         )
 
-        let expectedCommand =
-            "bazel --output_base=/tmp/output_base build //HelloWorld //HelloWorld2 --config=index"
-        commandRunner.setResponse(
-            for: expectedCommand,
-            response: "Build completed")
+        let expectedCommand = "bazel --output_base=/tmp/output_base build //HelloWorld //HelloWorld2 --config=index"
+        commandRunner.setResponse(for: expectedCommand, response: "Build completed")
 
         let handler = PrepareHandler(
             initializedConfig: initializedConfig,

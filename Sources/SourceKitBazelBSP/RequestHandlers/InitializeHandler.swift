@@ -29,8 +29,7 @@ enum InitializeHandlerError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .toolchainNotFound(let path):
-            return "Could not determine Xcode toolchain location from path: \(path)"
+        case .toolchainNotFound(let path): return "Could not determine Xcode toolchain location from path: \(path)"
         }
     }
 }
@@ -62,19 +61,10 @@ final class InitializeHandler {
         _ id: RequestID
     ) throws -> (InitializeBuildResponse, InitializedServerConfig) {
         let taskId = TaskId(id: "initializeBuild-\(id.description)")
-        connection?.startWorkTask(
-            id: taskId,
-            title: "Indexing: Initializing sourcekit-bazel-bsp"
-        )
+        connection?.startWorkTask(id: taskId, title: "Indexing: Initializing sourcekit-bazel-bsp")
         do {
-            let initializedConfig = try makeInitializedConfig(
-                fromRequest: request,
-                baseConfig: baseConfig
-            )
-            let result = buildResponse(
-                fromRequest: request,
-                and: initializedConfig
-            )
+            let initializedConfig = try makeInitializedConfig(fromRequest: request, baseConfig: baseConfig)
+            let result = buildResponse(fromRequest: request, and: initializedConfig)
             connection?.finishTask(id: taskId, status: .ok)
             return (result, initializedConfig)
         } catch {
@@ -90,21 +80,15 @@ final class InitializeHandler {
         let rootUri = request.rootUri.arbitrarySchemeURL.path
         logger.debug("rootUri: \(rootUri)")
         let regularOutputBase = URL(
-            fileURLWithPath: try commandRunner.bazel(
-                baseConfig: baseConfig,
-                rootUri: rootUri,
-                cmd: "info output_base"
-            )
+            fileURLWithPath: try commandRunner.bazel(baseConfig: baseConfig, rootUri: rootUri, cmd: "info output_base")
         )
         logger.debug("regularOutputBase: \(regularOutputBase)")
 
         // Setup the special output base path where we will run indexing commands from.
         let regularOutputBaseLastPath = regularOutputBase.lastPathComponent
-        let outputBase =
-            regularOutputBase
-            .deletingLastPathComponent()
-            .appendingPathComponent("\(regularOutputBaseLastPath)-sourcekit-bazel-bsp")
-            .path
+        let outputBase = regularOutputBase.deletingLastPathComponent().appendingPathComponent(
+            "\(regularOutputBaseLastPath)-sourcekit-bazel-bsp"
+        ).path
         logger.debug("outputBase: \(outputBase)")
 
         // Now, get the full output path based on the above output base.
@@ -136,9 +120,7 @@ final class InitializeHandler {
         )
     }
 
-    func getToolchainPath(
-        with commandRunner: CommandRunner
-    ) throws -> String {
+    func getToolchainPath(with commandRunner: CommandRunner) throws -> String {
         // Trick to get the Xcode toolchain path, since there's no dedicated command for it
         // In theory this should be just devDir + Toolchains/XcodeDefault.xctoolchain,
         // but I think we should make it dynamic just in case

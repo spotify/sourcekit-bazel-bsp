@@ -38,16 +38,10 @@ enum BazelQueryParser {
 
         var targets: [(BuildTarget, [URI])] = []
         for child in (xml.children ?? []) {
-            if child.name != "rule" {
-                continue
-            }
-            guard let childElement = child as? XMLElement else {
-                continue
-            }
+            if child.name != "rule" { continue }
+            guard let childElement = child as? XMLElement else { continue }
             let className = childElement.attribute(forName: "class")?.stringValue ?? ""
-            guard supportedRuleTypes.contains(className) else {
-                continue
-            }
+            guard supportedRuleTypes.contains(className) else { continue }
             if let data = try getTargetForLibrary(childElement, className, rootUri, toolchainPath) {
                 targets.append(data)
             }
@@ -56,10 +50,11 @@ enum BazelQueryParser {
     }
 
     static private func getTargetForLibrary(
-        _ childElement: XMLElement, _ className: String, _ rootUri: String, _ toolchainPath: String
-    )
-        throws -> (BuildTarget, [URI])?
-    {
+        _ childElement: XMLElement,
+        _ className: String,
+        _ rootUri: String,
+        _ toolchainPath: String
+    ) throws -> (BuildTarget, [URI])? {
         let bazelTarget = childElement.attribute(forName: "name")?.stringValue ?? ""
         guard bazelTarget.starts(with: "//") else {
             // FIXME
@@ -73,28 +68,16 @@ enum BazelQueryParser {
         let uri: URI = try URI(string: uriRaw)
 
         for child in (childElement.children ?? []) {
-            if child.name != "list" {
-                continue
-            }
-            guard let childElement = child as? XMLElement else {
-                continue
-            }
+            if child.name != "list" { continue }
+            guard let childElement = child as? XMLElement else { continue }
             let name = childElement.attribute(forName: "name")?.stringValue ?? ""
-            guard name == "srcs" else {
-                continue
-            }
+            guard name == "srcs" else { continue }
             for srcsEntry in (childElement.children ?? []) {
-                if srcsEntry.name != "label" {
-                    continue
-                }
-                guard let srcsEntryElement = srcsEntry as? XMLElement else {
-                    continue
-                }
+                if srcsEntry.name != "label" { continue }
+                guard let srcsEntryElement = srcsEntry as? XMLElement else { continue }
                 let srcValue = srcsEntryElement.attribute(forName: "value")?.stringValue ?? ""
                 // FIXME
-                if !srcValue.starts(with: "//") {
-                    continue
-                }
+                if !srcValue.starts(with: "//") { continue }
                 let src = srcValue.replacingOccurrences(of: ":", with: "/")
                 let srcUri = try URI(string: "file://" + rootUri + "/" + src.dropFirst(2))
                 targetSrcs.append(srcUri)
@@ -103,28 +86,16 @@ enum BazelQueryParser {
 
         var targetDeps: [BuildTargetIdentifier] = []
         for child in (childElement.children ?? []) {
-            if child.name != "list" {
-                continue
-            }
-            guard let childElement = child as? XMLElement else {
-                continue
-            }
+            if child.name != "list" { continue }
+            guard let childElement = child as? XMLElement else { continue }
             let name = childElement.attribute(forName: "name")?.stringValue ?? ""
-            guard name == "deps" else {
-                continue
-            }
+            guard name == "deps" else { continue }
             for depsEntry in (childElement.children ?? []) {
-                if depsEntry.name != "label" {
-                    continue
-                }
-                guard let depsEntryElement = depsEntry as? XMLElement else {
-                    continue
-                }
+                if depsEntry.name != "label" { continue }
+                guard let depsEntryElement = depsEntry as? XMLElement else { continue }
                 let depValue = depsEntryElement.attribute(forName: "value")?.stringValue ?? ""
                 // FIXME
-                if !depValue.starts(with: "//") {
-                    continue
-                }
+                if !depValue.starts(with: "//") { continue }
                 let depFullPath = rootUri + "/" + depValue.dropFirst(2)
                 let depUri = bazelTargetToURI(depFullPath)
                 targetDeps.append(BuildTargetIdentifier(uri: try URI(string: depUri)))
@@ -132,12 +103,7 @@ enum BazelQueryParser {
         }
 
         var tags: [BuildTargetTag] = [.library]
-        var capabilities = BuildTargetCapabilities(
-            canCompile: true,
-            canTest: false,
-            canRun: false,
-            canDebug: false
-        )
+        var capabilities = BuildTargetCapabilities(canCompile: true, canTest: false, canRun: false, canDebug: false)
         // FIXME: Not the way to do this
         if bazelTarget.hasSuffix("TestsLib") {
             capabilities.canTest = true
@@ -153,9 +119,7 @@ enum BazelQueryParser {
                 languageIds: isSwift ? [.swift] : [.objective_c],
                 dependencies: targetDeps,
                 dataKind: .sourceKit,
-                data: SourceKitBuildTarget(
-                    toolchain: try URI(string: "file://" + toolchainPath)
-                ).encodeToLSPAny()
+                data: SourceKitBuildTarget(toolchain: try URI(string: "file://" + toolchainPath)).encodeToLSPAny()
             ), targetSrcs
         )
     }

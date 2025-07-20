@@ -50,10 +50,7 @@ final class PrepareHandler {
         self.connection = connection
     }
 
-    func prepareTarget(
-        _: BuildTargetPrepareRequest,
-        _ id: RequestID
-    ) throws -> VoidResponse {
+    func prepareTarget(_: BuildTargetPrepareRequest, _ id: RequestID) throws -> VoidResponse {
         guard !didRun else {
             logger.info("Build already completed, skipping redundant build")
             return VoidResponse()
@@ -76,18 +73,12 @@ final class PrepareHandler {
         }
     }
 
-    func prepare(
-        bspURIs: [URI]
-    ) throws {
-        let labelsToBuild = try bspURIs.map {
-            try targetStore.bazelTargetLabel(forBSPURI: $0)
-        }
+    func prepare(bspURIs: [URI]) throws {
+        let labelsToBuild = try bspURIs.map { try targetStore.bazelTargetLabel(forBSPURI: $0) }
         try build(bazelLabels: labelsToBuild)
     }
 
-    func build(
-        bazelLabels labelsToBuild: [String]
-    ) throws {
+    func build(bazelLabels labelsToBuild: [String]) throws {
         logger.info("Will build \(labelsToBuild.count) targets")
         logger.info("Target to build: \(labelsToBuild)")
 

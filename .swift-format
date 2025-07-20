@@ -1,32 +1,14 @@
 {
-  "fileScopedDeclarationPrivacy" : {
-    "accessLevel" : "private"
-  },
-  "indentConditionalCompilationBlocks" : true,
-  "indentSwitchCaseLabels" : false,
   "indentation" : {
     "spaces" : 4
   },
-  "lineBreakAroundMultilineExpressionChainComponents" : false,
-  "lineBreakBeforeControlFlowKeywords" : false,
-  "lineBreakBeforeEachArgument" : false,
-  "lineBreakBeforeEachGenericRequirement" : false,
-  "lineBreakBetweenDeclarationAttributes" : false,
-  "lineLength" : 100,
-  "maximumBlankLines" : 1,
-  "multiElementCollectionTrailingCommas" : true,
-  "noAssignmentInExpressions" : {
-    "allowedFunctions" : [
-      "XCTAssertNoThrow"
-    ]
-  },
-  "prioritizeKeepingFunctionOutputTogether" : false,
-  "reflowMultilineStringLiterals" : {
-    "never" : {
-
-    }
-  },
+  "lineLength": 120,
+  "prioritizeKeepingFunctionOutputTogether" : true,
   "respectsExistingLineBreaks" : true,
+  "lineBreakBeforeEachArgument": true,
+  "lineBreakBeforeEachGenericRequirement": true,
+  "lineBreakBetweenDeclarationAttributes": true,
+  "indentConditionalCompilationBlocks": false,
   "rules" : {
     "AllPublicDeclarationsHaveDocumentation" : false,
     "AlwaysUseLiteralForEmptyCollectionInit" : false,
@@ -40,9 +22,9 @@
     "FullyIndirectEnum" : true,
     "GroupNumericLiterals" : true,
     "IdentifiersMustBeASCII" : true,
-    "NeverForceUnwrap" : false,
-    "NeverUseForceTry" : false,
-    "NeverUseImplicitlyUnwrappedOptionals" : false,
+    "NeverForceUnwrap" : true,
+    "NeverUseForceTry" : true,
+    "NeverUseImplicitlyUnwrappedOptionals" : true,
     "NoAccessLevelOnExtensionDeclaration" : true,
     "NoAssignmentInExpressions" : true,
     "NoBlockComments" : true,
@@ -62,7 +44,7 @@
     "ReplaceForEachWithForLoop" : true,
     "ReturnVoidInsteadOfEmptyTuple" : true,
     "TypeNamesShouldBeCapitalized" : true,
-    "UseEarlyExits" : false,
+    "UseEarlyExits" : true,
     "UseExplicitNilCheckInConditions" : true,
     "UseLetInEveryBoundCaseVariable" : true,
     "UseShorthandTypeNames" : true,
@@ -72,8 +54,4 @@
     "UseWhereClausesInForLoops" : false,
     "ValidateDocumentationComments" : false
   },
-  "spacesAroundRangeFormationOperators" : false,
-  "spacesBeforeEndOfLineComments" : 2,
-  "tabWidth" : 8,
-  "version" : 1
 }

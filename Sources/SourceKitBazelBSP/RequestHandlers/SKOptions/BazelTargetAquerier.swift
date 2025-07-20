@@ -27,10 +27,8 @@ enum BazelTargetAquerierError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .noMnemonics:
-            return "A list of mnemonics is necessary to aquery targets"
-        case .noTargets:
-            return "A list of targets is necessary to run aqueries"
+        case .noMnemonics: return "A list of mnemonics is necessary to aquery targets"
+        case .noTargets: return "A list of targets is necessary to run aqueries"
         }
     }
 }
@@ -52,9 +50,7 @@ final class BazelTargetAquerier {
         forConfig config: InitializedServerConfig,
         mnemonics: Set<String>,
         additionalFlags: [String]
-    ) throws
-        -> String
-    {
+    ) throws -> String {
         guard !mnemonics.isEmpty else {
             throw BazelTargetAquerierError.noMnemonics
         }
@@ -68,8 +64,7 @@ final class BazelTargetAquerier {
         let depsQuery = BazelTargetQuerier.queryDepsString(forTargets: targets)
 
         let otherFlags = additionalFlags.joined(separator: " ")
-        let cmd =
-            "aquery \"mnemonic('\(mnemonicsFilter)', \(depsQuery))\" \(otherFlags)"
+        let cmd = "aquery \"mnemonic('\(mnemonicsFilter)', \(depsQuery))\" \(otherFlags)"
         logger.info("Processing root aquery request")
 
         if let cached = queryCache[cmd] {
@@ -78,10 +73,7 @@ final class BazelTargetAquerier {
         }
 
         // Run the aquery on the special index output base since that's where we will build at.
-        let output = try commandRunner.bazelIndexAction(
-            initializedConfig: config,
-            cmd: cmd
-        )
+        let output = try commandRunner.bazelIndexAction(initializedConfig: config, cmd: cmd)
 
         queryCache[cmd] = output
 

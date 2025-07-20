@@ -23,15 +23,11 @@ import LanguageServerProtocol
 @testable import SourceKitBazelBSP
 
 final class MessageHandlerFake: MessageHandler {
-    func handle(_ notification: some NotificationType) {
-        preconditionFailure("Not implemented")
-    }
+    func handle(_ notification: some NotificationType) { preconditionFailure("Not implemented") }
 
     func handle<Request: RequestType>(
         _ request: Request,
         id: RequestID,
         reply: @escaping (LSPResult<Request.Response>) -> Void
-    ) {
-        preconditionFailure("Not implemented")
-    }
+    ) { preconditionFailure("Not implemented") }
 }

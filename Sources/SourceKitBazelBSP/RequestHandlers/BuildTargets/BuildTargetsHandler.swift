@@ -31,10 +31,7 @@ final class BuildTargetsHandler {
     private let targetStore: BazelTargetStore
     private weak var connection: LSPConnection?
 
-    init(
-        targetStore: BazelTargetStore,
-        connection: LSPConnection? = nil,
-    ) {
+    init(targetStore: BazelTargetStore, connection: LSPConnection? = nil) {
         self.targetStore = targetStore
         self.connection = connection
     }
@@ -44,10 +41,7 @@ final class BuildTargetsHandler {
         _ id: RequestID
     ) throws -> WorkspaceBuildTargetsResponse {
         let taskId = TaskId(id: "buildTargets-\(id.description)")
-        connection?.startWorkTask(
-            id: taskId,
-            title: "Indexing: Processing build graph"
-        )
+        connection?.startWorkTask(id: taskId, title: "Indexing: Processing build graph")
         do {
             let result = try targetStore.fetchTargets()
             logger.debug("Found \(result.count) targets")

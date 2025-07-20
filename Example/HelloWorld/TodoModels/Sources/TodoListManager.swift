@@ -21,7 +21,8 @@ import Foundation
 import SwiftUI
 
 public final class TodoListManager: ObservableObject {
-    @Published public var todoItems: [TodoItem] = []
+    @Published
+    public var todoItems: [TodoItem] = []
 
     private let userDefaults: UserDefaults
     private let todoItemsKey = "todo-items"

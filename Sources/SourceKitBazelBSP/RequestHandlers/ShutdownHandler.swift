@@ -32,23 +32,15 @@ final class ShutdownHandler {
     private var terminateHandler: ((Int32) -> Void)
 
     init(terminateHandler: ((Int32) -> Void)? = nil) {
-        self.terminateHandler =
-            terminateHandler ?? { code in
-                safeTerminate(code)
-            }
+        self.terminateHandler = terminateHandler ?? { code in safeTerminate(code) }
     }
 
-    func buildShutdown(
-        _ request: BuildShutdownRequest,
-        _ id: RequestID
-    ) throws -> VoidResponse {
+    func buildShutdown(_ request: BuildShutdownRequest, _ id: RequestID) throws -> VoidResponse {
         didAskToShutdown = true
         return VoidResponse()
     }
 
-    func onBuildExit(_ notification: OnBuildExitNotification) throws {
-        terminateHandler(didAskToShutdown ? 0 : 1)
-    }
+    func onBuildExit(_ notification: OnBuildExitNotification) throws { terminateHandler(didAskToShutdown ? 0 : 1) }
 }
 
 func safeTerminate(_ code: Int32) {

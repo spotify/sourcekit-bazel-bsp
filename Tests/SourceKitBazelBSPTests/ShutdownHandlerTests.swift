@@ -23,14 +23,13 @@ import Testing
 
 @testable import SourceKitBazelBSP
 
-@Suite struct ShutdownHandlerTests {
+@Suite
+struct ShutdownHandlerTests {
     @Test
     func onBuildExitAfterShutdownTerminatesWithZero() throws {
         var terminateCode: Int32?
 
-        let handler = ShutdownHandler { code in
-            terminateCode = code
-        }
+        let handler = ShutdownHandler { code in terminateCode = code }
 
         let shutdownRequest = BuildShutdownRequest()
         _ = try handler.buildShutdown(shutdownRequest, RequestID.number(1))
@@ -45,9 +44,7 @@ import Testing
     func onBuildExitWithoutShutdownTerminatesWithOne() throws {
         var terminateCode: Int32?
 
-        let handler = ShutdownHandler { code in
-            terminateCode = code
-        }
+        let handler = ShutdownHandler { code in terminateCode = code }
 
         let exitNotification = OnBuildExitNotification()
         try handler.onBuildExit(exitNotification)

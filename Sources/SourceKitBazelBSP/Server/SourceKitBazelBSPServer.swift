@@ -36,18 +36,11 @@ package final class SourceKitBazelBSPServer {
         let registry = BSPMessageHandler()
         // We start by only registering the base init and shutdown handlers.
         // Everything else will be registered post-init.
-        let initHandler = InitializeHandler(
-            baseConfig: baseConfig,
-            connection: connection
-        )
+        let initHandler = InitializeHandler(baseConfig: baseConfig, connection: connection)
         let shutdownHandler = ShutdownHandler()
         registry.register(requestHandler: { (request: InitializeBuildRequest, id: RequestID) in
             let result = try initHandler.initializeBuild(request, id)
-            Self.registerPostInitHandlers(
-                registry: registry,
-                initializedConfig: result.1,
-                connection: connection
-            )
+            Self.registerPostInitHandlers(registry: registry, initializedConfig: result.1, connection: connection)
             return result.0
         })
         registry.register(notificationHandler: shutdownHandler.onBuildExit)
@@ -67,8 +60,7 @@ package final class SourceKitBazelBSPServer {
         registry.register(notificationHandler: { (_: CancelRequestNotification) in
             // no-op, no request canceling since the code today is not async
         })
-        registry.register(requestHandler: {
-            (_: WorkspaceWaitForBuildSystemUpdatesRequest, _: RequestID) in
+        registry.register(requestHandler: { (_: WorkspaceWaitForBuildSystemUpdatesRequest, _: RequestID) in
             // FIXME: no-op, no special handling since the code today is not async, but I might be wrong here.
             VoidResponse()
         })
@@ -76,17 +68,11 @@ package final class SourceKitBazelBSPServer {
         // Then, register the things we are interested in.
         // workspace/buildTargets
         let targetStore = BazelTargetStore(initializedConfig: initializedConfig)
-        let buildTargetsHandler = BuildTargetsHandler(
-            targetStore: targetStore,
-            connection: connection
-        )
+        let buildTargetsHandler = BuildTargetsHandler(targetStore: targetStore, connection: connection)
         registry.register(requestHandler: buildTargetsHandler.workspaceBuildTargets)
 
         // buildTarget/sources
-        let targetSourcesHandler = TargetSourcesHandler(
-            initializedConfig: initializedConfig,
-            targetStore: targetStore
-        )
+        let targetSourcesHandler = TargetSourcesHandler(initializedConfig: initializedConfig, targetStore: targetStore)
         registry.register(requestHandler: targetSourcesHandler.buildTargetSources)
 
         // textDocument/sourceKitOptions
@@ -106,10 +92,7 @@ package final class SourceKitBazelBSPServer {
         registry.register(requestHandler: prepareHandler.prepareTarget)
 
         // OnWatchedFilesDidChangeNotification
-        let watchedFileChangeHandler = WatchedFileChangeHandler(
-            targetStore: targetStore,
-            connection: connection
-        )
+        let watchedFileChangeHandler = WatchedFileChangeHandler(targetStore: targetStore, connection: connection)
         registry.register(notificationHandler: watchedFileChangeHandler.onWatchedFilesDidChange)
     }
 
@@ -128,10 +111,7 @@ package final class SourceKitBazelBSPServer {
         self.init(connection: connection, handler: handler)
     }
 
-    package init(
-        connection: LSPConnection,
-        handler: MessageHandler
-    ) {
+    package init(connection: LSPConnection, handler: MessageHandler) {
         self.connection = connection
         self.handler = handler
     }

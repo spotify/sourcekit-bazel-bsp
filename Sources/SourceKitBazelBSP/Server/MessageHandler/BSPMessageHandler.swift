@@ -39,32 +39,20 @@ final class BSPMessageHandler: MessageHandler {
 
     init() {}
 
-    func register<Request: RequestType>(
-        requestHandler: @escaping BSPRequestHandler<Request>
-    ) {
-        state.requestHandlers[Request.method] = AnyRequestHandler(
-            handler: requestHandler
-        )
+    func register<Request: RequestType>(requestHandler: @escaping BSPRequestHandler<Request>) {
+        state.requestHandlers[Request.method] = AnyRequestHandler(handler: requestHandler)
     }
 
-    func register<Notification: NotificationType>(
-        notificationHandler: @escaping BSPNotificationHandler<Notification>
-    ) {
-        state.notificationHandlers[Notification.method] = AnyNotificationHandler(
-            handler: notificationHandler
-        )
+    func register<Notification: NotificationType>(notificationHandler: @escaping BSPNotificationHandler<Notification>) {
+        state.notificationHandlers[Notification.method] = AnyNotificationHandler(handler: notificationHandler)
     }
 
     func handle<Notification: NotificationType>(_ notification: Notification) {
-        logger.info(
-            "Received notification: \(Notification.method)"
-        )
+        logger.info("Received notification: \(Notification.method)")
         do {
             let handler = try getHandler(for: notification, state: state)
             try handler(notification)
-        } catch {
-            logger.error("Error while handling BSP notification: \(error.localizedDescription)")
-        }
+        } catch { logger.error("Error while handling BSP notification: \(error.localizedDescription)") }
     }
 
     func handle<Request: RequestType>(
@@ -72,9 +60,7 @@ final class BSPMessageHandler: MessageHandler {
         id: RequestID,
         reply: @escaping (LSPResult<Request.Response>) -> Void
     ) {
-        logger.info(
-            "Received request: \(Request.method)"
-        )
+        logger.info("Received request: \(Request.method)")
         do {
             let handler = try getHandler(for: request, id, reply, state: state)
             let response = try handler(request, id)
@@ -99,9 +85,7 @@ final class BSPMessageHandler: MessageHandler {
         }
         guard let handler = erasedHandler.handler as? BSPNotificationHandler<Notification> else {
             // This should never happen with the current implementation, but let's log it just in case.
-            throw ResponseError.internalError(
-                "Found notification, but it had the wrong type! (\(Notification.method))"
-            )
+            throw ResponseError.internalError("Found notification, but it had the wrong type! (\(Notification.method))")
         }
         return handler
     }
@@ -117,9 +101,7 @@ final class BSPMessageHandler: MessageHandler {
         }
         guard let handler = erasedHandler.handler as? BSPRequestHandler<Request> else {
             // This should never happen with the current implementation, but let's log it just in case.
-            throw ResponseError.internalError(
-                "Found request, but it had the wrong type! (\(Request.method))"
-            )
+            throw ResponseError.internalError("Found request, but it had the wrong type! (\(Request.method))")
         }
         return handler
     }
