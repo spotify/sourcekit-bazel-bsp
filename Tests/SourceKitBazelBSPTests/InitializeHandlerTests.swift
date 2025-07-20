@@ -36,16 +36,20 @@ import Testing
             filesToWatch: nil
         )
 
+        let fullRootUri = "file:///path/to/project"
+        let rootUri = "/path/to/project"
         let outputBase = "/_bazel_user/abc123"
         let outputPath = "/_bazel_user/abc123-sourcekit-bazel-bsp/exec"
         let devDir = "/Applications/Xcode.app/Contents/Developer"
         let sdkRoot = "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimu.sdk"
         let toolchain = "/a/b/Toolchains/XcodeDefault.xctoolchain/"
 
-        commandRunner.setResponse(for: "mybazel info output_base", response: outputBase)
+        commandRunner.setResponse(
+            for: "mybazel info output_base", cwd: rootUri, response: outputBase)
         commandRunner.setResponse(
             for:
                 "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info output_path --config=index",
+            cwd: rootUri,
             response: outputPath
         )
         commandRunner.setResponse(for: "xcode-select --print-path", response: devDir)
@@ -58,8 +62,7 @@ import Testing
             commandRunner: commandRunner
         )
 
-        let rootUri = "file:///path/to/project"
-        let request = try mockRequest(rootUri)
+        let request = try mockRequest(fullRootUri)
 
         let config = try handler.makeInitializedConfig(
             fromRequest: request,
@@ -70,7 +73,7 @@ import Testing
             config
                 == InitializedServerConfig(
                     baseConfig: baseConfig,
-                    rootUri: "/path/to/project",
+                    rootUri: rootUri,
                     outputBase: outputBase + "-sourcekit-bazel-bsp",
                     outputPath: outputPath,
                     devDir: devDir,
@@ -89,25 +92,34 @@ import Testing
             filesToWatch: nil
         )
 
+        let fullRootUri = "file:///path/to/project"
+        let rootUri = "/path/to/project"
         let outputBase = "/_bazel_user/abc123"
         let outputPath = "/_bazel_user/abc123-sourcekit-bazel-bsp/exec"
         let toolchain = "/a/b/Toolchains/XcodeDefault.xctoolchain/"
 
-        commandRunner.setResponse(for: "mybazel info output_base", response: outputBase)
+        commandRunner.setResponse(
+            for: "mybazel info output_base",
+            cwd: rootUri,
+            response: outputBase
+        )
         commandRunner.setResponse(
             for:
                 "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info output_path",
+            cwd: rootUri,
             response: outputPath
         )
         commandRunner.setResponse(for: "xcrun --find swift", response: toolchain + "usr/bin/swift")
+        commandRunner.setResponse(for: "xcode-select --print-path", response: "foo")
+        commandRunner.setResponse(
+            for: "xcrun --sdk iphonesimulator --show-sdk-path", response: "bar")
 
         let handler = InitializeHandler(
             baseConfig: baseConfig,
             commandRunner: commandRunner
         )
 
-        let rootUri = "file:///path/to/project"
-        let request = try mockRequest(rootUri)
+        let request = try mockRequest(fullRootUri)
         let config = try handler.makeInitializedConfig(
             fromRequest: request,
             baseConfig: baseConfig
@@ -127,25 +139,34 @@ import Testing
             filesToWatch: nil
         )
 
+        let fullRootUri = "file:///path/to/project"
+        let rootUri = "/path/to/project"
         let outputBase = "/_bazel_user/abc123"
         let outputPath = "/_bazel_user/abc123-sourcekit-bazel-bsp/exec"
         let toolchain = "/a/b/Toolchains/XcodeDefault.xctoolchain/"
 
-        commandRunner.setResponse(for: "mybazel info output_base", response: outputBase)
+        commandRunner.setResponse(
+            for: "mybazel info output_base",
+            cwd: rootUri,
+            response: outputBase
+        )
         commandRunner.setResponse(
             for:
                 "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info output_path --config=index1 --config=index2",
+            cwd: rootUri,
             response: outputPath
         )
         commandRunner.setResponse(for: "xcrun --find swift", response: toolchain + "usr/bin/swift")
+        commandRunner.setResponse(for: "xcode-select --print-path", response: "foo")
+        commandRunner.setResponse(
+            for: "xcrun --sdk iphonesimulator --show-sdk-path", response: "bar")
 
         let handler = InitializeHandler(
             baseConfig: baseConfig,
             commandRunner: commandRunner
         )
 
-        let rootUri = "file:///path/to/project"
-        let request = try mockRequest(rootUri)
+        let request = try mockRequest(fullRootUri)
         let config = try handler.makeInitializedConfig(
             fromRequest: request,
             baseConfig: baseConfig
