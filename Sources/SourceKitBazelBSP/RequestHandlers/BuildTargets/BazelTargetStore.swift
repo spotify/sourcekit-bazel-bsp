@@ -74,6 +74,35 @@ final class BazelTargetStore {
         return bspURIs
     }
 
+    /// Retrieves the list of BSP BuildTarget URIs that transitively depend on a given source file.
+    /// This includes both direct and transitive dependencies.
+    func transitivelyAffectedBSPURIs(containingSrc src: URI) throws -> [URI] {
+        // First, find the direct targets that contain this source file
+        let directTargets = try bspURIs(containingSrc: src)
+        var allAffectedTargets: Set<URI> = Set(directTargets)
+        
+        // For each direct target, find all targets that depend on it
+        for directTarget in directTargets {
+            let targetLabel = try bazelTargetLabel(forBSPURI: directTarget)
+            
+            // Use bazel query to find all reverse dependencies
+            let rdepsResult = try bazelTargetQuerier.queryRdeps(
+                forConfig: initializedConfig.baseConfig,
+                rootUri: initializedConfig.rootUri,
+                targetLabel: targetLabel
+            )
+            
+            // Convert the Bazel labels back to BSP URIs
+            for label in rdepsResult {
+                if let bspURI = bspURIsToBazelLabelsMap.first(where: { $0.value == label })?.key {
+                    allAffectedTargets.insert(bspURI)
+                }
+            }
+        }
+        
+        return Array(allAffectedTargets)
+    }
+
     func fetchTargets() throws -> [BuildTarget] {
         let xml = try bazelTargetQuerier.queryTargets(
             forConfig: initializedConfig.baseConfig,

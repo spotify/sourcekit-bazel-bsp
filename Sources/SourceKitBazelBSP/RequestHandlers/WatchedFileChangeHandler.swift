@@ -25,13 +25,14 @@ import LanguageServerProtocol
 ///
 /// This is intended to tell the LSP which targets are invalidated by a change.
 final class WatchedFileChangeHandler {
-
     private let targetStore: BazelTargetStore
+    private let prepareHandler: PrepareHandler
 
     private weak var connection: LSPConnection?
 
-    init(targetStore: BazelTargetStore, connection: LSPConnection) {
+    init(targetStore: BazelTargetStore, prepareHandler: PrepareHandler, connection: LSPConnection) {
         self.targetStore = targetStore
+        self.prepareHandler = prepareHandler
         self.connection = connection
     }
 
@@ -42,11 +43,15 @@ final class WatchedFileChangeHandler {
         let changes = notification.changes.filter { $0.type == .changed }.map { $0.uri }
         var affectedTargets: Set<URI> = []
         for change in changes {
-            let targetsForSrc = try targetStore.bspURIs(containingSrc: change)
-            for target in targetsForSrc {
+            // Get all transitively affected targets for this file change
+            let transitiveTargets = try targetStore.transitivelyAffectedBSPURIs(containingSrc: change)
+            for target in transitiveTargets {
                 affectedTargets.insert(target)
             }
         }
+        // Invalidate the build cache so the next build request will actually run
+        prepareHandler.invalidateBuildCache()
+        
         let response = OnBuildTargetDidChangeNotification(
             changes: affectedTargets.map {
                 BuildTargetEvent(target: BuildTargetIdentifier(uri: $0), kind: .changed, dataKind: nil, data: nil)
