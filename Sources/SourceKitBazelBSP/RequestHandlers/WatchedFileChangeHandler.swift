@@ -36,27 +36,10 @@ final class WatchedFileChangeHandler {
         self.connection = connection
     }
 
-    func onWatchedFilesDidChange(_ notification: OnWatchedFilesDidChangeNotification) throws {
-        // FIXME: This only deals with changes, not deletions or creations
-        // For those, we need to invalidate the compilation options cache too
-        // and probably also re-compile the app
-        let changes = notification.changes.filter { $0.type == .changed }.map { $0.uri }
-        var affectedTargets: Set<URI> = []
-        for change in changes {
-            // Get all transitively affected targets for this file change
-            let transitiveTargets = try targetStore.transitivelyAffectedBSPURIs(containingSrc: change)
-            for target in transitiveTargets {
-                affectedTargets.insert(target)
-            }
-        }
+    func onWatchedFilesDidChange(_: OnWatchedFilesDidChangeNotification) throws {
         // Invalidate the build cache so the next build request will actually run
+        // No need to send `OnBuildTargetDidChangeNotification`
+        // for cross-module changes to be picked up.
         prepareHandler.invalidateBuildCache()
-        
-        let response = OnBuildTargetDidChangeNotification(
-            changes: affectedTargets.map {
-                BuildTargetEvent(target: BuildTargetIdentifier(uri: $0), kind: .changed, dataKind: nil, data: nil)
-            }
-        )
-        connection?.send(response)
     }
 }
