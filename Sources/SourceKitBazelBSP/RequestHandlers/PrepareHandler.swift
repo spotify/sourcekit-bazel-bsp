@@ -32,11 +32,7 @@ final class PrepareHandler {
     private let commandRunner: CommandRunner
     private weak var connection: LSPConnection?
 
-    // Prevent redundant builds of the same targets
-    // FIXME: Need to understand how exactly this request is dispatched from sourcekit-lsp, as
-    // we see for example multiple build requests for the same target. So we have this
-    // for now just to make sure the example project works.
-    private var didRun = false
+    private var runCache = Set<BuildTargetIdentifier>()
 
     init(
         initializedConfig: InitializedServerConfig,
@@ -50,22 +46,21 @@ final class PrepareHandler {
         self.connection = connection
     }
 
-    func prepareTarget(_: BuildTargetPrepareRequest, _ id: RequestID) throws -> VoidResponse {
-        guard !didRun else {
-            logger.info("Build already completed, skipping redundant build")
+    func prepareTarget(_ request: BuildTargetPrepareRequest, _ id: RequestID) throws -> VoidResponse {
+
+        let targetsToBuild = request.targets.filter { !runCache.contains($0) }
+
+        guard !targetsToBuild.isEmpty else {
+            logger.info("No uncached targets to build, skipping redundant build")
             return VoidResponse()
         }
 
         let taskId = TaskId(id: "buildPrepare-\(id.description)")
         connection?.startWorkTask(id: taskId, title: "Indexing: Building targets")
         do {
-            // FIXME: See same FIXME on Serve.swift.
-            // What we should pass here is the list of individual targets received in the request,
-            // but it's not clear how to do that correctly. ios_applications apply special transitions
-            // and these are lost if you build the libs directly. We need those transitions here too.
-            try build(bazelLabels: initializedConfig.baseConfig.targets)
+            try prepare(bspURIs: targetsToBuild.map { $0.uri })
+            runCache.formUnion(targetsToBuild)
             connection?.finishTask(id: taskId, status: .ok)
-            didRun = true
             return VoidResponse()
         } catch {
             connection?.finishTask(id: taskId, status: .error)
@@ -79,8 +74,7 @@ final class PrepareHandler {
     }
 
     func build(bazelLabels labelsToBuild: [String]) throws {
-        logger.info("Will build \(labelsToBuild.count) targets")
-        logger.info("Target to build: \(labelsToBuild)")
+        logger.info("Will build \(labelsToBuild.joined(separator: ", "))")
 
         // Build the provided targets, on our special output base and taking into account special index flags.
         _ = try commandRunner.bazelIndexAction(
@@ -91,7 +85,11 @@ final class PrepareHandler {
         logger.info("Finished building targets!")
     }
 
-    func invalidateBuildCache() {
-        didRun = false
+    func invalidateBuildCache(for targets: [BuildTargetIdentifier]? = nil) {
+        if let targets = targets {
+            runCache.subtract(targets)
+        } else {
+            runCache.removeAll()
+        }
     }
 }
