@@ -42,6 +42,7 @@ final class BazelTargetQuerier {
 
     private let commandRunner: CommandRunner
     private var queryCache = [String: XMLElement]()
+    private var rdepsCache = [String: [String]]()
 
     static func queryDepsString(forTargets targets: [String]) -> String {
         var query = ""
@@ -94,7 +95,50 @@ final class BazelTargetQuerier {
         return xml
     }
 
+    func queryRdeps(forConfig config: BaseServerConfig, rootUri: String, targetLabel: String) throws -> [String] {
+        let cacheKey = "rdeps-\(targetLabel)"
+        
+        logger.info("Processing rdeps query request for \(targetLabel)")
+
+        // Check if we have cached results
+        if let cached = rdepsCache[cacheKey] {
+            logger.debug("Returning cached rdeps results")
+            return cached
+        }
+
+        // Query for reverse dependencies
+        let cmd = "query \"rdeps(//..., \(targetLabel))\" --output xml"
+        let output = try commandRunner.bazel(baseConfig: config, rootUri: rootUri, cmd: cmd)
+
+        logger.debug("Finished rdeps querying, building result XML")
+
+        guard let xml = try XMLDocument(xmlString: output).rootElement() else {
+            throw BazelTargetQuerierError.invalidQueryOutput
+        }
+
+        let labels = try parseTargetLabelsFromXML(xml)
+        rdepsCache[cacheKey] = labels
+
+        return labels
+    }
+
+    private func parseTargetLabelsFromXML(_ xml: XMLElement) throws -> [String] {
+        var labels: [String] = []
+        
+        // Parse XML to extract target labels
+        for child in xml.children ?? [] {
+            if let element = child as? XMLElement,
+               element.name == "rule",
+               let name = element.attribute(forName: "name")?.stringValue {
+                labels.append(name)
+            }
+        }
+        
+        return labels
+    }
+
     func clearCache() {
         queryCache = [:]
+        rdepsCache = [:]
     }
 }

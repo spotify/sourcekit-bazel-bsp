@@ -92,7 +92,7 @@ package final class SourceKitBazelBSPServer {
         registry.register(requestHandler: prepareHandler.prepareTarget)
 
         // OnWatchedFilesDidChangeNotification
-        let watchedFileChangeHandler = WatchedFileChangeHandler(targetStore: targetStore, connection: connection)
+        let watchedFileChangeHandler = WatchedFileChangeHandler(targetStore: targetStore, prepareHandler: prepareHandler, connection: connection)
         registry.register(notificationHandler: watchedFileChangeHandler.onWatchedFilesDidChange)
     }
 

@@ -26,7 +26,7 @@ private let logger = makeFileLevelBSPLogger()
 /// Handles the `buildTarget/prepare` request.
 ///
 /// Builds the provided list of targets upon request.
-final class PrepareHandler {
+final class PrepareHandler: @unchecked Sendable {
     private let initializedConfig: InitializedServerConfig
     private let targetStore: BazelTargetStore
     private let commandRunner: CommandRunner
@@ -36,6 +36,7 @@ final class PrepareHandler {
     // FIXME: Need to understand how exactly this request is dispatched from sourcekit-lsp, as
     // we see for example multiple build requests for the same target. So we have this
     // for now just to make sure the example project works.
+    private let didRunLock = NSLock()
     private var didRun = false
 
     init(
@@ -51,6 +52,9 @@ final class PrepareHandler {
     }
 
     func prepareTarget(_: BuildTargetPrepareRequest, _ id: RequestID) throws -> VoidResponse {
+        didRunLock.lock()
+        defer { didRunLock.unlock() }
+
         guard !didRun else {
             logger.info("Build already completed, skipping redundant build")
             return VoidResponse()
@@ -79,19 +83,24 @@ final class PrepareHandler {
     }
 
     func build(bazelLabels labelsToBuild: [String]) throws {
-        logger.info("Will build \(labelsToBuild.count) targets")
-        logger.info("Target to build: \(labelsToBuild)")
+        // Build async to avoid blocking the server for a potentially long-running build.
+        Task {
+            logger.info("Will build \(labelsToBuild.count) targets")
+            logger.info("Target to build: \(labelsToBuild)")
 
-        // Build the provided targets, on our special output base and taking into account special index flags.
-        _ = try commandRunner.bazelIndexAction(
-            initializedConfig: initializedConfig,
-            cmd: "build \(labelsToBuild.joined(separator: " "))"
-        )
+            // Build the provided targets, on our special output base and taking into account special index flags.
+            _ = try commandRunner.bazelIndexAction(
+                initializedConfig: initializedConfig,
+                cmd: "build \(labelsToBuild.joined(separator: " "))"
+            )
 
-        logger.info("Finished building targets!")
+            logger.info("Finished building targets!")
+        }
     }
 
     func invalidateBuildCache() {
+        didRunLock.lock()
+        defer { didRunLock.unlock() }
         didRun = false
     }
 }
