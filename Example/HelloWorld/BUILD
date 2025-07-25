@@ -1,4 +1,4 @@
-load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test")
+load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test", "ios_build_test")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library", "swift_interop_hint")
 load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template_rule")
 
@@ -12,10 +12,26 @@ swift_library(
     deps = [":HelloWorldLib"],
 )
 
+ios_build_test(
+    name = "HelloWorldTestsLib_skbsp_ios",
+    minimum_os_version = "17.0",
+    targets = [
+        ":HelloWorldTestsLib",
+    ],
+)
+
 swift_library(
     name = "TodoModels",
     module_name = "TodoModels",
     srcs = glob(["TodoModels/Sources/*.swift"]),
+)
+
+ios_build_test(
+    name = "TodoModels_skbsp_ios",
+    minimum_os_version = "17.0",
+    targets = [
+        ":TodoModels",
+    ],
 )
 
 swift_interop_hint(
@@ -34,6 +50,14 @@ objc_library(
     ),
     hdrs = glob(["TodoObjCSupport/Sources/*.h"]),
     aspect_hints = [":TodoObjCSupport_hint"],
+)
+
+ios_build_test(
+    name = "TodoObjCSupport_skbsp_ios",
+    minimum_os_version = "17.0",
+    targets = [
+        ":TodoObjCSupport",
+    ],
 )
 
 genrule(
@@ -63,11 +87,27 @@ swift_library(
     srcs = [":GenerateDummySwiftFile"],
 )
 
+ios_build_test(
+    name = "GeneratedDummy_skbsp_ios",
+    minimum_os_version = "17.0",
+    targets = [
+        ":GeneratedDummy",
+    ],
+)
+
 swift_library(
     name = "HelloWorldLib",
     module_name = "HelloWorldLib",
     srcs = glob(["HelloWorldLib/Sources/*.swift"]),
     deps = [":TodoModels", ":TodoObjCSupport", ":GeneratedDummy", ":ExpandedTemplate"],
+)
+
+ios_build_test(
+    name = "HelloWorldLib_skbsp_ios",
+    minimum_os_version = "17.0",
+    targets = [
+        ":HelloWorldLib",
+    ],
 )
 
 genrule(
@@ -109,5 +149,13 @@ swift_library(
     name = "ExpandedTemplate",
     module_name = "ExpandedTemplate", 
     srcs = [":ExpandTemplateSwiftFile"],
+)
+
+ios_build_test(
+    name = "ExpandedTemplate_skbsp_ios",
+    minimum_os_version = "17.0",
+    targets = [
+        ":ExpandedTemplate",
+    ],
 )
 
