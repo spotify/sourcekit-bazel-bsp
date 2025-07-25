@@ -47,6 +47,7 @@ final class WatchedFileChangeHandler {
                 affectedTargets.insert(target)
             }
         }
+        targetStore.buildCache.subtract(affectedTargets)
         let response = OnBuildTargetDidChangeNotification(
             changes: affectedTargets.map {
                 BuildTargetEvent(target: BuildTargetIdentifier(uri: $0), kind: .changed, dataKind: nil, data: nil)

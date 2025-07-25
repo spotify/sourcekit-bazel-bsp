@@ -44,6 +44,7 @@ final class BazelTargetStore {
     private var bspURIsToBazelLabelsMap: [URI: String] = [:]
     private var bspURIsToSrcsMap: [URI: [URI]] = [:]
     private var srcToBspURIsMap: [URI: [URI]] = [:]
+    var buildCache = Set<URI>()
 
     init(initializedConfig: InitializedServerConfig, bazelTargetQuerier: BazelTargetQuerier = BazelTargetQuerier()) {
         self.initializedConfig = initializedConfig

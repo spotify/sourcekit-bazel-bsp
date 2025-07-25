@@ -32,8 +32,6 @@ final class PrepareHandler {
     private let commandRunner: CommandRunner
     private weak var connection: LSPConnection?
 
-    private var runCache = Set<BuildTargetIdentifier>()
-
     init(
         initializedConfig: InitializedServerConfig,
         targetStore: BazelTargetStore,
@@ -48,7 +46,7 @@ final class PrepareHandler {
 
     func prepareTarget(_ request: BuildTargetPrepareRequest, _ id: RequestID) throws -> VoidResponse {
 
-        let targetsToBuild = request.targets.filter { !runCache.contains($0) }
+        let targetsToBuild = request.targets.map { $0.uri }.filter { !targetStore.buildCache.contains($0) }
 
         guard !targetsToBuild.isEmpty else {
             logger.info("No uncached targets to build, skipping redundant build")
@@ -58,8 +56,8 @@ final class PrepareHandler {
         let taskId = TaskId(id: "buildPrepare-\(id.description)")
         connection?.startWorkTask(id: taskId, title: "Indexing: Building targets")
         do {
-            try prepare(bspURIs: targetsToBuild.map { $0.uri })
-            runCache.formUnion(targetsToBuild)
+            try prepare(bspURIs: targetsToBuild)
+            targetStore.buildCache.formUnion(targetsToBuild)
             connection?.finishTask(id: taskId, status: .ok)
             return VoidResponse()
         } catch {
@@ -74,22 +72,24 @@ final class PrepareHandler {
     }
 
     func build(bazelLabels labelsToBuild: [String]) throws {
-        logger.info("Will build \(labelsToBuild.joined(separator: ", "))")
+        // FIXME: Must support any platform, not just ios, by fetching this info in advance and storing somewhere
+        let platformBuildTargets = labelsToBuild.map { $0 + "_skbsp_ios" }
+        logger.info("Will build \(platformBuildTargets.joined(separator: ", "))")
 
         // Build the provided targets, on our special output base and taking into account special index flags.
         _ = try commandRunner.bazelIndexAction(
             initializedConfig: initializedConfig,
-            cmd: "build \(labelsToBuild.joined(separator: " "))"
+            cmd: "build \(platformBuildTargets.joined(separator: " "))"
         )
 
         logger.info("Finished building targets!")
     }
 
-    func invalidateBuildCache(for targets: [BuildTargetIdentifier]? = nil) {
+    func invalidateBuildCache(for targets: [URI]? = nil) {
         if let targets = targets {
-            runCache.subtract(targets)
+            targetStore.buildCache.subtract(targets)
         } else {
-            runCache.removeAll()
+            targetStore.buildCache.removeAll()
         }
     }
 }
