@@ -27,7 +27,7 @@ package struct BazelProtobufBindings {
             let target = try BlazeQuery_Target(serializedBytes: message)
             targets.append(target)
         }
-        
+
         return targets
     }
 

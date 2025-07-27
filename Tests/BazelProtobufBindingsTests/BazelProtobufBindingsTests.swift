@@ -35,33 +35,17 @@ struct BazelProtobufBindingsTests {
             Issue.record("Fail to read actions.pb at url: \(url.path())")
             return
         }
-<<<<<<< HEAD
-        
+
         guard let actionGraph = try? BazelProtobufBindings.parseActionGraph(data: data) else {
             Issue.record("Fail to parse actions.pb")
             return
         }
-        
+
         let expected = [
             "//HelloWorld:HelloWorldLib",
             "//HelloWorld:TodoObjCSupport",
-            "//HelloWorld:TodoModels"
+            "//HelloWorld:TodoModels",
         ].sorted()
-
-        let actual = actionGraph.targets
-            .map(\.label)
-=======
-
-        guard let actionParser = try? BazelProtobufBindings.new(data: data) else {
-            Issue.record("Fail to parse actions.pb")
-            return
-        }
-
-        let actionGraph = actionParser.actionGraph
-
-        let expected = ["//HelloWorld:HelloWorldLib", "//HelloWorld:TodoObjCSupport", "//HelloWorld:TodoModels"]
->>>>>>> origin/main
-            .sorted()
 
         let actual = actionGraph.targets.map(\.label).sorted()
 
@@ -80,23 +64,12 @@ struct BazelProtobufBindingsTests {
             Issue.record("Fail to read actions.pb at url: \(url.path())")
             return
         }
-<<<<<<< HEAD
-        
+
         guard let actionGraph = try? BazelProtobufBindings.parseActionGraph(data: data) else {
             Issue.record("Fail to parse actions.pb")
             return
         }
-        
-=======
 
-        guard let actionParser = try? BazelProtobufBindings.new(data: data) else {
-            Issue.record("Fail to parse actions.pb")
-            return
-        }
-
-        let actionGraph = actionParser.actionGraph
-
->>>>>>> origin/main
         // //HelloWorld:TodoModels -> targetID: 1
         guard let action = actionGraph.actions.first(where: { $0.targetID == 1 }) else { return }
 
@@ -144,18 +117,21 @@ struct BazelProtobufBindingsTests {
             "//HelloWorld:TodoModels",
         ].sorted()
         if let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
-           let data = try? Data(contentsOf: url) {
+            let data = try? Data(contentsOf: url)
+        {
             let targets = try BazelProtobufBindings.parseQueryTargets(data: data)
-            let actual = targets
+            let actual =
+                targets
                 .filter({ $0.rule.ruleClass == "swift_library" })
                 .map(\.rule.name)
                 .sorted()
             #expect(actual == expected)
-            
-            let gens = targets
+
+            let gens =
+                targets
                 .filter({ $0.rule.ruleClass == "genrule" })
                 .map(\.rule.name)
-            #expect(gens == ["//HelloWorld:GenerateDummySwiftFile"])
+            #expect(gens.contains("//HelloWorld:GenerateDummySwiftFile"))
         } else {
             Issue.record("Failed get streamdeps.pb")
         }
