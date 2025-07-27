@@ -37,13 +37,11 @@ import Testing
             return
         }
         
-        guard let actionParser = try? BazelProtobufBindings.new(data: data) else {
+        guard let actionGraph = try? BazelProtobufBindings.parseActionGraph(data: data) else {
             Issue.record("Fail to parse actions.pb")
             return
         }
         
-        let actionGraph = actionParser.actionGraph
-
         let expected = [
             "//HelloWorld:HelloWorldLib",
             "//HelloWorld:TodoObjCSupport",
@@ -73,12 +71,10 @@ import Testing
             return
         }
         
-        guard let actionParser = try? BazelProtobufBindings.new(data: data) else {
+        guard let actionGraph = try? BazelProtobufBindings.parseActionGraph(data: data) else {
             Issue.record("Fail to parse actions.pb")
             return
         }
-        
-        let actionGraph = actionParser.actionGraph
         
         // //HelloWorld:TodoModels -> targetID: 1
         guard let action = actionGraph.actions.first(where: {$0.targetID == 1 }) else {
@@ -161,5 +157,31 @@ import Testing
         ]
         
         #expect(actual == expected)
+    }
+
+    @Test
+    func testDecode_streamProto() throws {
+        let expected = [
+            "//HelloWorld:ExpandedTemplate",
+            "//HelloWorld:GeneratedDummy",
+            "//HelloWorld:HelloWorldLib",
+            "//HelloWorld:TodoModels",
+        ].sorted()
+        if let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
+           let data = try? Data(contentsOf: url) {
+            let targets = try BazelProtobufBindings.parseQueryTargets(data: data)
+            let actual = targets
+                .filter({ $0.rule.ruleClass == "swift_library" })
+                .map(\.rule.name)
+                .sorted()
+            #expect(actual == expected)
+            
+            let gens = targets
+                .filter({ $0.rule.ruleClass == "genrule" })
+                .map(\.rule.name)
+            #expect(gens == ["//HelloWorld:GenerateDummySwiftFile"])
+        } else {
+            Issue.record("Failed get streamdeps.pb")
+        }
     }
 }

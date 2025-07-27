@@ -57,14 +57,17 @@ let package = Package(
             ],
             exclude: [
                 "README.md",
-                "analysis_v2.proto",
+                "protos/analysis_v2.proto",
+                "protos/build.proto",
+                "protos/stardoc_output.proto",
             ]
         ),
         .testTarget(
             name: "BazelProtobufBindingsTests",
             dependencies: ["BazelProtobufBindings"],
             resources: [
-                .copy("Resources/actions.pb")
+                .copy("Resources/actions.pb"),
+                .copy("Resources/streamdeps.pb"),
             ],
         )
     ]
