@@ -19,6 +19,4 @@
 
 import Foundation
 
-func unimplemented() -> Never {
-    preconditionFailure("Not implemented")
-}
+func unimplemented() -> Never { preconditionFailure("Not implemented") }

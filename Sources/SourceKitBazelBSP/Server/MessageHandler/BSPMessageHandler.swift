@@ -35,42 +35,24 @@ final class BSPMessageHandler: MessageHandler {
         var notificationHandlers: [String: AnyNotificationHandler] = [:]
     }
 
-    // We currently use a single-threaded setup for simplicity,
-    // but we can eventually reply asynchronously if we find a need for it.
-    private let lock: OSAllocatedUnfairLock<Void> = .init()
-    // FIXME: Can't put state into the lock for now because of recursiveness in the registration.
     nonisolated(unsafe) private var state: State = State()
 
     init() {}
 
-    func register<Request: RequestType>(
-        requestHandler: @escaping BSPRequestHandler<Request>
-    ) {
-        state.requestHandlers[Request.method] = AnyRequestHandler(
-            handler: requestHandler
-        )
+    func register<Request: RequestType>(requestHandler: @escaping BSPRequestHandler<Request>) {
+        state.requestHandlers[Request.method] = AnyRequestHandler(handler: requestHandler)
     }
 
-    func register<Notification: NotificationType>(
-        notificationHandler: @escaping BSPNotificationHandler<Notification>
-    ) {
-        state.notificationHandlers[Notification.method] = AnyNotificationHandler(
-            handler: notificationHandler
-        )
+    func register<Notification: NotificationType>(notificationHandler: @escaping BSPNotificationHandler<Notification>) {
+        state.notificationHandlers[Notification.method] = AnyNotificationHandler(handler: notificationHandler)
     }
 
     func handle<Notification: NotificationType>(_ notification: Notification) {
-        lock.withLockUnchecked {
-            logger.info(
-                "Received notification: \(Notification.method)"
-            )
-            do {
-                let handler = try getHandler(for: notification, state: state)
-                try handler(notification)
-            } catch {
-                logger.error("Error while handling BSP notification: \(error.localizedDescription)")
-            }
-        }
+        logger.info("Received notification: \(Notification.method)")
+        do {
+            let handler = try getHandler(for: notification, state: state)
+            try handler(notification)
+        } catch { logger.error("Error while handling BSP notification: \(error.localizedDescription)") }
     }
 
     func handle<Request: RequestType>(
@@ -78,22 +60,18 @@ final class BSPMessageHandler: MessageHandler {
         id: RequestID,
         reply: @escaping (LSPResult<Request.Response>) -> Void
     ) {
-        lock.withLockUnchecked {
-            logger.info(
-                "Received request: \(Request.method)"
-            )
-            do {
-                let handler = try getHandler(for: request, id, reply, state: state)
-                let response = try handler(request, id)
-                logger.info("Replying to \(Request.method)")
-                reply(.success(response))
-            } catch {
-                logger.error("Error while handling BSP request: \(error.localizedDescription)")
-                if let responseError = error as? ResponseError {
-                    reply(.failure(responseError))
-                } else {
-                    reply(.failure(ResponseError.internalError(error.localizedDescription)))
-                }
+        logger.info("Received request: \(Request.method)")
+        do {
+            let handler = try getHandler(for: request, id, reply, state: state)
+            let response = try handler(request, id)
+            logger.info("Replying to \(Request.method)")
+            reply(.success(response))
+        } catch {
+            logger.error("Error while handling BSP request: \(error.localizedDescription)")
+            if let responseError = error as? ResponseError {
+                reply(.failure(responseError))
+            } else {
+                reply(.failure(ResponseError.internalError(error.localizedDescription)))
             }
         }
     }
@@ -107,9 +85,7 @@ final class BSPMessageHandler: MessageHandler {
         }
         guard let handler = erasedHandler.handler as? BSPNotificationHandler<Notification> else {
             // This should never happen with the current implementation, but let's log it just in case.
-            throw ResponseError.internalError(
-                "Found notification, but it had the wrong type! (\(Notification.method))"
-            )
+            throw ResponseError.internalError("Found notification, but it had the wrong type! (\(Notification.method))")
         }
         return handler
     }
@@ -125,9 +101,7 @@ final class BSPMessageHandler: MessageHandler {
         }
         guard let handler = erasedHandler.handler as? BSPRequestHandler<Request> else {
             // This should never happen with the current implementation, but let's log it just in case.
-            throw ResponseError.internalError(
-                "Found request, but it had the wrong type! (\(Request.method))"
-            )
+            throw ResponseError.internalError("Found request, but it had the wrong type! (\(Request.method))")
         }
         return handler
     }

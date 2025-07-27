@@ -22,11 +22,7 @@ import BuildServerProtocol
 @testable import SourceKitBazelBSP
 
 final class LSPTaskLoggerFake: LSPTaskLogger {
-    func startWorkTask(id: TaskId, title: String) {
-        unimplemented()
-    }
+    func startWorkTask(id: TaskId, title: String) { unimplemented() }
 
-    func finishTask(id: TaskId, status: StatusCode) {
-        unimplemented()
-    }
+    func finishTask(id: TaskId, status: StatusCode) { unimplemented() }
 }

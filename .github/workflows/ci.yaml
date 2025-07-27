@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Lint Swift files
-        run: swift format lint Sources/ Tests/ Example/ --recursive
+        run: swift format lint Sources/ Tests/ Example/ --recursive --strict
       - name: Build sourcekit-bazel-bsp (debug)
         run: swift build
       - name: Test sourcekit-bazel-bsp

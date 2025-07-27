@@ -30,12 +30,7 @@ package struct BaseServerConfig: Equatable {
     let indexFlags: [String]
     let filesToWatch: String?
 
-    package init(
-        bazelWrapper: String,
-        targets: [String],
-        indexFlags: [String],
-        filesToWatch: String?
-    ) {
+    package init(bazelWrapper: String, targets: [String], indexFlags: [String], filesToWatch: String?) {
         self.bazelWrapper = bazelWrapper
         self.targets = targets
         self.indexFlags = indexFlags

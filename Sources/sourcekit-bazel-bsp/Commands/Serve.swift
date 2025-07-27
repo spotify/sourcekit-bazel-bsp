@@ -47,10 +47,7 @@ struct Serve: ParsableCommand {
     )
     var indexFlag: [String] = []
 
-    @Option(
-        help:
-            "Comma separated list of file globs to watch for changes."
-    )
+    @Option(help: "Comma separated list of file globs to watch for changes.")
     var filesToWatch: String?
 
     func run() throws {

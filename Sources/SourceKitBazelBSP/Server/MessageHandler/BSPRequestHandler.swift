@@ -20,9 +20,7 @@
 import Foundation
 import LanguageServerProtocol
 
-typealias BSPRequestHandler<Request: RequestType> = (
-    (Request, RequestID) throws -> Request.Response
-)
+typealias BSPRequestHandler<Request: RequestType> = ((Request, RequestID) throws -> Request.Response)
 
 /// A type-erased request handler wrapper to allow for dynamic registration of handlers.
 final class AnyRequestHandler {

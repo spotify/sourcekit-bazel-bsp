@@ -26,8 +26,7 @@ enum BazelTargetStoreError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .unknownBSPURI(let uri):
-            return "Requested data about a URI, but couldn't find it in the store: \(uri)"
+        case .unknownBSPURI(let uri): return "Requested data about a URI, but couldn't find it in the store: \(uri)"
         }
     }
 }
@@ -37,10 +36,7 @@ enum BazelTargetStoreError: Error, LocalizedError {
 final class BazelTargetStore {
 
     // The list of rules we currently care about and can process
-    static let supportedRuleTypes: Set<String> = [
-        "swift_library",
-        "objc_library",
-    ]
+    static let supportedRuleTypes: Set<String> = ["swift_library", "objc_library"]
 
     private let initializedConfig: InitializedServerConfig
     private let bazelTargetQuerier: BazelTargetQuerier
@@ -49,10 +45,7 @@ final class BazelTargetStore {
     private var bspURIsToSrcsMap: [URI: [URI]] = [:]
     private var srcToBspURIsMap: [URI: [URI]] = [:]
 
-    init(
-        initializedConfig: InitializedServerConfig,
-        bazelTargetQuerier: BazelTargetQuerier = BazelTargetQuerier()
-    ) {
+    init(initializedConfig: InitializedServerConfig, bazelTargetQuerier: BazelTargetQuerier = BazelTargetQuerier()) {
         self.initializedConfig = initializedConfig
         self.bazelTargetQuerier = bazelTargetQuerier
     }
