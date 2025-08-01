@@ -36,6 +36,7 @@ let package = Package(
         .target(
             name: "SourceKitBazelBSP",
             dependencies: [
+                "BazelProtobufBindings",
                 .product(
                     name: "BuildServerProtocol",
                     package: "sourcekit-lsp"

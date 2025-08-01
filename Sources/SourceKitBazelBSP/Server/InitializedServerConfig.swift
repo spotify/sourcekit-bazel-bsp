@@ -37,4 +37,10 @@ struct InitializedServerConfig: Equatable {
     var indexStorePath: String {
         outputPath + "/_global_index_store"
     }
+
+    /// feature flag: parsing bazel query output in protobuf format
+    /// when dislabled, the default bazel query is parsed in xml format
+    var protoMode: Bool {
+        return ProcessInfo.processInfo.environment["PROTO_MODE"] == "1" || true
+    }
 }

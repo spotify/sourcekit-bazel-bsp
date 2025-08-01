@@ -17,6 +17,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import BazelProtobufBindings
 import Foundation
 
 private let logger = makeFileLevelBSPLogger()
@@ -96,5 +97,43 @@ final class BazelTargetQuerier {
 
     func clearCache() {
         queryCache = [:]
+    }
+}
+
+// MARK: Protobuf
+
+extension BazelTargetQuerier {
+
+    /// Based on the server config, it constructs query and calls `bazel query deps` with output proto
+    func queryTargetsWithProto(
+        forConfig config: BaseServerConfig,
+        rootUri: String,
+        kinds: Set<String>
+    ) throws -> [BlazeQuery_Target] {
+        guard !kinds.isEmpty else {
+            throw BazelTargetQuerierError.noKinds
+        }
+
+        guard !config.targets.isEmpty else {
+            throw BazelTargetQuerierError.noTargets
+        }
+
+        let kindsFilter = kinds.sorted().joined(separator: "|")
+        let depsQuery = Self.queryDepsString(forTargets: config.targets)
+        let cacheKey = "\(kindsFilter)+\(depsQuery)"
+
+        logger.info("Processing query request for \(cacheKey) --output streamed_proto")
+
+        // We run this one on the main output base since it's not related to the actual indexing bits
+        let cmd = "query \"kind('source file|\(kindsFilter)', \(depsQuery))\" --output streamed_proto"
+        let output = try commandRunner.bazel(baseConfig: config, rootUri: rootUri, cmd: cmd)
+
+        logger.debug("Finished querying, building result protobuf")
+
+        guard let data = Data(base64Encoded: output) else {
+            throw BazelTargetQuerierError.invalidQueryOutput
+        }
+
+        return try BazelProtobufBindings.parseQueryTargets(data: data)
     }
 }

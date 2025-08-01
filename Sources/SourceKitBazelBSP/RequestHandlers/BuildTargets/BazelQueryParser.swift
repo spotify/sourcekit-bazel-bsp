@@ -17,6 +17,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import BazelProtobufBindings
 import BuildServerProtocol
 import Foundation
 
@@ -126,5 +127,61 @@ enum BazelQueryParser {
 
     static func bazelTargetToURI(_ bazelTarget: String) -> String {
         return "file://\(bazelTarget.replacingOccurrences(of: ":", with: "___"))"
+    }
+}
+
+// MARK: - Proto
+extension BazelQueryParser {
+    static func parseTargetsWithProto(
+        from targets: [BlazeQuery_Target],
+        supportedRuleTypes: Set<String>,
+        rootUri: String,
+        toolchainPath: String
+    ) throws -> [(BuildTarget, [URI])] {
+        // get the list of upstream dependencies (1 level deep)
+        let bazelTargets: [BazelTarget] = targets
+            .filter({ $0.type == .rule })
+            .map({
+                let rule = $0.rule
+                let name = rule.name
+                let attribute = rule.attribute
+                var targetDeps: [String] = []
+                if let dependencies = attribute.first(where: { $0.name == "deps" } ){
+                    if !dependencies.stringListValue.isEmpty {
+                        print("found deps for name: \(name) with count: \(dependencies.stringListValue.count) ")
+                        targetDeps = dependencies.stringListValue
+                    } else {
+                        print("no deps for name: \(name)")
+                        targetDeps = []
+                    }
+                }
+
+                let bazelTarget = BazelTarget(name: name, deps: targetDeps, srcs: [], copts: [])
+
+                return bazelTarget
+            })
+
+        return []
+    }
+}
+
+struct BazelTarget {
+    var name: String
+    var deps: [String]
+    var srcs: [String]
+    var copts: [String]
+
+    init(name: String, deps: [String], srcs: [String], copts: [String]) {
+        self.name = name
+        self.deps = deps
+        self.srcs = srcs
+        self.copts = copts
+    }
+
+    init() {
+        self.name = ""
+        self.deps = []
+        self.srcs = []
+        self.copts = []
     }
 }

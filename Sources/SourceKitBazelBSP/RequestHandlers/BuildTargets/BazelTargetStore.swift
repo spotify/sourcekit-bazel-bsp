@@ -17,6 +17,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import BazelProtobufBindings
 import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
@@ -75,18 +76,35 @@ final class BazelTargetStore {
     }
 
     func fetchTargets() throws -> [BuildTarget] {
-        let xml = try bazelTargetQuerier.queryTargets(
-            forConfig: initializedConfig.baseConfig,
-            rootUri: initializedConfig.rootUri,
-            kinds: Self.supportedRuleTypes
-        )
+        var targetData: [(BuildTarget, [URI])] = []
+        // put bazel query parsing with protobuf behind a feature flag
+        if self.initializedConfig.protoMode {
+            let targets: [BlazeQuery_Target] = try bazelTargetQuerier.queryTargetsWithProto(
+                forConfig: initializedConfig.baseConfig,
+                rootUri: initializedConfig.rootUri,
+                kinds: Self.supportedRuleTypes
+            )
 
-        let targetData = try BazelQueryParser.parseTargets(
-            from: xml,
-            supportedRuleTypes: Self.supportedRuleTypes,
-            rootUri: initializedConfig.rootUri,
-            toolchainPath: initializedConfig.devToolchainPath
-        )
+            targetData = try BazelQueryParser.parseTargetsWithProto(
+                from: targets,
+                supportedRuleTypes: Self.supportedRuleTypes,
+                rootUri: initializedConfig.rootUri,
+                toolchainPath: initializedConfig.devToolchainPath
+            )
+        } else {
+            let xml: XMLElement = try bazelTargetQuerier.queryTargets(
+                forConfig: initializedConfig.baseConfig,
+                rootUri: initializedConfig.rootUri,
+                kinds: Self.supportedRuleTypes
+            )
+
+            targetData = try BazelQueryParser.parseTargets(
+                from: xml,
+                supportedRuleTypes: Self.supportedRuleTypes,
+                rootUri: initializedConfig.rootUri,
+                toolchainPath: initializedConfig.devToolchainPath
+            )
+        }
 
         // Fill the local cache based on the data we got from the query
         for (target, srcs) in targetData {
