@@ -21,6 +21,8 @@ import BazelProtobufBindings
 import BuildServerProtocol
 import Foundation
 
+private let logger = makeFileLevelBSPLogger()
+
 enum BazelTargetParserError: Error, LocalizedError {
     case incorrectName
     case convertUriFailed
@@ -198,9 +200,11 @@ extension BazelQueryParser {
             // get srcs
             let srcs: [URI] = try rule.attribute.flatMap { attr in
                 attr.name == "srcs" ? attr.stringListValue : []
-            }.map { src in
+            }.compactMap { src in
                 guard let path = srcMap[src] else {
-                    throw BazelTargetParserError.noSrcFound(src)
+                    let error = BazelTargetParserError.noSrcFound(src)
+                    logger.info("\(error, privacy: .public)")
+                    return nil
                 }
                 return try URI(string: path)
             }
