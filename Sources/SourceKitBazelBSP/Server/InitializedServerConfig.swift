@@ -41,6 +41,8 @@ struct InitializedServerConfig: Equatable {
     /// feature flag: parsing bazel query output in protobuf format
     /// when dislabled, the default bazel query is parsed in xml format
     var protoMode: Bool {
-        return ProcessInfo.processInfo.environment["PROTO_MODE"] == "1" || true
+        // return ProcessInfo.processInfo.environment["PROTO_MODE"] == "1"
+        // TODO: toggle back
+        return true
     }
 }
