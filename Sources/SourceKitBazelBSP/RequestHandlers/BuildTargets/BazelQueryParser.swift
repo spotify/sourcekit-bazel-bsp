@@ -253,7 +253,7 @@ extension BazelQueryParser {
             // `/absolute-path-to/HelloWorld/HelloWorldLib/Sources/AddTodoView.swift:1:1`
             // location has suffix `:1:1`, thus needed trimming
             let location = target.sourceFile.location.dropLast(4)
-            srcMap[label] = String(location)
+            srcMap[label] = "file://" + String(location)
         }
 
         return srcMap
