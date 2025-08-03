@@ -23,10 +23,12 @@ import LanguageServerProtocol
 
 enum BazelTargetStoreError: Error, LocalizedError {
     case unknownBSPURI(URI)
+    case missingDisplayName(BuildTarget)
 
     var errorDescription: String? {
         switch self {
         case .unknownBSPURI(let uri): return "Requested data about a URI, but couldn't find it in the store: \(uri)"
+        case .missingDisplayName(let target): return "Target \(target.id.uri) is somehow missing a display name"
         }
     }
 }
@@ -90,8 +92,13 @@ final class BazelTargetStore {
 
         // Fill the local cache based on the data we got from the query
         for (target, srcs) in targetData {
-            let uri = target.id.uri
-            bspURIsToBazelLabelsMap[uri] = target.displayName
+            // FIXME: This is assuming everything is iOS code. Will soon update this to handle all platforms.
+            let buildTestSuffix = "_skbsp_ios"
+            let uri = try URI(string: target.id.uri.stringValue + buildTestSuffix)
+            guard let displayName = target.displayName else {
+                throw BazelTargetStoreError.missingDisplayName(target)
+            }
+            bspURIsToBazelLabelsMap[uri] = displayName + buildTestSuffix
             bspURIsToSrcsMap[uri] = srcs
             for src in srcs {
                 srcToBspURIsMap[src, default: []].append(uri)
