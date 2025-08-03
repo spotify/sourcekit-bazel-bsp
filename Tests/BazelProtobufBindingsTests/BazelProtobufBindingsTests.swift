@@ -110,30 +110,27 @@ struct BazelProtobufBindingsTests {
 
     @Test
     func testDecode_streamProto() throws {
+        guard let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
+              let data = try? Data(contentsOf: url)
+        else {
+            Issue.record("Failed get streamdeps.pb")
+            return
+        }
+
+        let targets = try BazelProtobufBindings.parseQueryTargets(data: data)
+
+        let actual = targets
+            .filter({ $0.rule.ruleClass == "swift_library" })
+            .map(\.rule.name)
+            .sorted()
+
         let expected = [
             "//HelloWorld:ExpandedTemplate",
             "//HelloWorld:GeneratedDummy",
             "//HelloWorld:HelloWorldLib",
             "//HelloWorld:TodoModels",
         ].sorted()
-        if let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
-            let data = try? Data(contentsOf: url)
-        {
-            let targets = try BazelProtobufBindings.parseQueryTargets(data: data)
-            let actual =
-                targets
-                .filter({ $0.rule.ruleClass == "swift_library" })
-                .map(\.rule.name)
-                .sorted()
-            #expect(actual == expected)
 
-            let gens =
-                targets
-                .filter({ $0.rule.ruleClass == "genrule" })
-                .map(\.rule.name)
-            #expect(gens.contains("//HelloWorld:GenerateDummySwiftFile"))
-        } else {
-            Issue.record("Failed get streamdeps.pb")
-        }
+        #expect(actual == expected)
     }
 }

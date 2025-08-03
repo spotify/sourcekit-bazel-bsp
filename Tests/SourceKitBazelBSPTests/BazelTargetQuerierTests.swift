@@ -126,6 +126,46 @@ struct BazelTargetQuerierTests {
         try run(kinds)
         #expect(runnerMock.commands.count == 2)
     }
+
+    @Test("With given ServerConfig, ensure query is correct")
+    func executeCorrectBazelCommandProto() throws {
+        let runner = CommandRunnerFake()
+        let querier = BazelTargetQuerier(commandRunner: runner)
+        let config = BaseServerConfig(
+            bazelWrapper: "bazel",
+            targets: ["//HelloWorld:HelloWorld"],
+            indexFlags: [],
+            filesToWatch: nil
+        )
+
+        let rootUri = "/path/to/project"
+        let command = "bazel query \"kind('source file|objc_library|swift_library', deps(//HelloWorld:HelloWorld))\" --output streamed_proto"
+        guard let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
+              let data = try? Data(contentsOf: url)
+        else {
+            Issue.record("Failed get streamdeps.pb")
+            return
+        }
+
+        runner.setDataResponse(for: command, cwd: rootUri, response: data)
+
+        let result = try querier.queryTargetsWithProto(
+            forConfig: config,
+            rootUri: rootUri,
+            kinds: .init(["objc_library", "swift_library"])
+        )
+
+        let rules = result.filter { target in
+            target.type == .rule
+        }
+
+        let ranCommands = runner.commands
+
+        #expect(ranCommands.count == 1)
+        #expect(ranCommands[0].command == command)
+        #expect(ranCommands[0].cwd == rootUri)
+        #expect(rules.count == 5)
+    }
 }
 
 private let mockXml = """

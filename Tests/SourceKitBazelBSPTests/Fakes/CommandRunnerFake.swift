@@ -35,10 +35,16 @@ final class CommandRunnerFake: CommandRunner {
 
     private(set) var commands: [(command: String, cwd: String?)] = []
     private var responses: [String: String] = [:]
+    private var dataResponses: [String: Data] = [:]
     private var errors: [String: Error] = [:]
 
     func setResponse(for command: String, cwd: String? = nil, response: String) {
         responses[key(for: command, cwd: cwd)] = response
+    }
+
+    func setDataResponse(for command: String, cwd: String? = nil, response: Data) {
+        let cacheKey = key(for: command, cwd: cwd)
+        dataResponses[cacheKey] = response
     }
 
     func setError(for command: String, cwd: String? = nil, error: Error) { errors[key(for: command, cwd: cwd)] = error }
@@ -54,11 +60,25 @@ final class CommandRunnerFake: CommandRunner {
         return response
     }
 
+    func execute(_ cmd: String, cwd: String?) throws -> Data {
+        commands.append((command: cmd, cwd: cwd))
+
+        let cacheKey = key(for: cmd, cwd: cwd)
+        if let error = errors[cacheKey] { throw error }
+
+        guard let response = dataResponses[cacheKey] else {
+            throw CommandRunnerFakeError.unregisteredCommand(cmd, cwd)
+        }
+
+        return response
+    }
+
     private func key(for command: String, cwd: String?) -> String { return command + "|" + (cwd ?? "nil") }
 
     func reset() {
         commands.removeAll()
         responses.removeAll()
+        dataResponses.removeAll()
         errors.removeAll()
     }
 }

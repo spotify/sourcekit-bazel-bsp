@@ -123,10 +123,9 @@ extension BazelTargetQuerier {
 
         logger.info("Processing query request for \(cacheKey) --output streamed_proto")
 
-        // We run this one on the main output base since it's not related to the actual indexing bits
         let cmd = "query \"kind('source file|\(kindsFilter)', \(depsQuery))\" --output streamed_proto"
 
-        let output = try commandRunner.getStdout(with: config.bazelWrapper + " " + cmd, cwd: rootUri)
+        let output = try commandRunner.execute(config.bazelWrapper + " " + cmd, cwd: rootUri)
 
         logger.debug("Finished querying, building result protobuf \(output.count, privacy: .public)")
 
@@ -135,39 +134,5 @@ extension BazelTargetQuerier {
         logger.debug("Parsing BlazeQuery_Target: \(targets.count, privacy: .public)")
 
         return targets
-    }
-}
-
-extension CommandRunner {
-    func getStdout(with cmd: String, cwd: String?) throws -> Data {
-          let task = Process()
-        let stdout = Pipe()
-        let stderr = Pipe()
-
-        task.standardOutput = stdout
-        task.standardError = stderr
-        task.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        if let cwd {
-            task.currentDirectoryURL = URL(fileURLWithPath: cwd)
-        }
-
-        task.arguments = ["-c", cmd]
-        task.standardInput = nil
-
-        logger.info("Running shell: \(cmd)")
-        try task.run()
-
-        // Drain stdout/err first to avoid deadlocking when the output is buffered.
-        let data = stdout.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderr.fileHandleForReading.readDataToEndOfFile()
-
-        task.waitUntilExit()
-
-        guard task.terminationStatus == 0 else {
-            let stderrString: String = String(data: stderrData, encoding: .utf8) ?? "(no stderr)"
-            throw ShellCommandRunnerError.failed(cmd, stderrString)
-        }
-
-        return data
     }
 }

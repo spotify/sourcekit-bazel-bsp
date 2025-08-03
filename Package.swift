@@ -49,7 +49,10 @@ let package = Package(
         ),
         .testTarget(
             name: "SourceKitBazelBSPTests",
-            dependencies: ["SourceKitBazelBSP"]
+            dependencies: ["SourceKitBazelBSP"],
+            resources: [
+                .copy("Resources/streamdeps.pb"),
+            ],
         ),
         .target(
             name: "BazelProtobufBindings",

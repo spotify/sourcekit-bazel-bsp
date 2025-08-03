@@ -237,7 +237,6 @@ extension BazelQueryParser {
     static func buildSourceFilesMap(
         _ targets: [BlazeQuery_Target]
     ) -> [String: String] {
-        // build hashmap for source_label to source_location
         var srcMap: [String: String] = [:]
         for target in targets {
             // making sure the target is a source_file type
@@ -245,13 +244,10 @@ extension BazelQueryParser {
                 continue
             }
 
-            // name is source_file label, for example
-            // `//HelloWorld:HelloWorldLib/Sources/AddTodoView.swift`
+            // name is source_file label
             let label = target.sourceFile.name
 
-            // location is absolute path, for example
-            // `/absolute-path-to/HelloWorld/HelloWorldLib/Sources/AddTodoView.swift:1:1`
-            // location has suffix `:1:1`, thus needed trimming
+            // location is absolute path and has suffix `:1:1`, thus trimming
             let location = target.sourceFile.location.dropLast(4)
             srcMap[label] = "file://" + String(location)
         }
@@ -306,8 +302,7 @@ extension String {
         let packageName = if components[0].starts(with: "//") {
             String(components[0].dropFirst(2))
         } else {
-            // drop external that starts with `@`
-            String(components[0].dropFirst())
+            String(components[0])
         }
 
         let targetName = String(components[1])
