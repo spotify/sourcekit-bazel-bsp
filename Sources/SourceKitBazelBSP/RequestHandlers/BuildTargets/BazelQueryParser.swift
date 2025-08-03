@@ -28,7 +28,8 @@ enum BazelQueryParser {
         from xml: XMLElement,
         supportedRuleTypes: Set<String>,
         rootUri: String,
-        toolchainPath: String
+        toolchainPath: String,
+        buildTestSuffix: String
     ) throws -> [(BuildTarget, [URI])] {
 
         // FIXME: Most of this logic is hacked together and not thought through, with the
@@ -42,7 +43,7 @@ enum BazelQueryParser {
             guard let childElement = child as? XMLElement else { continue }
             let className = childElement.attribute(forName: "class")?.stringValue ?? ""
             guard supportedRuleTypes.contains(className) else { continue }
-            if let data = try getTargetForLibrary(childElement, className, rootUri, toolchainPath) {
+            if let data = try getTargetForLibrary(childElement, className, rootUri, toolchainPath, buildTestSuffix) {
                 targets.append(data)
             }
         }
@@ -53,7 +54,8 @@ enum BazelQueryParser {
         _ childElement: XMLElement,
         _ className: String,
         _ rootUri: String,
-        _ toolchainPath: String
+        _ toolchainPath: String,
+        _ buildTestSuffix: String
     ) throws -> (BuildTarget, [URI])? {
         let bazelTarget = childElement.attribute(forName: "name")?.stringValue ?? ""
         guard bazelTarget.starts(with: "//") else {
@@ -109,9 +111,9 @@ enum BazelQueryParser {
             tags.append(.test)
         }
         // FIXME: This is assuming everything is iOS code. Will soon update this to handle all platforms.
-        let buildTestSuffix = "_ios_skbsp"
-        let uri: URI = try URI(string: uriRaw + buildTestSuffix)
-        let displayName = bazelTarget + buildTestSuffix
+        let platformBuildTestSuffix = "_ios" + buildTestSuffix
+        let uri: URI = try URI(string: uriRaw + platformBuildTestSuffix)
+        let displayName = bazelTarget + platformBuildTestSuffix
         return (
             BuildTarget(
                 id: BuildTargetIdentifier(uri: uri),

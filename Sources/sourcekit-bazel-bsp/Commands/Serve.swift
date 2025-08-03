@@ -28,15 +28,10 @@ struct Serve: ParsableCommand {
     @Option(help: "The name of the Bazel CLI to invoke (e.g. 'bazelisk')")
     var bazelWrapper: String = "bazel"
 
-    // FIXME: We should support any library target, not just the app ones.
-    // The problem is that ios_application targets apply transitions that don't get reflected
-    // when building libraries individually. Queries have a --universe_scope flag to account for this,
-    // but this is not available for build actions at the moment. We need to find a stable way of building
-    // libraries with the same configs that would be applied when building the full app.
     @Option(
         parsing: .singleValue,
         help:
-            "The Bazel ios_application or test targets that this should serve a BSP for. Can be specified multiple times."
+            "The *top level* Bazel application or test targets that this should serve a BSP for. Can be specified multiple times."
     )
     var target: [String]
 
@@ -47,6 +42,12 @@ struct Serve: ParsableCommand {
     )
     var indexFlag: [String] = []
 
+    @Option(
+        help:
+            "The expected suffix for build_test targets. Defaults to '_skbsp'."
+    )
+    var buildTestSuffix: String = "_skbsp"
+
     @Option(help: "Comma separated list of file globs to watch for changes.")
     var filesToWatch: String?
 
@@ -56,6 +57,7 @@ struct Serve: ParsableCommand {
             bazelWrapper: bazelWrapper,
             targets: target,
             indexFlags: indexFlag.map { "--" + $0 },
+            buildTestSuffix: buildTestSuffix,
             filesToWatch: filesToWatch
         )
         let server = SourceKitBazelBSPServer(baseConfig: config)

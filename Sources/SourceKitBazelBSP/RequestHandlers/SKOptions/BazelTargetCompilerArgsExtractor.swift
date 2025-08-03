@@ -80,12 +80,13 @@ final class BazelTargetCompilerArgsExtractor {
 
         // First, run an aquery against the build_test target in question,
         // filtering for the "real" underlying library.
-        let buildTestSuffix = "_skbsp"
-        if !bazelTarget.hasSuffix(buildTestSuffix) {
+        // FIXME: This is assuming everything is iOS code. Will soon update this to handle all platforms.
+        let platformBuildTestSuffix = "_ios" + config.baseConfig.buildTestSuffix
+        if !bazelTarget.hasSuffix(platformBuildTestSuffix) {
             throw BazelTargetCompilerArgsExtractorError.invalidTarget(bazelTarget)
         }
         // FIXME: This is assuming everything is iOS code. Will soon update this to handle all platforms.
-        let underlyingLibrary = String(bazelTarget.dropLast(("_ios" + buildTestSuffix).count))
+        let underlyingLibrary = String(bazelTarget.dropLast(platformBuildTestSuffix.count))
         let resultAquery = try aquerier.aquery(
             target: bazelTarget,
             filteringFor: underlyingLibrary,
