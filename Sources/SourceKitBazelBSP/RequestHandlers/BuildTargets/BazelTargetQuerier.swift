@@ -86,7 +86,7 @@ final class BazelTargetQuerier {
         }
 
         // We run this one on the main output base since it's not related to the actual indexing bits
-        let cmd = "query \"kind('source file|\(kindsFilter)', \(depsQuery))\" --output streamed_proto"
+        let cmd = "query \"kind('\(kindsFilter)', \(depsQuery))\" --output streamed_proto"
         let output = try commandRunner.execute(config.bazelWrapper + " " + cmd, cwd: rootUri)
 
         logger.debug("Finished querying, building result Protobuf")

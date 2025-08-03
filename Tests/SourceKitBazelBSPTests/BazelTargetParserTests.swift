@@ -24,7 +24,8 @@ import Testing
 
 @Suite
 struct BazelTargetParserTests {
-
+    /// Tests that BazelQueryParser correctly processes protobuf query results.
+    /// The test uses real protobuf data from streamdeps.pb to ensure the parser handles
     @Test("With given ServerConfig, ensure target parser output is correct")
     func testBazelQueryParser() throws {
         let config = BaseServerConfig(
@@ -34,24 +35,17 @@ struct BazelTargetParserTests {
             filesToWatch: nil
         )
 
-        guard let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
-            let data = try? Data(contentsOf: url)
-        else {
-            Issue.record("Failed get streamdeps.pb")
-            return
-        }
-
         let runner = CommandRunnerFake()
         let querier = BazelTargetQuerier(commandRunner: runner)
         let rootUri = "/path/to/project"
         let toolchainPath = "/path/to/toolchain"
         let command =
-            "bazel query \"kind('source file|objc_library|swift_library', deps(//HelloWorld:HelloWorld))\" --output streamed_proto"
-        let kinds = Set<String>(["objc_library", "swift_library"])
+            "bazel query \"kind('objc_library|source file|swift_library', deps(//HelloWorld:HelloWorld))\" --output streamed_proto"
+        let kinds = Set<String>(["objc_library", "source file", "swift_library"])
 
-        runner.setDataResponse(for: command, cwd: rootUri, response: data)
+        runner.setDataResponse(for: command, cwd: rootUri, response: mockProtobuf)
 
-        let targets = try querier.queryTargetsWithProto(
+        let targets = try querier.queryTargets(
             forConfig: config,
             rootUri: rootUri,
             kinds: kinds
@@ -64,10 +58,16 @@ struct BazelTargetParserTests {
             toolchainPath: toolchainPath
         )
 
-        for (target, srcs) in result {
-            print("targetID: ", target.id.uri.stringValue)
-            print(srcs.map(\.stringValue).joined(separator: "\n"))
-        }
-        #expect(!result.isEmpty)
+        let expected = [
+            "file:///path/to/project/HelloWorld___ExpandedTemplate",
+            "file:///path/to/project/HelloWorld___GeneratedDummy",
+            "file:///path/to/project/HelloWorld___HelloWorldLib",
+            "file:///path/to/project/HelloWorld___TodoModels",
+            "file:///path/to/project/HelloWorld___TodoObjCSupport",
+        ].sorted()
+
+        let actual = result.map(\.0.id.uri.stringValue).sorted()
+
+        #expect(expected == actual)
     }
 }

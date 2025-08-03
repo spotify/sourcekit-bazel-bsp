@@ -37,7 +37,7 @@ enum BazelTargetStoreError: Error, LocalizedError {
 final class BazelTargetStore {
 
     // The list of rules we currently care about and can process
-    static let supportedRuleTypes: Set<String> = ["swift_library", "objc_library"]
+    static let supportedRuleTypes: Set<String> = ["source file", "swift_library", "objc_library"]
 
     private let initializedConfig: InitializedServerConfig
     private let bazelTargetQuerier: BazelTargetQuerier
