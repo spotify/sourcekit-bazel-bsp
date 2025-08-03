@@ -42,7 +42,7 @@ enum BazelTargetQuerierError: Error, LocalizedError {
 final class BazelTargetQuerier {
 
     private let commandRunner: CommandRunner
-    private var queryCache = [String: XMLElement]()
+    private var queryCache = [String: [BlazeQuery_Target]]()
 
     static func queryDepsString(forTargets targets: [String]) -> String {
         var query = ""
@@ -60,7 +60,12 @@ final class BazelTargetQuerier {
         self.commandRunner = commandRunner
     }
 
-    func queryTargets(forConfig config: BaseServerConfig, rootUri: String, kinds: Set<String>) throws -> XMLElement {
+    /// Based on the server config, it constructs query and calls `bazel query deps` with output proto
+    func queryTargets(
+        forConfig config: BaseServerConfig,
+        rootUri: String,
+        kinds: Set<String>
+    ) throws -> [BlazeQuery_Target] {
         guard !kinds.isEmpty else {
             throw BazelTargetQuerierError.noKinds
         }
@@ -81,58 +86,22 @@ final class BazelTargetQuerier {
         }
 
         // We run this one on the main output base since it's not related to the actual indexing bits
-        let cmd = "query \"kind('\(kindsFilter)', \(depsQuery))\" --output xml"
-        let output = try commandRunner.bazel(baseConfig: config, rootUri: rootUri, cmd: cmd)
+        let cmd = "query \"kind('source file|\(kindsFilter)', \(depsQuery))\" --output streamed_proto"
+        let output = try commandRunner.execute(config.bazelWrapper + " " + cmd, cwd: rootUri)
 
-        logger.debug("Finished querying, building result XML")
+        logger.debug("Finished querying, building result Protobuf")
 
-        guard let xml = try XMLDocument(xmlString: output).rootElement() else {
+        guard let targets = try? BazelProtobufBindings.parseQueryTargets(data: output) else {
             throw BazelTargetQuerierError.invalidQueryOutput
         }
 
-        queryCache[cacheKey] = xml
+        logger.debug("Parsing BlazeQuery_Target: \(targets.count, privacy: .public)")
+        queryCache[cacheKey] = targets
 
-        return xml
+        return targets
     }
 
     func clearCache() {
         queryCache = [:]
-    }
-}
-
-// MARK: Protobuf
-
-extension BazelTargetQuerier {
-    /// Based on the server config, it constructs query and calls `bazel query deps` with output proto
-    func queryTargetsWithProto(
-        forConfig config: BaseServerConfig,
-        rootUri: String,
-        kinds: Set<String>
-    ) throws -> [BlazeQuery_Target] {
-        guard !kinds.isEmpty else {
-            throw BazelTargetQuerierError.noKinds
-        }
-
-        guard !config.targets.isEmpty else {
-            throw BazelTargetQuerierError.noTargets
-        }
-
-        let kindsFilter = kinds.sorted().joined(separator: "|")
-        let depsQuery = Self.queryDepsString(forTargets: config.targets)
-        let cacheKey = "\(kindsFilter)+\(depsQuery)"
-
-        logger.info("Processing query request for \(cacheKey) --output streamed_proto")
-
-        let cmd = "query \"kind('source file|\(kindsFilter)', \(depsQuery))\" --output streamed_proto"
-
-        let output = try commandRunner.execute(config.bazelWrapper + " " + cmd, cwd: rootUri)
-
-        logger.debug("Finished querying, building result protobuf \(output.count, privacy: .public)")
-
-        let targets = try BazelProtobufBindings.parseQueryTargets(data: output)
-
-        logger.debug("Parsing BlazeQuery_Target: \(targets.count, privacy: .public)")
-
-        return targets
     }
 }
