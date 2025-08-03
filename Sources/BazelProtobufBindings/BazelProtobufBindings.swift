@@ -19,7 +19,7 @@
 
 import Foundation
 
-package struct BazelProtobufBindings {
+package enum BazelProtobufBindings {
     package static func parseQueryTargets(data: Data) throws -> [BlazeQuery_Target] {
         var targets: [BlazeQuery_Target] = []
         let messages = try parseMultipleDelimitedMessages(from: data)
@@ -39,6 +39,8 @@ package struct BazelProtobufBindings {
 extension BazelProtobufBindings {
     /// Bazel query outputs a series of messages and each one is prefixed with length to indcate
     /// number of bytes in the payload. Returns a tuple of (value, bytesConsumed)
+    /// Protobuf [documentation](https://protobuf.dev/programming-guides/encoding/) provides more 
+    /// details on how `varint` works.
     static func parseVarint(
         from data: Data,
         startIndex: Int

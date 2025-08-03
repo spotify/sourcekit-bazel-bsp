@@ -170,12 +170,7 @@ extension BazelQueryParser {
             let baseDirectory: URI = try rule.name.toBaseDirectory(rootUri: rootUri)
 
             // get test_only
-            let testOnly: Bool = rule.attribute.map { attr in
-                guard attr.name == "testonly" else {
-                    return false
-                }
-                return attr.booleanValue
-            }.contains(true)
+            let testOnly = rule.attribute.first { $0.name == "testonly" }?.booleanValue ?? false
 
             // BuildTargetCapabilities
             let capabilities = BuildTargetCapabilities(
