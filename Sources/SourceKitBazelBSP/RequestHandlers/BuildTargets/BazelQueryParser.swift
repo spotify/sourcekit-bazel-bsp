@@ -65,7 +65,6 @@ enum BazelQueryParser {
         let uriRaw = bazelTargetToURI(fullPath)
         let basePath = uriRaw.components(separatedBy: "___")[0]
         var targetSrcs: [URI] = []
-        let uri: URI = try URI(string: uriRaw)
 
         for child in (childElement.children ?? []) {
             if child.name != "list" { continue }
@@ -109,10 +108,14 @@ enum BazelQueryParser {
             capabilities.canTest = true
             tags.append(.test)
         }
+        // FIXME: This is assuming everything is iOS code. Will soon update this to handle all platforms.
+        let buildTestSuffix = "_ios_skbsp"
+        let uri: URI = try URI(string: uriRaw + buildTestSuffix)
+        let displayName = bazelTarget + buildTestSuffix
         return (
             BuildTarget(
                 id: BuildTargetIdentifier(uri: uri),
-                displayName: bazelTarget,
+                displayName: displayName,
                 baseDirectory: try URI(string: basePath),
                 tags: tags,
                 capabilities: capabilities,
