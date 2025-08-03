@@ -85,7 +85,6 @@ final class BazelTargetCompilerArgsExtractor {
         if !bazelTarget.hasSuffix(platformBuildTestSuffix) {
             throw BazelTargetCompilerArgsExtractorError.invalidTarget(bazelTarget)
         }
-        // FIXME: This is assuming everything is iOS code. Will soon update this to handle all platforms.
         let underlyingLibrary = String(bazelTarget.dropLast(platformBuildTestSuffix.count))
         let resultAquery = try aquerier.aquery(
             target: bazelTarget,
