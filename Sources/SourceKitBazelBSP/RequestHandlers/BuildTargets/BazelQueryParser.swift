@@ -171,11 +171,10 @@ extension BazelQueryParser {
 
             // get test_only
             let testOnly: Bool = rule.attribute.map { attr in
-                if attr.name == "testonly" {
-                    return attr.booleanValue
-                } else {
+                guard attr.name == "testonly" else {
                     return false
                 }
+                return attr.booleanValue
             }.contains(true)
 
             // BuildTargetCapabilities
@@ -299,11 +298,12 @@ extension String {
             throw BazelTargetParserError.incorrectName
         }
 
-        let packageName = if components[0].starts(with: "//") {
-            String(components[0].dropFirst(2))
-        } else {
-            String(components[0])
-        }
+        let packageName =
+            if components[0].starts(with: "//") {
+                String(components[0].dropFirst(2))
+            } else {
+                String(components[0])
+            }
 
         let targetName = String(components[1])
 

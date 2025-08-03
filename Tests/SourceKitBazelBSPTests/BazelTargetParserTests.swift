@@ -35,7 +35,7 @@ struct BazelTargetParserTests {
         )
 
         guard let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
-              let data = try? Data(contentsOf: url)
+            let data = try? Data(contentsOf: url)
         else {
             Issue.record("Failed get streamdeps.pb")
             return
@@ -45,7 +45,8 @@ struct BazelTargetParserTests {
         let querier = BazelTargetQuerier(commandRunner: runner)
         let rootUri = "/path/to/project"
         let toolchainPath = "/path/to/toolchain"
-        let command = "bazel query \"kind('source file|objc_library|swift_library', deps(//HelloWorld:HelloWorld))\" --output streamed_proto"
+        let command =
+            "bazel query \"kind('source file|objc_library|swift_library', deps(//HelloWorld:HelloWorld))\" --output streamed_proto"
         let kinds = Set<String>(["objc_library", "swift_library"])
 
         runner.setDataResponse(for: command, cwd: rootUri, response: data)
@@ -62,7 +63,6 @@ struct BazelTargetParserTests {
             rootUri: rootUri,
             toolchainPath: toolchainPath
         )
-
 
         for (target, srcs) in result {
             print("targetID: ", target.id.uri.stringValue)

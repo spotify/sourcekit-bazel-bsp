@@ -139,9 +139,10 @@ struct BazelTargetQuerierTests {
         )
 
         let rootUri = "/path/to/project"
-        let command = "bazel query \"kind('source file|objc_library|swift_library', deps(//HelloWorld:HelloWorld))\" --output streamed_proto"
+        let command =
+            "bazel query \"kind('source file|objc_library|swift_library', deps(//HelloWorld:HelloWorld))\" --output streamed_proto"
         guard let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
-              let data = try? Data(contentsOf: url)
+            let data = try? Data(contentsOf: url)
         else {
             Issue.record("Failed get streamdeps.pb")
             return

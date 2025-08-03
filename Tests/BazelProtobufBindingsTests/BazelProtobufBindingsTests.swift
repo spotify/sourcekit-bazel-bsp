@@ -111,7 +111,7 @@ struct BazelProtobufBindingsTests {
     @Test
     func testDecode_streamProto() throws {
         guard let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
-              let data = try? Data(contentsOf: url)
+            let data = try? Data(contentsOf: url)
         else {
             Issue.record("Failed get streamdeps.pb")
             return
@@ -119,7 +119,8 @@ struct BazelProtobufBindingsTests {
 
         let targets = try BazelProtobufBindings.parseQueryTargets(data: data)
 
-        let actual = targets
+        let actual =
+            targets
             .filter({ $0.rule.ruleClass == "swift_library" })
             .map(\.rule.name)
             .sorted()
