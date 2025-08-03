@@ -45,6 +45,11 @@ final class BuildTargetsHandler {
         do {
             let result = try targetStore.fetchTargets()
             logger.debug("Found \(result.count) targets")
+            logger.logFullObjectInMultipleLogMessages(
+                level: .debug,
+                header: "Target list",
+                result.map { $0.id.uri.stringValue }.joined(separator: ", "),
+            )
             connection?.finishTask(id: taskId, status: .ok)
             return WorkspaceBuildTargetsResponse(targets: result)
         } catch {

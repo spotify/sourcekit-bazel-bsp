@@ -85,7 +85,8 @@ final class BazelTargetStore {
             from: xml,
             supportedRuleTypes: Self.supportedRuleTypes,
             rootUri: initializedConfig.rootUri,
-            toolchainPath: initializedConfig.devToolchainPath
+            toolchainPath: initializedConfig.devToolchainPath,
+            buildTestSuffix: initializedConfig.baseConfig.buildTestSuffix
         )
 
         // Fill the local cache based on the data we got from the query

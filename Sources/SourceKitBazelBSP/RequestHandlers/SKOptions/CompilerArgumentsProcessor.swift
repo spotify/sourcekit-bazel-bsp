@@ -180,6 +180,12 @@ enum CompilerArgumentsProcessor {
                 continue
             }
 
+            // Skip -emit-const-values-path for now, this causes permission issues in bazel-out
+            if arg == "-emit-const-values-path" {
+                index += 2
+                continue
+            }
+
             // Replace SDK placeholder
             if arg.contains("__BAZEL_XCODE_SDKROOT__") {
                 let transformedArg = arg.replacingOccurrences(of: "__BAZEL_XCODE_SDKROOT__", with: sdkRoot)

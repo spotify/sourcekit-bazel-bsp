@@ -1,9 +1,11 @@
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test")
-load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library", "swift_interop_hint")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_interop_hint")
 load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template_rule")
+load("//tools:apple.bzl", "hello_objc_library", "hello_swift_library", "IOS_MINIMUM_OS_VERSION")
 
+## MARK: Libraries
 
-swift_library(
+hello_swift_library(
     name = "HelloWorldTestsLib",
     module_name = "HelloWorldTestsLib",
     testonly = True,
@@ -12,7 +14,7 @@ swift_library(
     deps = [":HelloWorldLib"],
 )
 
-swift_library(
+hello_swift_library(
     name = "TodoModels",
     module_name = "TodoModels",
     srcs = glob(["TodoModels/Sources/*.swift"]),
@@ -24,7 +26,7 @@ swift_interop_hint(
     module_map = "TodoObjCSupport/Sources/module.modulemap",
 )
 
-objc_library(
+hello_objc_library(
     name = "TodoObjCSupport",
     srcs = glob(
         [
@@ -34,6 +36,13 @@ objc_library(
     ),
     hdrs = glob(["TodoObjCSupport/Sources/*.h"]),
     aspect_hints = [":TodoObjCSupport_hint"],
+)
+
+hello_swift_library(
+    name = "HelloWorldLib",
+    module_name = "HelloWorldLib",
+    srcs = glob(["HelloWorldLib/Sources/*.swift"]),
+    deps = [":TodoModels", ":TodoObjCSupport", ":GeneratedDummy", ":ExpandedTemplate"],
 )
 
 genrule(
@@ -48,7 +57,7 @@ import Foundation
 
 struct GeneratedDummy {
     static let message = "Hello from generated Swift file!"
-    
+
     static func greet() -> String {
         return message
     }
@@ -57,42 +66,10 @@ EOF
 """,
 )
 
-swift_library(
+hello_swift_library(
     name = "GeneratedDummy",
     module_name = "GeneratedDummy",
     srcs = [":GenerateDummySwiftFile"],
-)
-
-swift_library(
-    name = "HelloWorldLib",
-    module_name = "HelloWorldLib",
-    srcs = glob(["HelloWorldLib/Sources/*.swift"]),
-    deps = [":TodoModels", ":TodoObjCSupport", ":GeneratedDummy", ":ExpandedTemplate"],
-)
-
-genrule(
-    name = "CreateTestCoverageManifest",
-    srcs = ["Sources/BazelApp.swift"],
-    outs = [
-        "CoverageManifest.instrumented_files",
-    ],
-    cmd = "echo $(SRCS) > $@",
-)
-
-ios_unit_test(
-    name = "HelloWorldTests",
-    minimum_os_version = "17.0",
-    test_coverage_manifest = "CoverageManifest.instrumented_files",
-    deps = [":HelloWorldTestsLib"],
-)
-
-ios_application(
-    name = "HelloWorld",
-    bundle_id = "com.example.HelloWorld",
-    families = ["iphone", "ipad"],
-    infoplists = ["Resources/Info.plist"],
-    minimum_os_version = "17.0",
-    deps = [":HelloWorldLib", ":GeneratedDummy"],
 )
 
 expand_template_rule(
@@ -105,9 +82,25 @@ expand_template_rule(
     },
 )
 
-swift_library(
+hello_swift_library(
     name = "ExpandedTemplate",
-    module_name = "ExpandedTemplate", 
+    module_name = "ExpandedTemplate",
     srcs = [":ExpandTemplateSwiftFile"],
 )
 
+## MARK: Top level targets
+
+ios_unit_test(
+    name = "HelloWorldTests",
+    minimum_os_version = IOS_MINIMUM_OS_VERSION,
+    deps = [":HelloWorldTestsLib"],
+)
+
+ios_application(
+    name = "HelloWorld",
+    bundle_id = "com.example.HelloWorld",
+    families = ["iphone", "ipad"],
+    infoplists = ["Resources/Info.plist"],
+    minimum_os_version = IOS_MINIMUM_OS_VERSION,
+    deps = [":HelloWorldLib", ":GeneratedDummy"],
+)
