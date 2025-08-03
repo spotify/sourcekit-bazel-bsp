@@ -38,7 +38,8 @@ struct BazelTargetQuerierTests {
         )
 
         let mockRootUri = "/path/to/project"
-        let expectedCommand = "bazelisk query \"kind('source file|swift_library', deps(//HelloWorld))\" --output streamed_proto"
+        let expectedCommand =
+            "bazelisk query \"kind('source file|swift_library', deps(//HelloWorld))\" --output streamed_proto"
         runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: mockProtobuf)
 
         let kinds: Set<String> = ["source file", "swift_library"]
