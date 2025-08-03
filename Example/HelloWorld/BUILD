@@ -67,7 +67,7 @@ swift_library(
     name = "HelloWorldLib",
     module_name = "HelloWorldLib",
     srcs = glob(["HelloWorldLib/Sources/*.swift"]),
-    deps = [":TodoModels", ":TodoObjCSupport", ":GeneratedDummy", ":ExpandedTemplate"],
+    deps = [":TodoModels", ":TodoObjCSupport", ":GeneratedDummy", ":ExpandedTemplate", "@swiftpkg_down//:Down", "@swiftpkg_kingfisher//:Kingfisher"],
 )
 
 genrule(

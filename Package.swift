@@ -15,7 +15,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/apple/sourcekit-lsp",
-            revision: "12da8e5f54809b642701dd0dd6e145d3e0c67bc4"
+            branch: "main"
         ),
         .package(
             url: "https://github.com/apple/swift-protobuf.git",
@@ -53,7 +53,7 @@ let package = Package(
         .target(
             name: "BazelProtobufBindings",
             dependencies: [
-                .product(name: "SwiftProtobuf", package: "swift-protobuf")
+                .product(name: "SwiftProtobuf", package: "swift-protobuf"),
             ],
             exclude: [
                 "README.md",
@@ -64,8 +64,8 @@ let package = Package(
             name: "BazelProtobufBindingsTests",
             dependencies: ["BazelProtobufBindings"],
             resources: [
-                .copy("Resources/actions.pb")
+                .copy("Resources/actions.pb"),
             ],
-        )
+        ),
     ]
 )
