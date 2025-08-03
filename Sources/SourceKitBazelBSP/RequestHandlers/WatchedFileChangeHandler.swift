@@ -21,17 +21,22 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
+protocol InvalidatedTargetObserver: AnyObject {
+    func invalidate(targets: Set<URI>) throws
+}
+
 /// Handles the file changing notification.
 ///
 /// This is intended to tell the LSP which targets are invalidated by a change.
 final class WatchedFileChangeHandler {
 
     private let targetStore: BazelTargetStore
-
+    private var observers: [any InvalidatedTargetObserver]
     private weak var connection: LSPConnection?
 
-    init(targetStore: BazelTargetStore, connection: LSPConnection) {
+    init(targetStore: BazelTargetStore, observers: [any InvalidatedTargetObserver] = [], connection: LSPConnection) {
         self.targetStore = targetStore
+        self.observers = observers
         self.connection = connection
     }
 
@@ -47,7 +52,9 @@ final class WatchedFileChangeHandler {
                 affectedTargets.insert(target)
             }
         }
-        targetStore.buildCache.subtract(affectedTargets)
+        for observer in observers {
+            try observer.invalidate(targets: affectedTargets)
+        }
         let response = OnBuildTargetDidChangeNotification(
             changes: affectedTargets.map {
                 BuildTargetEvent(target: BuildTargetIdentifier(uri: $0), kind: .changed, dataKind: nil, data: nil)
