@@ -15,7 +15,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/apple/sourcekit-lsp",
-            revision: "12da8e5f54809b642701dd0dd6e145d3e0c67bc4"
+            revision: "5df8f3d9ac0e647238ed4203e8f399ae5a095aa3"
         ),
         .package(
             url: "https://github.com/apple/swift-protobuf.git",
