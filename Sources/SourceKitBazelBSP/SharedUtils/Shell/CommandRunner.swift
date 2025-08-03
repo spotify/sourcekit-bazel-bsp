@@ -20,26 +20,27 @@
 import Foundation
 
 protocol CommandRunner {
-    func execute(_ cmd: String, cwd: String?) throws -> Data
-    func run(_ cmd: String, cwd: String?) throws -> String
+    func run(_ cmd: String, cwd: String?) throws -> Data
+}
+
+extension Data {
+    func toStr() -> String {
+        let str = String(data: self, encoding: .utf8) ?? ""
+        return str.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 }
 
 extension CommandRunner {
-    func run(_ cmd: String, cwd: String?) throws -> String {
-        let data = try execute(cmd, cwd: cwd)
-        let output = String(data: data, encoding: .utf8) ?? ""
-        return output.trimmingCharacters(in: .whitespacesAndNewlines)
+    func run(_ cmd: String) throws -> Data {
+        try run(cmd, cwd: nil)
     }
-
-    func run(_ cmd: String) throws -> String { try run(cmd, cwd: nil) }
-    func execute(_ cmd: String) throws -> Data { try execute(cmd, cwd: nil) }
 }
 
 // MARK: Bazel-related helpers
 
 extension CommandRunner {
     func bazel(baseConfig: BaseServerConfig, rootUri: String, cmd: String) throws -> String {
-        try run(baseConfig.bazelWrapper + " " + cmd, cwd: rootUri)
+        try run(baseConfig.bazelWrapper + " " + cmd, cwd: rootUri).toStr()
     }
 
     /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.

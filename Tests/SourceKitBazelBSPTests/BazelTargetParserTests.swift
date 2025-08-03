@@ -43,7 +43,7 @@ struct BazelTargetParserTests {
             "bazel query \"kind('objc_library|source file|swift_library', deps(//HelloWorld:HelloWorld))\" --output streamed_proto"
         let kinds = Set<String>(["objc_library", "source file", "swift_library"])
 
-        runner.setDataResponse(for: command, cwd: rootUri, response: mockProtobuf)
+        runner.setResponse(for: command, cwd: rootUri, response: mockProtobuf)
 
         let targets = try querier.queryTargets(
             forConfig: config,

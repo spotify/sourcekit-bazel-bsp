@@ -39,7 +39,7 @@ struct BazelTargetQuerierTests {
 
         let mockRootUri = "/path/to/project"
         let expectedCommand = "bazelisk query \"kind('source file|swift_library', deps(//HelloWorld))\" --output streamed_proto"
-        runnerMock.setDataResponse(for: expectedCommand, cwd: mockRootUri, response: mockProtobuf)
+        runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: mockProtobuf)
 
         let kinds: Set<String> = ["source file", "swift_library"]
         let result = try querier.queryTargets(forConfig: config, rootUri: mockRootUri, kinds: kinds)
@@ -66,7 +66,7 @@ struct BazelTargetQuerierTests {
         let mockRootUri = "/path/to/project"
         let expectedCommand =
             "bazelisk query \"kind('objc_library|swift_library', deps(//HelloWorld) union deps(//Tests))\" --output streamed_proto"
-        runnerMock.setDataResponse(for: expectedCommand, cwd: mockRootUri, response: mockProtobuf)
+        runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: mockProtobuf)
 
         let kinds: Set<String> = ["swift_library", "objc_library"]
         let result = try querier.queryTargets(forConfig: config, rootUri: mockRootUri, kinds: kinds)
@@ -98,12 +98,12 @@ struct BazelTargetQuerierTests {
 
         var kinds: Set<String> = ["swift_library"]
 
-        runnerMock.setDataResponse(
+        runnerMock.setResponse(
             for: "bazel query \"kind('swift_library', deps(//HelloWorld))\" --output streamed_proto",
             cwd: mockRootUri,
             response: mockProtobuf
         )
-        runnerMock.setDataResponse(
+        runnerMock.setResponse(
             for: "bazel query \"kind('objc_library', deps(//HelloWorld))\" --output streamed_proto",
             cwd: mockRootUri,
             response: mockProtobuf
@@ -148,7 +148,7 @@ struct BazelTargetQuerierTests {
             return
         }
 
-        runner.setDataResponse(for: command, cwd: rootUri, response: data)
+        runner.setResponse(for: command, cwd: rootUri, response: data)
 
         let result = try querier.queryTargets(
             forConfig: config,

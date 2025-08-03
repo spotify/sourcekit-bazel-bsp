@@ -34,39 +34,26 @@ enum CommandRunnerFakeError: Error, LocalizedError {
 final class CommandRunnerFake: CommandRunner {
 
     private(set) var commands: [(command: String, cwd: String?)] = []
-    private var responses: [String: String] = [:]
-    private var dataResponses: [String: Data] = [:]
+    private var responses: [String: Data] = [:]
     private var errors: [String: Error] = [:]
 
     func setResponse(for command: String, cwd: String? = nil, response: String) {
-        responses[key(for: command, cwd: cwd)] = response
+        responses[key(for: command, cwd: cwd)] = response.data(using: .utf8)
     }
 
-    func setDataResponse(for command: String, cwd: String? = nil, response: Data) {
-        let cacheKey = key(for: command, cwd: cwd)
-        dataResponses[cacheKey] = response
+    func setResponse(for command: String, cwd: String? = nil, response: Data) {
+        responses[key(for: command, cwd: cwd)] = response
     }
 
     func setError(for command: String, cwd: String? = nil, error: Error) { errors[key(for: command, cwd: cwd)] = error }
 
-    func run(_ cmd: String, cwd: String?) throws -> String {
+    func run(_ cmd: String, cwd: String?) throws -> Data {
         commands.append((command: cmd, cwd: cwd))
 
         let cacheKey = key(for: cmd, cwd: cwd)
         if let error = errors[cacheKey] { throw error }
 
-        guard let response = responses[cacheKey] else { throw CommandRunnerFakeError.unregisteredCommand(cmd, cwd) }
-
-        return response
-    }
-
-    func execute(_ cmd: String, cwd: String?) throws -> Data {
-        commands.append((command: cmd, cwd: cwd))
-
-        let cacheKey = key(for: cmd, cwd: cwd)
-        if let error = errors[cacheKey] { throw error }
-
-        guard let response = dataResponses[cacheKey] else {
+        guard let response = responses[cacheKey] else {
             throw CommandRunnerFakeError.unregisteredCommand(cmd, cwd)
         }
 
@@ -78,7 +65,6 @@ final class CommandRunnerFake: CommandRunner {
     func reset() {
         commands.removeAll()
         responses.removeAll()
-        dataResponses.removeAll()
         errors.removeAll()
     }
 }

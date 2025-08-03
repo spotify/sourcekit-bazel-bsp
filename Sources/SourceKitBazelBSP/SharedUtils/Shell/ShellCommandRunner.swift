@@ -32,7 +32,7 @@ enum ShellCommandRunnerError: LocalizedError {
 }
 
 struct ShellCommandRunner: CommandRunner {
-    func execute(_ cmd: String, cwd: String?) throws -> Data {
+    func run(_ cmd: String, cwd: String?) throws -> Data {
         let task = Process()
         let stdout = Pipe()
         let stderr = Pipe()
