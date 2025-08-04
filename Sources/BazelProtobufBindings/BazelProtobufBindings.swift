@@ -37,11 +37,11 @@ package enum BazelProtobufBindings {
 }
 
 extension BazelProtobufBindings {
-    /// Bazel query outputs a series of messages and each one is prefixed with length to indcate
-    /// number of bytes in the payload. Returns a tuple of (value, bytesConsumed)
+    /// Bazel query outputs a series of messages and each one is prefixed with length to indicate
+	/// the number of bytes in the payload. Returns a tuple of (value, bytesConsumed).
     /// Protobuf [documentation](https://protobuf.dev/programming-guides/encoding/) provides more
     /// details on how `varint` works.
-    static func parseVarint(
+    private static func parseVarint(
         from data: Data,
         startIndex: Int
     ) throws -> (UInt64, Int) {
@@ -88,7 +88,7 @@ extension BazelProtobufBindings {
     }
 
     /// Parse the length prefix and return the message data
-    static func parseDelimitedMessage(
+    private static func parseDelimitedMessage(
         from data: Data,
         startIndex: Int = 0
     ) throws -> (Data, Int) {
@@ -111,7 +111,7 @@ extension BazelProtobufBindings {
     }
 
     /// Parse multiple delimited messages from a data stream
-    static func parseMultipleDelimitedMessages(from data: Data) throws -> [Data] {
+    private static func parseMultipleDelimitedMessages(from data: Data) throws -> [Data] {
         var messages: [Data] = []
         var currentIndex = 0
 

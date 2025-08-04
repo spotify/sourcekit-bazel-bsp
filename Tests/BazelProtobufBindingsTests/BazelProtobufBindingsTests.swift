@@ -109,7 +109,7 @@ struct BazelProtobufBindingsTests {
     }
 
     @Test
-    func testDecode_streamProto() throws {
+    func decodesStreamProto() throws {
         guard let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
             let data = try? Data(contentsOf: url)
         else {

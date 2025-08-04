@@ -164,7 +164,7 @@ enum BazelQueryParser {
 // MARK: - Bazel target name helpers
 
 extension String {
-    /// Convert the target name into file URI scheme and returns unique target id
+    /// Converts the target name into a URI and returns a unique target id.
     ///
     /// file://<path-to-root>/<package-name>___<target-name>
     ///
@@ -180,7 +180,7 @@ extension String {
         return uri
     }
 
-    /// Convert the target name into file URI scheme and returns the directory
+    /// Converts the target name a URI and returns the target's base directory.
     ///
     /// file://<path-to-root>/<package-name>
     ///
@@ -196,7 +196,7 @@ extension String {
         return uri
     }
 
-    /// Split bazel target label into packageName and targetName
+    /// Splits a full Bazel label into a tuple of its package and target names.
     func splitTargetLabel() throws -> (packageName: String, targetName: String) {
         let components = self.split(separator: ":")
 

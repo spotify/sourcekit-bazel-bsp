@@ -60,7 +60,6 @@ final class BazelTargetQuerier {
         self.commandRunner = commandRunner
     }
 
-    /// Based on the server config, it constructs query and calls `bazel query deps` with output proto
     func queryTargets(
         forConfig config: BaseServerConfig,
         rootUri: String,
