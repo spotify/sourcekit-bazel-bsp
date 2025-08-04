@@ -38,7 +38,7 @@ package enum BazelProtobufBindings {
 
 extension BazelProtobufBindings {
     /// Bazel query outputs a series of messages and each one is prefixed with length to indicate
-	/// the number of bytes in the payload. Returns a tuple of (value, bytesConsumed).
+    /// the number of bytes in the payload. Returns a tuple of (value, bytesConsumed).
     /// Protobuf [documentation](https://protobuf.dev/programming-guides/encoding/) provides more
     /// details on how `varint` works.
     private static func parseVarint(
