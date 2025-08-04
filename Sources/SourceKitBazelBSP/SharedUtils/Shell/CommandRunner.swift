@@ -20,11 +20,19 @@
 import Foundation
 
 protocol CommandRunner {
-    func run(_ cmd: String, cwd: String?) throws -> String
+    func run(_ cmd: String, cwd: String?) throws -> Data
 }
 
 extension CommandRunner {
-    func run(_ cmd: String) throws -> String { try run(cmd, cwd: nil) }
+    func run(_ cmd: String, cwd: String?) throws -> String {
+        let data: Data = try run(cmd, cwd: cwd)
+        let str = String(data: data, encoding: .utf8) ?? ""
+        return str.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func run(_ cmd: String) throws -> String {
+        try run(cmd, cwd: nil)
+    }
 }
 
 // MARK: Bazel-related helpers

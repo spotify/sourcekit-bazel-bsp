@@ -34,22 +34,28 @@ enum CommandRunnerFakeError: Error, LocalizedError {
 final class CommandRunnerFake: CommandRunner {
 
     private(set) var commands: [(command: String, cwd: String?)] = []
-    private var responses: [String: String] = [:]
+    private var responses: [String: Data] = [:]
     private var errors: [String: Error] = [:]
 
     func setResponse(for command: String, cwd: String? = nil, response: String) {
+        responses[key(for: command, cwd: cwd)] = response.data(using: .utf8)
+    }
+
+    func setResponse(for command: String, cwd: String? = nil, response: Data) {
         responses[key(for: command, cwd: cwd)] = response
     }
 
     func setError(for command: String, cwd: String? = nil, error: Error) { errors[key(for: command, cwd: cwd)] = error }
 
-    func run(_ cmd: String, cwd: String?) throws -> String {
+    func run(_ cmd: String, cwd: String?) throws -> Data {
         commands.append((command: cmd, cwd: cwd))
 
         let cacheKey = key(for: cmd, cwd: cwd)
         if let error = errors[cacheKey] { throw error }
 
-        guard let response = responses[cacheKey] else { throw CommandRunnerFakeError.unregisteredCommand(cmd, cwd) }
+        guard let response = responses[cacheKey] else {
+            throw CommandRunnerFakeError.unregisteredCommand(cmd, cwd)
+        }
 
         return response
     }

@@ -101,8 +101,8 @@ final class InitializeHandler {
         logger.debug("outputPath: \(outputPath)")
 
         // Collecting the rest of the env's details
-        let devDir = try commandRunner.run("xcode-select --print-path")
-        let sdkRoot = try commandRunner.run("xcrun --sdk iphonesimulator --show-sdk-path")
+        let devDir: String = try commandRunner.run("xcode-select --print-path")
+        let sdkRoot: String = try commandRunner.run("xcrun --sdk iphonesimulator --show-sdk-path")
         let toolchain = try getToolchainPath(with: commandRunner)
 
         logger.debug("devDir: \(devDir)")
@@ -124,7 +124,7 @@ final class InitializeHandler {
         // Trick to get the Xcode toolchain path, since there's no dedicated command for it
         // In theory this should be just devDir + Toolchains/XcodeDefault.xctoolchain,
         // but I think we should make it dynamic just in case
-        let swiftPath = try commandRunner.run("xcrun --find swift")
+        let swiftPath: String = try commandRunner.run("xcrun --find swift")
         let expectedSwiftPathSuffix = "usr/bin/swift"
         guard swiftPath.hasSuffix(expectedSwiftPathSuffix) else {
             throw InitializeHandlerError.toolchainNotFound(swiftPath)

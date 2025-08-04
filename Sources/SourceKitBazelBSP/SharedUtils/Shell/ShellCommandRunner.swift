@@ -32,7 +32,7 @@ enum ShellCommandRunnerError: LocalizedError {
 }
 
 struct ShellCommandRunner: CommandRunner {
-    func run(_ cmd: String, cwd: String?) throws -> String {
+    func run(_ cmd: String, cwd: String?) throws -> Data {
         let task = Process()
         let stdout = Pipe()
         let stderr = Pipe()
@@ -53,7 +53,6 @@ struct ShellCommandRunner: CommandRunner {
         // Drain stdout/err first to avoid deadlocking when the output is buffered.
         let data = stdout.fileHandleForReading.readDataToEndOfFile()
         let stderrData = stderr.fileHandleForReading.readDataToEndOfFile()
-        let output = String(data: data, encoding: .utf8) ?? ""
 
         task.waitUntilExit()
 
@@ -62,6 +61,6 @@ struct ShellCommandRunner: CommandRunner {
             throw ShellCommandRunnerError.failed(cmd, stderrString)
         }
 
-        return output.trimmingCharacters(in: .whitespacesAndNewlines)
+        return data
     }
 }

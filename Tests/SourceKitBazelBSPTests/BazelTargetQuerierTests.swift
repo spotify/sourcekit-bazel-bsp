@@ -39,17 +39,18 @@ struct BazelTargetQuerierTests {
         )
 
         let mockRootUri = "/path/to/project"
-        let expectedCommand = "bazelisk query \"kind('swift_library', deps(//HelloWorld))\" --output xml"
-        runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: mockXml)
+        let expectedCommand =
+            "bazelisk query \"kind('source file|swift_library', deps(//HelloWorld))\" --output streamed_proto"
+        runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: mockProtobuf)
 
-        let kinds: Set<String> = ["swift_library"]
+        let kinds: Set<String> = ["source file", "swift_library"]
         let result = try querier.queryTargets(forConfig: config, rootUri: mockRootUri, kinds: kinds)
 
         let ranCommands = runnerMock.commands
         #expect(ranCommands.count == 1)
         #expect(ranCommands[0].command == expectedCommand)
         #expect(ranCommands[0].cwd == mockRootUri)
-        #expect(result.children?.count == 2)
+        #expect(!result.isEmpty)
     }
 
     @Test
@@ -67,8 +68,8 @@ struct BazelTargetQuerierTests {
 
         let mockRootUri = "/path/to/project"
         let expectedCommand =
-            "bazelisk query \"kind('objc_library|swift_library', deps(//HelloWorld) union deps(//Tests))\" --output xml"
-        runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: mockXml)
+            "bazelisk query \"kind('objc_library|swift_library', deps(//HelloWorld) union deps(//Tests))\" --output streamed_proto"
+        runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: mockProtobuf)
 
         let kinds: Set<String> = ["swift_library", "objc_library"]
         let result = try querier.queryTargets(forConfig: config, rootUri: mockRootUri, kinds: kinds)
@@ -77,7 +78,7 @@ struct BazelTargetQuerierTests {
         #expect(ranCommands.count == 1)
         #expect(ranCommands[0].command == expectedCommand)
         #expect(ranCommands[0].cwd == mockRootUri)
-        #expect(result.children?.count == 2)
+        #expect(!result.isEmpty)
     }
 
     @Test
@@ -102,14 +103,14 @@ struct BazelTargetQuerierTests {
         var kinds: Set<String> = ["swift_library"]
 
         runnerMock.setResponse(
-            for: "bazel query \"kind('swift_library', deps(//HelloWorld))\" --output xml",
+            for: "bazel query \"kind('swift_library', deps(//HelloWorld))\" --output streamed_proto",
             cwd: mockRootUri,
-            response: mockXml
+            response: mockProtobuf
         )
         runnerMock.setResponse(
-            for: "bazel query \"kind('objc_library', deps(//HelloWorld))\" --output xml",
+            for: "bazel query \"kind('objc_library', deps(//HelloWorld))\" --output streamed_proto",
             cwd: mockRootUri,
-            response: mockXml
+            response: mockProtobuf
         )
 
         try run(kinds)
@@ -129,13 +130,55 @@ struct BazelTargetQuerierTests {
         try run(kinds)
         #expect(runnerMock.commands.count == 2)
     }
+
+    @Test("With given ServerConfig, ensure query is correct")
+    func executeCorrectBazelCommandProto() throws {
+        let runner = CommandRunnerFake()
+        let querier = BazelTargetQuerier(commandRunner: runner)
+        let config = BaseServerConfig(
+            bazelWrapper: "bazel",
+            targets: ["//HelloWorld:HelloWorld"],
+            indexFlags: [],
+            buildTestSuffix: "_skbsp",
+            filesToWatch: nil
+        )
+
+        let rootUri = "/path/to/project"
+        let command =
+            "bazel query \"kind('objc_library|source file|swift_library', deps(//HelloWorld:HelloWorld))\" --output streamed_proto"
+        guard let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
+            let data = try? Data(contentsOf: url)
+        else {
+            Issue.record("Failed get streamdeps.pb")
+            return
+        }
+
+        runner.setResponse(for: command, cwd: rootUri, response: data)
+
+        let result = try querier.queryTargets(
+            forConfig: config,
+            rootUri: rootUri,
+            kinds: .init(["objc_library", "source file", "swift_library"])
+        )
+
+        let rules = result.filter { target in
+            target.type == .rule
+        }
+
+        let ranCommands = runner.commands
+
+        #expect(ranCommands.count == 1)
+        #expect(ranCommands[0].command == command)
+        #expect(ranCommands[0].cwd == rootUri)
+        #expect(rules.count == 5)
+    }
 }
 
-private let mockXml = """
-    <?xml version="1.1" encoding="UTF-8" standalone="no"?>
-    <query version="2">
-        <rule class="swift_library" name="//HelloWorld:lib1" />
-        <rule class="swift_library" name="//HelloWorld:lib2" />
-    </query>
-
-    """
+let mockProtobuf: Data = {
+    guard let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
+        let data = try? Data(contentsOf: url)
+    else {
+        fatalError("Failed get streamdeps.pb")
+    }
+    return data
+}()

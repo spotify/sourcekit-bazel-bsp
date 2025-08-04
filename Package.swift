@@ -36,6 +36,7 @@ let package = Package(
         .target(
             name: "SourceKitBazelBSP",
             dependencies: [
+                "BazelProtobufBindings",
                 .product(
                     name: "BuildServerProtocol",
                     package: "sourcekit-lsp"
@@ -48,7 +49,10 @@ let package = Package(
         ),
         .testTarget(
             name: "SourceKitBazelBSPTests",
-            dependencies: ["SourceKitBazelBSP"]
+            dependencies: ["SourceKitBazelBSP"],
+            resources: [
+                .copy("Resources/streamdeps.pb"),
+            ],
         ),
         .target(
             name: "BazelProtobufBindings",
@@ -57,14 +61,17 @@ let package = Package(
             ],
             exclude: [
                 "README.md",
-                "analysis_v2.proto",
+                "protos/analysis_v2.proto",
+                "protos/build.proto",
+                "protos/stardoc_output.proto",
             ]
         ),
         .testTarget(
             name: "BazelProtobufBindingsTests",
             dependencies: ["BazelProtobufBindings"],
             resources: [
-                .copy("Resources/actions.pb")
+                .copy("Resources/actions.pb"),
+                .copy("Resources/streamdeps.pb"),
             ],
         )
     ]

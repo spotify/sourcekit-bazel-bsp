@@ -36,15 +36,16 @@ struct BazelProtobufBindingsTests {
             return
         }
 
-        guard let actionParser = try? BazelProtobufBindings.new(data: data) else {
+        guard let actionGraph = try? BazelProtobufBindings.parseActionGraph(data: data) else {
             Issue.record("Fail to parse actions.pb")
             return
         }
 
-        let actionGraph = actionParser.actionGraph
-
-        let expected = ["//HelloWorld:HelloWorldLib", "//HelloWorld:TodoObjCSupport", "//HelloWorld:TodoModels"]
-            .sorted()
+        let expected = [
+            "//HelloWorld:HelloWorldLib",
+            "//HelloWorld:TodoObjCSupport",
+            "//HelloWorld:TodoModels",
+        ].sorted()
 
         let actual = actionGraph.targets.map(\.label).sorted()
 
@@ -64,12 +65,10 @@ struct BazelProtobufBindingsTests {
             return
         }
 
-        guard let actionParser = try? BazelProtobufBindings.new(data: data) else {
+        guard let actionGraph = try? BazelProtobufBindings.parseActionGraph(data: data) else {
             Issue.record("Fail to parse actions.pb")
             return
         }
-
-        let actionGraph = actionParser.actionGraph
 
         // //HelloWorld:TodoModels -> targetID: 1
         guard let action = actionGraph.actions.first(where: { $0.targetID == 1 }) else { return }
@@ -105,6 +104,33 @@ struct BazelProtobufBindingsTests {
             "-fstack-protector-all", "HelloWorld/TodoModels/Sources/TodoItem.swift",
             "HelloWorld/TodoModels/Sources/TodoListManager.swift",
         ]
+
+        #expect(actual == expected)
+    }
+
+    @Test
+    func decodesStreamProto() throws {
+        guard let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
+            let data = try? Data(contentsOf: url)
+        else {
+            Issue.record("Failed get streamdeps.pb")
+            return
+        }
+
+        let targets = try BazelProtobufBindings.parseQueryTargets(data: data)
+
+        let actual =
+            targets
+            .filter({ $0.rule.ruleClass == "swift_library" })
+            .map(\.rule.name)
+            .sorted()
+
+        let expected = [
+            "//HelloWorld:ExpandedTemplate",
+            "//HelloWorld:GeneratedDummy",
+            "//HelloWorld:HelloWorldLib",
+            "//HelloWorld:TodoModels",
+        ].sorted()
 
         #expect(actual == expected)
     }

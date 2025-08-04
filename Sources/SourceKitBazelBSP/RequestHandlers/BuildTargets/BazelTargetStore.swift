@@ -17,6 +17,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import BazelProtobufBindings
 import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
@@ -36,7 +37,7 @@ enum BazelTargetStoreError: Error, LocalizedError {
 final class BazelTargetStore {
 
     // The list of rules we currently care about and can process
-    static let supportedRuleTypes: Set<String> = ["swift_library", "objc_library"]
+    static let supportedRuleTypes: Set<String> = ["source file", "swift_library", "objc_library"]
 
     private let initializedConfig: InitializedServerConfig
     private let bazelTargetQuerier: BazelTargetQuerier
@@ -75,14 +76,15 @@ final class BazelTargetStore {
     }
 
     func fetchTargets() throws -> [BuildTarget] {
-        let xml = try bazelTargetQuerier.queryTargets(
+        var targetData: [(BuildTarget, [URI])] = []
+        let targets: [BlazeQuery_Target] = try bazelTargetQuerier.queryTargets(
             forConfig: initializedConfig.baseConfig,
             rootUri: initializedConfig.rootUri,
             kinds: Self.supportedRuleTypes
         )
 
-        let targetData = try BazelQueryParser.parseTargets(
-            from: xml,
+        targetData = try BazelQueryParser.parseTargetsWithProto(
+            from: targets,
             supportedRuleTypes: Self.supportedRuleTypes,
             rootUri: initializedConfig.rootUri,
             toolchainPath: initializedConfig.devToolchainPath,
