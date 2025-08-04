@@ -27,12 +27,9 @@ import Testing
 
 @Suite
 struct BazelTargetCompilerArgsExtractorTests {
-    private static func makeMockExtractor() -> (BazelTargetCompilerArgsExtractor, CommandRunnerFake) {
+    private static func makeMockExtractor() -> (BazelTargetCompilerArgsExtractor, CommandRunnerFake, String) {
         let mockRunner = CommandRunnerFake()
         let mockRootUri = "/Users/user/Documents/demo-ios-project"
-        let expectedAQuery =
-            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', deps(//HelloWorld))\" --noinclude_artifacts"
-        mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
         let mockSdkRoot =
             "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
         let mockDevDir = "/Applications/Xcode.app/Contents/Developer"
@@ -44,6 +41,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                 bazelWrapper: "bazel",
                 targets: ["//HelloWorld"],
                 indexFlags: [],
+                buildTestSuffix: "_skbsp",
                 filesToWatch: nil
             ),
             rootUri: mockRootUri,
@@ -57,17 +55,20 @@ struct BazelTargetCompilerArgsExtractorTests {
             aquerier: BazelTargetAquerier(commandRunner: mockRunner),
             config: config
         )
-        return (extractor, mockRunner)
+        return (extractor, mockRunner, mockRootUri)
     }
 
     @Test
     func extractsAndProcessesCompilerArguments_complexRealWorldSwiftExample() throws {
-        let (extractor, _) = Self.makeMockExtractor()
+        let (extractor, mockRunner, mockRootUri) = Self.makeMockExtractor()
+        let expectedAQuery =
+            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:HelloWorldLib, deps(//HelloWorld:HelloWorldLib_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects"
+        mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
 
         let result = try #require(
             try extractor.compilerArgs(
                 forDoc: URI(filePath: "not relevant for Swift", isDirectory: false),
-                inTarget: "//HelloWorld:HelloWorldLib",
+                inTarget: "//HelloWorld:HelloWorldLib_ios_skbsp",
                 language: .swift,
             )
         )
@@ -76,7 +77,10 @@ struct BazelTargetCompilerArgsExtractorTests {
 
     @Test
     func extractsAndProcessesCompilerArguments_complexRealWorldObjCExample() throws {
-        let (extractor, _) = Self.makeMockExtractor()
+        let (extractor, mockRunner, mockRootUri) = Self.makeMockExtractor()
+        let expectedAQuery =
+            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:TodoObjCSupport, deps(//HelloWorld:TodoObjCSupport_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects"
+        mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
 
         let result = try #require(
             try extractor.compilerArgs(
@@ -85,7 +89,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                         "/Users/user/Documents/demo-ios-project/HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.m",
                     isDirectory: false
                 ),
-                inTarget: "//HelloWorld:TodoObjCSupport",
+                inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
                 language: .objective_c,
             )
         )
@@ -94,7 +98,7 @@ struct BazelTargetCompilerArgsExtractorTests {
 
     @Test
     func ignoresObjCHeaders() throws {
-        let (extractor, _) = Self.makeMockExtractor()
+        let (extractor, _, _) = Self.makeMockExtractor()
 
         let result = try extractor.compilerArgs(
             forDoc: URI(
@@ -102,7 +106,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                     "/Users/user/Documents/demo-ios-project/HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.h",
                 isDirectory: false
             ),
-            inTarget: "//HelloWorld:TodoObjCSupport",
+            inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
             language: .objective_c,
         )
         #expect(result == nil)
@@ -110,14 +114,17 @@ struct BazelTargetCompilerArgsExtractorTests {
 
     @Test
     func missingObjCFileReturnsNil() throws {
-        let (extractor, _) = Self.makeMockExtractor()
+        let (extractor, mockRunner, mockRootUri) = Self.makeMockExtractor()
+        let expectedAQuery =
+            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:TodoObjCSupport, deps(//HelloWorld:TodoObjCSupport_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects"
+        mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
 
         let result = try extractor.compilerArgs(
             forDoc: URI(
                 filePath: "/Users/user/Documents/demo-ios-project/HelloWorld/TodoObjCSupport/Sources/SomethingElse.m",
                 isDirectory: false
             ),
-            inTarget: "//HelloWorld:TodoObjCSupport",
+            inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
             language: .objective_c,
         )
         #expect(result == nil)
@@ -125,7 +132,7 @@ struct BazelTargetCompilerArgsExtractorTests {
 
     @Test
     func objCFilesRequireFullPath() throws {
-        let (extractor, _) = Self.makeMockExtractor()
+        let (extractor, _, _) = Self.makeMockExtractor()
 
         let error = #expect(throws: BazelTargetCompilerArgsExtractorError.self) {
             try extractor.compilerArgs(
@@ -133,7 +140,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                     filePath: "/random/wrong/prefix/HelloWorld/TodoObjCSupport/Sources/SomethingElse.m",
                     isDirectory: false
                 ),
-                inTarget: "//HelloWorld:TodoObjCSupport",
+                inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
                 language: .objective_c,
             )
         }
@@ -145,38 +152,25 @@ struct BazelTargetCompilerArgsExtractorTests {
 
     @Test
     func missingSwiftModuleReturnsNil() throws {
-        let (extractor, _) = Self.makeMockExtractor()
+        let (extractor, mockRunner, mockRootUri) = Self.makeMockExtractor()
+        let expectedAQuery =
+            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:SomethingElseLib, deps(//HelloWorld:SomethingElseLib_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects"
+        mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
 
         let result = try extractor.compilerArgs(
             forDoc: URI(filePath: "not relevant for Swift", isDirectory: false),
-            inTarget: "//HelloWorld:SomethingElseLib",
+            inTarget: "//HelloWorld:SomethingElseLib_ios_skbsp",
             language: .swift,
         )
         #expect(result == nil)
     }
 
     @Test
-    func cachesAqueryOutput() throws {
-        let (extractor, runner) = Self.makeMockExtractor()
-
-        func run(_ lib: String) {
-            _ = try? extractor.compilerArgs(
-                forDoc: URI(filePath: "not relevant for Swift", isDirectory: false),
-                inTarget: lib,
-                language: .swift,
-            )
-        }
-
-        #expect(runner.commands.count == 0)
-        run("//HelloWorld:HelloWorldLib")
-        #expect(runner.commands.count == 1)
-        run("//HelloWorld:SomethingElseLib")
-        #expect(runner.commands.count == 1)
-    }
-
-    @Test
     func cachesCompilerArgs() throws {
-        let (extractor, runner) = Self.makeMockExtractor()
+        let (extractor, mockRunner, mockRootUri) = Self.makeMockExtractor()
+        let expectedAQuery =
+            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:HelloWorldLib, deps(//HelloWorld:HelloWorldLib_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects"
+        mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
 
         func run(_ lib: String) -> [String]? {
             return try? extractor.compilerArgs(
@@ -186,12 +180,12 @@ struct BazelTargetCompilerArgsExtractorTests {
             )
         }
 
-        let result1 = try #require(run("//HelloWorld:HelloWorldLib"))
+        let result1 = try #require(run("//HelloWorld:HelloWorldLib_ios_skbsp"))
 
         // Remove the mock aquery responses to indicate that we skipped that section of the logic entirely
-        runner.reset()
+        mockRunner.reset()
 
-        let result2 = try #require(run("//HelloWorld:HelloWorldLib"))
+        let result2 = try #require(run("//HelloWorld:HelloWorldLib_ios_skbsp"))
         #expect(result1 == result2)
     }
 }
@@ -445,8 +439,7 @@ let expectedSwiftResult: [String] = [
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin/HelloWorld/HelloWorldLib.output_file_map.json",
     "-Xfrontend", "-no-clang-module-breadcrumbs", "-emit-module-path",
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin/HelloWorld/HelloWorldLib.swiftmodule",
-    "-enforce-exclusivity=checked", "-emit-const-values-path",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin/HelloWorld/HelloWorldLib_objs/HelloWorldLib/Sources/AddTodoView.swift.swiftconstvalues",
+    "-enforce-exclusivity=checked",
     "-Xfrontend", "-const-gather-protocols-file", "-Xfrontend",
     "/private/var/tmp/_bazel_user/hash123/external/rules_swift+/swift/toolchains/config/const_protocols_to_gather.json",
     "-DDEBUG", "-Onone", "-Xfrontend", "-internalize-at-link", "-Xfrontend", "-no-serialize-debugging-options",

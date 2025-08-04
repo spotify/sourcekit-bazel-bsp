@@ -31,6 +31,8 @@
 
 - Make sure your Bazel project is using compatible versions of all iOS-related Bazel rulesets and is configured to generate Swift/Obj-C indexing data and debug symbols, either by default or under a specific config.
   - Detailed information on this is currently WIP, but you can currently check out the [example project](./Example) for an example.
+- Make sure all transitive libraries you'd like to use the BSP for have accompanying `(platform)_build_test` rules that directly targets them and are named `(lib_name)_ios_skbsp`. Only iOS rules are supported as of writing.
+  - This is because Bazel is currently missing a couple of important features we need in order to make this work in a clean way. This requirement can thus be seen as temporary, and you can expect it to be removed in the future as we evolve the tool and those missing features are introduced.
 - Download and install [the official Swift extension](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) for Cursor / VSCode.
 - Copy the .bsp/ folder on this repository to the root of the repository you'd like to use this tool for.
 - Edit the `argv` fields in `.bsp/config.json` to match the details for your app / setup. You can see all available options by running `sourcekit-bazel-bsp serve --help`.

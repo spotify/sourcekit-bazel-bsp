@@ -34,6 +34,7 @@ struct InitializeHandlerTests {
             bazelWrapper: "mybazel",
             targets: ["//HelloWorld"],
             indexFlags: ["--config=index"],
+            buildTestSuffix: "_skbsp",
             filesToWatch: nil
         )
 
@@ -82,6 +83,7 @@ struct InitializeHandlerTests {
             bazelWrapper: "mybazel",
             targets: ["//HelloWorld"],
             indexFlags: [],
+            buildTestSuffix: "_skbsp",
             filesToWatch: nil
         )
 
@@ -117,6 +119,7 @@ struct InitializeHandlerTests {
             bazelWrapper: "mybazel",
             targets: ["//HelloWorld"],
             indexFlags: ["--config=index1", "--config=index2"],
+            buildTestSuffix: "_skbsp",
             filesToWatch: nil
         )
 

@@ -23,12 +23,10 @@ private let logger = makeFileLevelBSPLogger()
 
 enum BazelTargetAquerierError: Error, LocalizedError {
     case noMnemonics
-    case noTargets
 
     var errorDescription: String? {
         switch self {
         case .noMnemonics: return "A list of mnemonics is necessary to aquery targets"
-        case .noTargets: return "A list of targets is necessary to run aqueries"
         }
     }
 }
@@ -47,7 +45,9 @@ final class BazelTargetAquerier {
     }
 
     func aquery(
-        forConfig config: InitializedServerConfig,
+        target: String,
+        filteringFor: String,
+        config: InitializedServerConfig,
         mnemonics: Set<String>,
         additionalFlags: [String]
     ) throws -> String {
@@ -55,17 +55,12 @@ final class BazelTargetAquerier {
             throw BazelTargetAquerierError.noMnemonics
         }
 
-        let targets = config.baseConfig.targets
-        guard !targets.isEmpty else {
-            throw BazelTargetAquerierError.noTargets
-        }
-
         let mnemonicsFilter = mnemonics.sorted().joined(separator: "|")
-        let depsQuery = BazelTargetQuerier.queryDepsString(forTargets: targets)
+        let depsQuery = BazelTargetQuerier.queryDepsString(forTargets: [target])
 
         let otherFlags = additionalFlags.joined(separator: " ")
-        let cmd = "aquery \"mnemonic('\(mnemonicsFilter)', \(depsQuery))\" \(otherFlags)"
-        logger.info("Processing root aquery request")
+        let cmd = "aquery \"mnemonic('\(mnemonicsFilter)', filter(\(filteringFor), \(depsQuery)))\" \(otherFlags)"
+        logger.info("Processing aquery request for \(target), filtering for \(filteringFor)")
 
         if let cached = queryCache[cmd] {
             logger.debug("Returning cached results")

@@ -57,7 +57,8 @@ enum BazelQueryParser {
         from targets: [BlazeQuery_Target],
         supportedRuleTypes: Set<String>,
         rootUri: String,
-        toolchainPath: String
+        toolchainPath: String,
+        buildTestSuffix: String
     ) throws -> [(BuildTarget, [URI])] {
         var result: [(BuildTarget, [URI])] = []
         let srcMap = buildSourceFilesMap(targets)
@@ -112,9 +113,14 @@ enum BazelQueryParser {
                 toolchain: try URI(string: "file://" + toolchainPath)
             ).encodeToLSPAny()
 
+            // FIXME: This is assuming everything is iOS code. Will soon update this to handle all platforms.
+            let platformBuildTestSuffix = "_ios" + buildTestSuffix
+            let idWithSuffix: URI = try URI(string: id.stringValue + platformBuildTestSuffix)
+            let nameWithSuffix = rule.name + platformBuildTestSuffix
+
             let buildTarget = BuildTarget(
-                id: BuildTargetIdentifier(uri: id),
-                displayName: rule.name,
+                id: BuildTargetIdentifier(uri: idWithSuffix),
+                displayName: nameWithSuffix,
                 baseDirectory: baseDirectory,
                 tags: testOnly ? [.test, .library] : [.library],
                 capabilities: capabilities,

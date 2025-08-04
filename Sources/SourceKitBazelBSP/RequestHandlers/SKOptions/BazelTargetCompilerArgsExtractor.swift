@@ -25,10 +25,12 @@ private let logger = makeFileLevelBSPLogger()
 
 enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
     case invalidObjCUri(String)
+    case invalidTarget(String)
 
     var errorDescription: String? {
         switch self {
         case .invalidObjCUri(let uri): return "Unexpected non-Swift URI missing root URI prefix: \(uri)"
+        case .invalidTarget(let target): return "Expected to receive a build_test target, but got: \(target)"
         }
     }
 }
@@ -76,17 +78,26 @@ final class BazelTargetCompilerArgsExtractor {
             return cached
         }
 
-        // First, get the root aquery, which contains all the compilation steps for the targets the BSP was configured for.
-        let rootAquery = try aquerier.aquery(
-            forConfig: config,
+        // First, run an aquery against the build_test target in question,
+        // filtering for the "real" underlying library.
+        // FIXME: This is assuming everything is iOS code. Will soon update this to handle all platforms.
+        let platformBuildTestSuffix = "_ios" + config.baseConfig.buildTestSuffix
+        if !bazelTarget.hasSuffix(platformBuildTestSuffix) {
+            throw BazelTargetCompilerArgsExtractorError.invalidTarget(bazelTarget)
+        }
+        let underlyingLibrary = String(bazelTarget.dropLast(platformBuildTestSuffix.count))
+        let resultAquery = try aquerier.aquery(
+            target: bazelTarget,
+            filteringFor: underlyingLibrary,
+            config: config,
             mnemonics: ["SwiftCompile", "ObjcCompile"],
-            additionalFlags: ["--noinclude_artifacts"]
+            additionalFlags: ["--noinclude_artifacts", "--noinclude_aspects"]
         )
 
-        // Then, extract the compiler arguments for the target file from the root aquery.
+        // Then, extract the compiler arguments for the target file from the resulting aquery.
         let processedArgs = CompilerArgumentsProcessor.extractAndProcessCompilerArgs(
-            fromAquery: rootAquery,
-            bazelTarget: bazelTarget,
+            fromAquery: resultAquery,
+            bazelTarget: underlyingLibrary,
             contentToQuery: contentToQuery,
             language: language,
             initializedConfig: config
