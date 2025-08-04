@@ -20,18 +20,19 @@
 import BazelProtobufBindings
 import BuildServerProtocol
 import Foundation
+import LanguageServerProtocol
 
 private let logger = makeFileLevelBSPLogger()
 
 enum BazelTargetParserError: Error, LocalizedError {
     case incorrectName
-    case convertUriFailed
+    case convertUriFailed(String)
     case noSrcFound(String)
 
     var errorDescription: String? {
         switch self {
         case .incorrectName: return "Target name has zero or more than one colon"
-        case .convertUriFailed: return "Cannot convert target name to Uri with file scheme"
+        case .convertUriFailed(let path): return "Cannot convert target name with path \(path) to Uri with file scheme"
         case .noSrcFound(let src): return "Cannot find source file: \(src)"
         }
     }
@@ -64,19 +65,43 @@ enum BazelQueryParser {
         let srcMap = buildSourceFilesMap(targets)
 
         for target in targets {
-            // make sure BlazeQuery_Target.Discriminator is rule type
             guard target.type == .rule else {
                 continue
             }
 
             let rule = target.rule
 
-            let id: URI = try rule.name.toTargetId(rootUri: rootUri)
+            let id: URI = try rule.name.toTargetId(rootUri: rootUri, buildTestSuffix: buildTestSuffix)
 
             let baseDirectory: URI = try rule.name.toBaseDirectory(rootUri: rootUri)
 
-            // get test_only
-            let testOnly = rule.attribute.first { $0.name == "testonly" }?.booleanValue ?? false
+            var testOnly: Bool = false
+            var deps: [BuildTargetIdentifier] = []
+            var srcs: [URI] = []
+            for attr in rule.attribute {
+                if attr.name == "testonly" {
+                    testOnly = attr.booleanValue
+                }
+                // get direct upstream dependencies only
+                if attr.name == "deps" {
+                    let _deps: [BuildTargetIdentifier] = try attr.stringListValue.map {
+                        let id = try $0.toTargetId(rootUri: rootUri, buildTestSuffix: buildTestSuffix)
+                        return .init(uri: id)
+                    }
+                    deps = _deps
+                }
+                if attr.name == "srcs" {
+                    let _srcs: [URI] = try attr.stringListValue.compactMap {
+                        guard let path = srcMap[$0] else {
+                            let error: BazelTargetParserError = .noSrcFound($0)
+                            logger.debug("\(error, privacy: .public)")
+                            return nil
+                        }
+                        return try URI(string: path)
+                    }
+                    srcs = _srcs
+                }
+            }
 
             // BuildTargetCapabilities
             let capabilities = BuildTargetCapabilities(
@@ -89,38 +114,15 @@ enum BazelQueryParser {
             // get language
             let isSwift = target.rule.ruleClass.contains("swift")
 
-            // get direct upstream dependencies
-            let deps: [BuildTargetIdentifier] = try rule.attribute.flatMap { attr in
-                attr.name == "deps" ? attr.stringListValue : []
-            }.map { label in
-                let id = try label.toTargetId(rootUri: rootUri)
-                return BuildTargetIdentifier(uri: id)
-            }
+            let data = try buildTargetData(for: toolchainPath)
 
-            // get srcs
-            let srcs: [URI] = try rule.attribute.flatMap { attr in
-                attr.name == "srcs" ? attr.stringListValue : []
-            }.compactMap { src in
-                guard let path = srcMap[src] else {
-                    let error = BazelTargetParserError.noSrcFound(src)
-                    logger.info("\(error, privacy: .public)")
-                    return nil
-                }
-                return try URI(string: path)
-            }
-
-            let data = SourceKitBuildTarget(
-                toolchain: try URI(string: "file://" + toolchainPath)
-            ).encodeToLSPAny()
-
-            // FIXME: This is assuming everything is iOS code. Will soon update this to handle all platforms.
-            let platformBuildTestSuffix = "_ios" + buildTestSuffix
-            let idWithSuffix: URI = try URI(string: id.stringValue + platformBuildTestSuffix)
-            let nameWithSuffix = rule.name + platformBuildTestSuffix
-
+            // FIXME: Most of this logic is hacked together and not thought through, with the
+            // sole intention of getting the example project to work.
+            // Need to understand what exactly we can receive from the queries to know how to properly
+            // parse this info.
             let buildTarget = BuildTarget(
-                id: BuildTargetIdentifier(uri: idWithSuffix),
-                displayName: nameWithSuffix,
+                id: BuildTargetIdentifier(uri: id),
+                displayName: rule.name + "_ios" + buildTestSuffix,
                 baseDirectory: baseDirectory,
                 tags: testOnly ? [.test, .library] : [.library],
                 capabilities: capabilities,
@@ -159,6 +161,12 @@ enum BazelQueryParser {
 
         return srcMap
     }
+
+    private static func buildTargetData(for toolchainPath: String) throws -> LanguageServerProtocol.LSPAny {
+        SourceKitBuildTarget(
+            toolchain: try URI(string: "file://" + toolchainPath)
+        ).encodeToLSPAny()
+    }
 }
 
 // MARK: - Bazel target name helpers
@@ -166,15 +174,16 @@ enum BazelQueryParser {
 extension String {
     /// Converts the target name into a URI and returns a unique target id.
     ///
-    /// file://<path-to-root>/<package-name>___<target-name>
+    /// file://<path-to-root>/<package-name>___<target-name>_ios<build-test-suffix>
     ///
-    func toTargetId(rootUri: String) throws -> URI {
+    func toTargetId(rootUri: String, buildTestSuffix: String) throws -> URI {
         let (packageName, targetName) = try self.splitTargetLabel()
 
-        let path = "file://" + rootUri + "/" + packageName + "___" + targetName
+        // FIXME: This is assuming everything is iOS code. Will soon update this to handle all platforms.
+        let path = "file://" + rootUri + "/" + packageName + "___" + targetName + "_ios" + buildTestSuffix
 
         guard let uri = try? URI(string: path) else {
-            throw BazelTargetParserError.convertUriFailed
+            throw BazelTargetParserError.convertUriFailed(path)
         }
 
         return uri
@@ -190,7 +199,7 @@ extension String {
         let fileScheme = "file://" + rootUri + "/" + packageName
 
         guard let uri = try? URI(string: fileScheme) else {
-            throw BazelTargetParserError.convertUriFailed
+            throw BazelTargetParserError.convertUriFailed(fileScheme)
         }
 
         return uri

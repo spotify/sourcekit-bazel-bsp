@@ -139,6 +139,7 @@ struct BazelTargetQuerierTests {
             bazelWrapper: "bazel",
             targets: ["//HelloWorld:HelloWorld"],
             indexFlags: [],
+            buildTestSuffix: "_skbsp",
             filesToWatch: nil
         )
 
