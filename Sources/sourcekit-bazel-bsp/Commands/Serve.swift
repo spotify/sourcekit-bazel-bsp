@@ -31,20 +31,20 @@ struct Serve: ParsableCommand {
     @Option(
         parsing: .singleValue,
         help:
-            "The *top level* Bazel application or test targets that this should serve a BSP for. Can be specified multiple times."
+        "The *top level* Bazel application or test targets that this should serve a BSP for. Can be specified multiple times. If not specified, the server will try to discover top-leveltargets automatically."
     )
-    var target: [String]
+    var target: [String] = []
 
     @Option(
         parsing: .singleValue,
         help:
-            "A flag that should be passed to all indexing-related Bazel invocations. Do not include the -- prefix. Can be specified multiple times."
+        "A flag that should be passed to all indexing-related Bazel invocations. Do not include the -- prefix. Can be specified multiple times."
     )
     var indexFlag: [String] = []
 
     @Option(
         help:
-            "The expected suffix for build_test targets. Defaults to '_skbsp'."
+        "The expected suffix for build_test targets. Defaults to '_skbsp'."
     )
     var buildTestSuffix: String = "_skbsp"
 
@@ -53,9 +53,17 @@ struct Serve: ParsableCommand {
 
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
+
+        let targets = try {
+            if !target.isEmpty {
+                return target
+            }
+            return try discoverTargets(for: .iosApplication, .iosUnitTest, bazelWrapper: bazelWrapper)
+        }()
+
         let config = BaseServerConfig(
             bazelWrapper: bazelWrapper,
-            targets: target,
+            targets: targets,
             indexFlags: indexFlag.map { "--" + $0 },
             buildTestSuffix: buildTestSuffix,
             filesToWatch: filesToWatch
