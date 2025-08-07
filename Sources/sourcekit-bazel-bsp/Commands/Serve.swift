@@ -31,20 +31,20 @@ struct Serve: ParsableCommand {
     @Option(
         parsing: .singleValue,
         help:
-        "The *top level* Bazel application or test targets that this should serve a BSP for. Can be specified multiple times. If not specified, the server will try to discover top-leveltargets automatically."
+            "The *top level* Bazel application or test targets that this should serve a BSP for. Can be specified multiple times. If not specified, the server will try to discover top-leveltargets automatically."
     )
     var target: [String] = []
 
     @Option(
         parsing: .singleValue,
         help:
-        "A flag that should be passed to all indexing-related Bazel invocations. Do not include the -- prefix. Can be specified multiple times."
+            "A flag that should be passed to all indexing-related Bazel invocations. Do not include the -- prefix. Can be specified multiple times."
     )
     var indexFlag: [String] = []
 
     @Option(
         help:
-        "The expected suffix for build_test targets. Defaults to '_skbsp'."
+            "The expected suffix for build_test targets. Defaults to '_skbsp'."
     )
     var buildTestSuffix: String = "_skbsp"
 

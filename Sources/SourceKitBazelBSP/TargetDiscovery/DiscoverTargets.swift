@@ -57,7 +57,8 @@ func discoverTargetsInternal(
 
     let output = try commandRunner.run(cmd)
 
-    let discoveredTargets = output
+    let discoveredTargets =
+        output
         .trimmingCharacters(in: .whitespacesAndNewlines)
         .components(separatedBy: .newlines)
         .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }

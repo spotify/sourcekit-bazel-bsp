@@ -58,7 +58,10 @@ struct DiscoverTargetsTests {
 
         #expect(targets == ["//Example/HelloWorld:HelloWorld", "//Example/HelloWorldTests:HelloWorldTests"])
         #expect(commandRunner.commands.count == 1)
-        #expect(commandRunner.commands[0].command == "bazel query 'kind(ios_application, ...) + kind(ios_unit_test, ...)' --output label")
+        #expect(
+            commandRunner.commands[0].command
+                == "bazel query 'kind(ios_application, ...) + kind(ios_unit_test, ...)' --output label"
+        )
     }
 
     @Test("Throws error when no targets found")
