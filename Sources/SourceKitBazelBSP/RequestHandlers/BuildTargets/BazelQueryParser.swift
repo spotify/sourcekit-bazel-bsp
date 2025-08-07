@@ -69,6 +69,11 @@ enum BazelQueryParser {
                 continue
             }
 
+            // Ignore third party deps
+            guard !target.rule.name.hasPrefix("@") else {
+                continue
+            }
+
             let rule = target.rule
 
             let id: URI = try rule.name.toTargetId(rootUri: rootUri, buildTestSuffix: buildTestSuffix)
