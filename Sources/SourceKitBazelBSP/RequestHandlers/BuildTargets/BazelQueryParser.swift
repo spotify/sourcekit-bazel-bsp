@@ -56,7 +56,7 @@ enum BazelQueryParser {
     ///   - `[URI]`: Array of source file URIs associated with the target
     static func parseTargetsWithProto(
         from targets: [BlazeQuery_Target],
-        supportedRuleTypes: Set<String>,
+        supportedRuleTypes _: Set<String>,
         rootUri: String,
         toolchainPath: String,
         buildTestSuffix: String
@@ -69,13 +69,18 @@ enum BazelQueryParser {
                 continue
             }
 
+            // Ignore third party deps
+            guard !target.rule.name.hasPrefix("@") else {
+                continue
+            }
+
             let rule = target.rule
 
             let id: URI = try rule.name.toTargetId(rootUri: rootUri, buildTestSuffix: buildTestSuffix)
 
             let baseDirectory: URI = try rule.name.toBaseDirectory(rootUri: rootUri)
 
-            var testOnly: Bool = false
+            var testOnly = false
             var deps: [BuildTargetIdentifier] = []
             var srcs: [URI] = []
             for attr in rule.attribute {
@@ -163,8 +168,8 @@ enum BazelQueryParser {
     }
 
     private static func buildTargetData(for toolchainPath: String) throws -> LanguageServerProtocol.LSPAny {
-        SourceKitBuildTarget(
-            toolchain: try URI(string: "file://" + toolchainPath)
+        try SourceKitBuildTarget(
+            toolchain: URI(string: "file://" + toolchainPath)
         ).encodeToLSPAny()
     }
 }
@@ -177,7 +182,7 @@ extension String {
     /// file://<path-to-root>/<package-name>___<target-name>_ios<build-test-suffix>
     ///
     func toTargetId(rootUri: String, buildTestSuffix: String) throws -> URI {
-        let (packageName, targetName) = try self.splitTargetLabel()
+        let (packageName, targetName) = try splitTargetLabel()
 
         // FIXME: This is assuming everything is iOS code. Will soon update this to handle all platforms.
         let path = "file://" + rootUri + "/" + packageName + "___" + targetName + "_ios" + buildTestSuffix
@@ -194,7 +199,7 @@ extension String {
     /// file://<path-to-root>/<package-name>
     ///
     func toBaseDirectory(rootUri: String) throws -> URI {
-        let (packageName, _) = try self.splitTargetLabel()
+        let (packageName, _) = try splitTargetLabel()
 
         let fileScheme = "file://" + rootUri + "/" + packageName
 
@@ -207,7 +212,7 @@ extension String {
 
     /// Splits a full Bazel label into a tuple of its package and target names.
     func splitTargetLabel() throws -> (packageName: String, targetName: String) {
-        let components = self.split(separator: ":")
+        let components = split(separator: ":")
 
         guard components.count == 2 else {
             throw BazelTargetParserError.incorrectName
