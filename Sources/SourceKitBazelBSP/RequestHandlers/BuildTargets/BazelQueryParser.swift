@@ -32,8 +32,8 @@ enum BazelTargetParserError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .incorrectName: return "Target name has zero or more than one colon"
-        case let .convertUriFailed(path): return "Cannot convert target name with path \(path) to Uri with file scheme"
-        case let .noSrcFound(src): return "Cannot find source file: \(src)"
+        case .convertUriFailed(let path): return "Cannot convert target name with path \(path) to Uri with file scheme"
+        case .noSrcFound(let src): return "Cannot find source file: \(src)"
         }
     }
 }
