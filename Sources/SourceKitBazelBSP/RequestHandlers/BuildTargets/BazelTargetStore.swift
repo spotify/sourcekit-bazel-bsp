@@ -75,6 +75,7 @@ final class BazelTargetStore {
         return bspURIs
     }
 
+    @discardableResult
     func fetchTargets() throws -> [BuildTarget] {
         var targetData: [(BuildTarget, [URI])] = []
         let targets: [BlazeQuery_Target] = try bazelTargetQuerier.queryTargets(

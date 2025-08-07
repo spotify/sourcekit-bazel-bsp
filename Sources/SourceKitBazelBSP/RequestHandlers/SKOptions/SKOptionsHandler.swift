@@ -26,7 +26,7 @@ private let logger = makeFileLevelBSPLogger()
 /// Handles the `textDocument/sourceKitOptions` request.
 ///
 /// Returns the compiler arguments for the provided target based on previously gathered information.
-final class SKOptionsHandler {
+final class SKOptionsHandler: InvalidatedTargetObserver {
 
     private let initializedConfig: InitializedServerConfig
     private let targetStore: BazelTargetStore
@@ -85,5 +85,14 @@ final class SKOptionsHandler {
             compilerArguments: args,
             workingDirectory: initializedConfig.rootUri
         )
+    }
+
+    // MARK: - InvalidatedTargetObserver
+
+    func invalidate(targets: Set<AffectedTarget>) throws {
+        // Only clear cache if at least one file was created or deleted
+        if targets.contains(where: { $0.kind == .created || $0.kind == .deleted }) {
+            extractor.clearCache()
+        }
     }
 }
