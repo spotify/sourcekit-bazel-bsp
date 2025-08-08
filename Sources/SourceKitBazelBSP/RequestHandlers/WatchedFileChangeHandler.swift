@@ -27,11 +27,15 @@ private let logger = makeFileLevelBSPLogger()
 ///
 /// This is intended to tell the LSP which targets are invalidated by a change.
 final class WatchedFileChangeHandler {
-    private let targetStore: BazelTargetStore
+    private let targetStore: BazelTargetStoreProtocol
     private var observers: [any InvalidatedTargetObserver]
     private weak var connection: LSPConnection?
 
-    init(targetStore: BazelTargetStore, observers: [any InvalidatedTargetObserver] = [], connection: LSPConnection) {
+    init(
+        targetStore: BazelTargetStoreProtocol,
+        observers: [any InvalidatedTargetObserver] = [],
+        connection: LSPConnection
+    ) {
         self.targetStore = targetStore
         self.observers = observers
         self.connection = connection
@@ -58,7 +62,7 @@ final class WatchedFileChangeHandler {
         if notification.changes.contains(where: { $0.type == .created }) {
             targetStore.clearCache()
             do {
-                try targetStore.fetchTargets()
+                _ = try targetStore.fetchTargets()
             } catch {
                 logger.error("Error fetching targets after file creation: \(error)")
                 // Continue processing with existing target store data
