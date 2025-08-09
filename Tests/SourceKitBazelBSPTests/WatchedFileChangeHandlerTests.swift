@@ -26,101 +26,23 @@ import Testing
 
 @Suite
 struct WatchedFileChangeHandlerTests {
-    // MARK: - Mock Implementations
-
-    final class MockBazelTargetStore: BazelTargetStoreProtocol {
-        var clearCacheCalled = false
-        var fetchTargetsCalled = false
-        var fetchTargetsError: Error?
-        var mockSrcToBspURIs: [DocumentURI: [DocumentURI]] = [:]
-
-        func clearCache() {
-            clearCacheCalled = true
-        }
-
-        func fetchTargets() throws -> [BuildTarget] {
-            fetchTargetsCalled = true
-            if let error = fetchTargetsError {
-                throw error
-            }
-            return []
-        }
-
-        func bspURIs(containingSrc src: DocumentURI) throws -> [DocumentURI] {
-            if let uris = mockSrcToBspURIs[src] {
-                return uris
-            }
-            throw BazelTargetStoreError.unknownBSPURI(src)
-        }
-    }
-
-    final class MockLSPConnection: LSPConnection {
-        nonisolated(unsafe) var sentNotifications: [any NotificationType] = []
-
-        func start(receiveHandler _: MessageHandler, closeHandler _: @escaping @Sendable () async -> Void) {
-            // Not used in these tests
-        }
-
-        func nextRequestID() -> LanguageServerProtocol.RequestID {
-            .number(1)
-        }
-
-        func send(_ notification: some NotificationType) {
-            sentNotifications.append(notification)
-        }
-
-        func send<Request>(
-            _: Request,
-            id _: LanguageServerProtocol.RequestID,
-            reply _: @escaping @Sendable (LanguageServerProtocol.LSPResult<Request.Response>) -> Void
-        ) where Request: LanguageServerProtocol.RequestType {
-            // Not used in these tests
-        }
-
-        func startWorkTask(id _: TaskId, title _: String) {
-            // Not used in these tests
-        }
-
-        func finishTask(id _: TaskId, status _: StatusCode) {
-            // Not used in these tests
-        }
-    }
-
-    final class MockInvalidatedTargetObserver: InvalidatedTargetObserver {
-        var invalidatedTargets: Set<AffectedTarget> = []
-        var invalidateCalled = false
-        var shouldThrowOnInvalidate = false
-
-        func invalidate(targets: Set<AffectedTarget>) throws {
-            invalidateCalled = true
-            invalidatedTargets = targets
-            if shouldThrowOnInvalidate {
-                throw TestError.intentional
-            }
-        }
-    }
-
-    enum TestError: Error {
-        case intentional
-    }
 
     // MARK: - Helper Methods
 
     private func createHandler() -> (
         handler: WatchedFileChangeHandler,
-        targetStore: MockBazelTargetStore,
-        connection: MockLSPConnection,
-        observer: MockInvalidatedTargetObserver
+        targetStore: BazelTargetStoreFake,
+        connection: LSPConnectionFake,
+        observer: InvalidatedTargetObserverFake
     ) {
-        let targetStore = MockBazelTargetStore()
-        let connection = MockLSPConnection()
-        let observer = MockInvalidatedTargetObserver()
+        let targetStore = BazelTargetStoreFake()
+        let connection = LSPConnectionFake()
+        let observer = InvalidatedTargetObserverFake()
         let handler = WatchedFileChangeHandler(
             targetStore: targetStore,
             observers: [observer],
             connection: connection
         )
-
         return (handler, targetStore, connection, observer)
     }
 
@@ -354,7 +276,7 @@ struct WatchedFileChangeHandlerTests {
         let targetURI = try makeURI("build://newTarget")
 
         targetStore.mockSrcToBspURIs[fileURI] = [targetURI]
-        targetStore.fetchTargetsError = TestError.intentional
+        targetStore.fetchTargetsError = InvalidatedTargetObserverFake.TestError.intentional
 
         let notification = OnWatchedFilesDidChangeNotification(
             changes: [

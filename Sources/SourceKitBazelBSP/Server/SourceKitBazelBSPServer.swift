@@ -67,7 +67,7 @@ package final class SourceKitBazelBSPServer {
 
         // Then, register the things we are interested in.
         // workspace/buildTargets
-        let targetStore = BazelTargetStore(initializedConfig: initializedConfig)
+        let targetStore = BazelTargetStoreImpl(initializedConfig: initializedConfig)
         let buildTargetsHandler = BuildTargetsHandler(targetStore: targetStore, connection: connection)
         registry.register(requestHandler: buildTargetsHandler.workspaceBuildTargets)
 
