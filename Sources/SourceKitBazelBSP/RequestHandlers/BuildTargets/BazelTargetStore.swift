@@ -34,8 +34,7 @@ enum BazelTargetStoreError: Error, LocalizedError {
 
 /// Abstraction that can queries, processes, and stores the project's dependency graph and its files.
 /// Used by many of the requests to calculate and provide data about the project's targets.
-final class BazelTargetStore {
-
+final class BazelTargetStore: BazelTargetStoreProtocol {
     // The list of rules we currently care about and can process
     static let supportedRuleTypes: Set<String> = ["source file", "swift_library", "objc_library"]
 
@@ -75,6 +74,7 @@ final class BazelTargetStore {
         return bspURIs
     }
 
+    @discardableResult
     func fetchTargets() throws -> [BuildTarget] {
         var targetData: [(BuildTarget, [URI])] = []
         let targets: [BlazeQuery_Target] = try bazelTargetQuerier.queryTargets(

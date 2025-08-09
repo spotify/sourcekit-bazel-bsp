@@ -142,7 +142,7 @@ final class InitializeHandler {
         let rootUri = initializedConfig.rootUri
         if let filesToWatch = initializedConfig.baseConfig.filesToWatch {
             watchers = filesToWatch.components(separatedBy: ",").map {
-                FileSystemWatcher(globPattern: rootUri + "/" + $0)
+                FileSystemWatcher(globPattern: rootUri + "/" + $0, kind: [.change, .create, .delete])
             }
         } else {
             watchers = nil

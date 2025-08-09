@@ -21,45 +21,119 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
-protocol InvalidatedTargetObserver: AnyObject {
-    func invalidate(targets: Set<URI>) throws
-}
+private let logger = makeFileLevelBSPLogger()
 
 /// Handles the file changing notification.
 ///
 /// This is intended to tell the LSP which targets are invalidated by a change.
 final class WatchedFileChangeHandler {
-
-    private let targetStore: BazelTargetStore
+    private let targetStore: BazelTargetStoreProtocol
     private var observers: [any InvalidatedTargetObserver]
     private weak var connection: LSPConnection?
 
-    init(targetStore: BazelTargetStore, observers: [any InvalidatedTargetObserver] = [], connection: LSPConnection) {
+    init(
+        targetStore: BazelTargetStoreProtocol,
+        observers: [any InvalidatedTargetObserver] = [],
+        connection: LSPConnection
+    ) {
         self.targetStore = targetStore
         self.observers = observers
         self.connection = connection
     }
 
     func onWatchedFilesDidChange(_ notification: OnWatchedFilesDidChangeNotification) throws {
-        // FIXME: This only deals with changes, not deletions or creations
-        // For those, we need to invalidate the compilation options cache too
-        // and probably also re-compile the app
-        let changes = notification.changes.filter { $0.type == .changed }.map { $0.uri }
-        var affectedTargets: Set<URI> = []
-        for change in changes {
-            let targetsForSrc = try targetStore.bspURIs(containingSrc: change)
-            for target in targetsForSrc {
-                affectedTargets.insert(target)
+        // First, calculate deleted targets before we clear them from the targetStore
+        let deletedTargets = {
+            do {
+                return try notification.changes
+                    .filter { $0.type == .deleted }
+                    .flatMap { change -> [AffectedTarget] in
+                        try targetStore.bspURIs(containingSrc: change.uri)
+                            .map { AffectedTarget(uri: $0, kind: change.type) }
+                    }
+            } catch {
+                logger.error("Error calculating deleted targets: \(error)")
+                return []
+            }
+        }()
+
+        // If there are any 'created' files, we need to clear the targetStore and fetch targets again
+        // Otherwise, the targetStore won't know about them
+        if notification.changes.contains(where: { $0.type == .created }) {
+            targetStore.clearCache()
+            do {
+                _ = try targetStore.fetchTargets()
+            } catch {
+                logger.error("Error fetching targets after file creation: \(error)")
+                // Continue processing with existing target store data
             }
         }
+
+        // Now that the targetStore knows about the newly created files, we can calculate the created targets
+        let createdTargets = {
+            do {
+                return try notification.changes
+                    .filter { $0.type == .created }
+                    .flatMap { change -> [AffectedTarget] in
+                        try targetStore.bspURIs(containingSrc: change.uri)
+                            .map { AffectedTarget(uri: $0, kind: change.type) }
+                    }
+            } catch {
+                logger.error("Error calculating created targets: \(error)")
+                return []
+            }
+        }()
+
+        // Finally, calculate the changed targets
+        let changedTargets = {
+            do {
+                return try notification.changes
+                    .filter { $0.type == .changed }
+                    .flatMap { change -> [AffectedTarget] in
+                        try targetStore.bspURIs(containingSrc: change.uri)
+                            .map { AffectedTarget(uri: $0, kind: change.type) }
+                    }
+            } catch {
+                logger.error("Error calculating changed targets: \(error)")
+                return []
+            }
+        }()
+
+        let affectedTargets: Set<AffectedTarget> = Set(deletedTargets + createdTargets + changedTargets)
+
+        // Invalidate our observers about the affected targets
         for observer in observers {
-            try observer.invalidate(targets: affectedTargets)
+            do {
+                try observer.invalidate(targets: affectedTargets)
+            } catch {
+                logger.error("Error invalidating observer: \(error)")
+                // Continue with other observers
+            }
         }
+
+        // Notify SK-LSP about the affected targets
         let response = OnBuildTargetDidChangeNotification(
-            changes: affectedTargets.map {
-                BuildTargetEvent(target: BuildTargetIdentifier(uri: $0), kind: .changed, dataKind: nil, data: nil)
+            changes: affectedTargets.map { target in
+                BuildTargetEvent(
+                    target: BuildTargetIdentifier(uri: target.uri),
+                    kind: target.kind.buildTargetEventKind,
+                    dataKind: nil,
+                    data: nil
+                )
             }
         )
+
         connection?.send(response)
+    }
+}
+
+extension FileChangeType {
+    fileprivate var buildTargetEventKind: BuildTargetEventKind? {
+        switch self {
+        case .changed: return .changed
+        case .created: return .created
+        case .deleted: return .deleted
+        default: return nil
+        }
     }
 }
