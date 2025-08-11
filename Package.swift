@@ -51,6 +51,8 @@ let package = Package(
             name: "SourceKitBazelBSPTests",
             dependencies: ["SourceKitBazelBSP"],
             resources: [
+                .copy("Resources/aquery.pb"),
+                .copy("Resources/aquery_objc.pb"),
                 .copy("Resources/streamdeps.pb"),
             ],
         ),
