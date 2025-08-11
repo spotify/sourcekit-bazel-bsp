@@ -42,10 +42,6 @@ extension CommandRunner {
         try run(baseConfig.bazelWrapper + " " + cmd, cwd: rootUri)
     }
 
-    func bazel(baseConfig: BaseServerConfig, rootUri: String, cmd: String) throws -> Data {
-        try run(baseConfig.bazelWrapper + " " + cmd, cwd: rootUri)
-    }
-
     /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.
     func bazelIndexAction(initializedConfig: InitializedServerConfig, cmd: String) throws -> String {
         return try bazelIndexAction(
@@ -56,14 +52,16 @@ extension CommandRunner {
         )
     }
 
-    /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.
-    func bazelIndexActionData(initializedConfig: InitializedServerConfig, cmd: String) throws -> Data {
-        let additionalFlags = initializedConfig.baseConfig.indexFlags.joined(separator: " ")
-        let baseConfig = initializedConfig.baseConfig
-        let outputBase = initializedConfig.outputBase
-        let rootUri = initializedConfig.rootUri
-        let cmd = "--output_base=\(outputBase) \(cmd)\(additionalFlags)"
-        return try bazel(baseConfig: baseConfig, rootUri: rootUri, cmd: cmd)
+    /// A  bazel action query command, but at this BSP's special output base and taking into account the special index flags.
+    func bazelActionQuery(initializedConfig: InitializedServerConfig, cmd: String) throws -> Data {
+        let baseCommand = [
+            initializedConfig.baseConfig.bazelWrapper,
+            "--output_base=\(initializedConfig.outputBase)",
+            cmd,
+        ]
+        let additionalFlags = initializedConfig.baseConfig.indexFlags
+        let command = (baseCommand + additionalFlags).joined(separator: " ")
+        return try run(command, cwd: initializedConfig.rootUri)
     }
 
     /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.

@@ -25,7 +25,6 @@ private let logger = makeFileLevelBSPLogger()
 
 enum CompilerArgumentsProcessor {
     // Parses and processes the compilation step for a given target from a larger aquery output.
-    // The parsing step is only necessary because BazelTargetAquerier operates on text. Should become unnecessary once we move to proto.
     static func extractAndProcessCompilerArgs(
         fromAquery aqueryOutput: Analysis_ActionGraphContainer,
         bazelTarget: String,
@@ -217,7 +216,7 @@ enum CompilerArgError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .targetNotFound(let target): "Target: \(target) not found."
-        case .actionNotFound(let  target): "Action not found for target: \(target)."
+        case .actionNotFound(let target): "Action not found for target: \(target)."
         }
     }
 }
