@@ -27,6 +27,7 @@ final class LSPConnectionFake: LSPConnection {
 
     nonisolated(unsafe) private(set) var startCalled = false
     nonisolated(unsafe) private(set) var startReceivedHandler: MessageHandler?
+    nonisolated(unsafe) private(set) var sentNotifications: [any NotificationType] = []
 
     func start(receiveHandler: MessageHandler, closeHandler: @escaping @Sendable () async -> Void) {
         startCalled = true
@@ -35,7 +36,9 @@ final class LSPConnectionFake: LSPConnection {
 
     func nextRequestID() -> LanguageServerProtocol.RequestID { unimplemented() }
 
-    func send(_ notification: some NotificationType) { unimplemented() }
+    func send(_ notification: some NotificationType) {
+        sentNotifications.append(notification)
+    }
 
     func send<Request>(
         _ request: Request,

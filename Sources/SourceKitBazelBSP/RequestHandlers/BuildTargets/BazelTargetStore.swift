@@ -22,6 +22,16 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
+// Represents a type that can query, processes, and store
+// the project's dependency graph and its files.
+protocol BazelTargetStore: AnyObject {
+    func fetchTargets() throws -> [BuildTarget]
+    func bazelTargetLabel(forBSPURI uri: URI) throws -> String
+    func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI]
+    func bspURIs(containingSrc src: URI) throws -> [URI]
+    func clearCache()
+}
+
 enum BazelTargetStoreError: Error, LocalizedError {
     case unknownBSPURI(URI)
 
@@ -34,7 +44,7 @@ enum BazelTargetStoreError: Error, LocalizedError {
 
 /// Abstraction that can queries, processes, and stores the project's dependency graph and its files.
 /// Used by many of the requests to calculate and provide data about the project's targets.
-final class BazelTargetStore: BazelTargetStoreProtocol {
+final class BazelTargetStoreImpl: BazelTargetStore {
     // The list of rules we currently care about and can process
     static let supportedRuleTypes: Set<String> = ["source file", "swift_library", "objc_library"]
 

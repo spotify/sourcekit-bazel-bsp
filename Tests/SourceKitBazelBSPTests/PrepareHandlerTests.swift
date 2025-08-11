@@ -56,7 +56,7 @@ struct PrepareHandlerTests {
 
         let handler = PrepareHandler(
             initializedConfig: initializedConfig,
-            targetStore: BazelTargetStore(initializedConfig: initializedConfig),
+            targetStore: BazelTargetStoreImpl(initializedConfig: initializedConfig),
             commandRunner: commandRunner,
             connection: connection
         )
@@ -96,7 +96,7 @@ struct PrepareHandlerTests {
 
         let handler = PrepareHandler(
             initializedConfig: initializedConfig,
-            targetStore: BazelTargetStore(initializedConfig: initializedConfig),
+            targetStore: BazelTargetStoreImpl(initializedConfig: initializedConfig),
             commandRunner: commandRunner,
             connection: connection
         )

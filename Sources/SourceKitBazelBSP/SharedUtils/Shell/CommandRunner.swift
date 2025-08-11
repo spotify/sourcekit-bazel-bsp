@@ -19,7 +19,7 @@
 
 import Foundation
 
-protocol CommandRunner {
+public protocol CommandRunner {
     func run(_ cmd: String, cwd: String?) throws -> Data
 }
 
