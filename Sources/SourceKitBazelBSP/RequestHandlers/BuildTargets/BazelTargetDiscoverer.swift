@@ -4,13 +4,6 @@ import Foundation
 
 private let logger = makeFileLevelBSPLogger()
 
-// MARK: - Public API
-
-public enum TopLevelTarget: String, CaseIterable {
-    case iosApplication = "ios_application"
-    case iosUnitTest = "ios_unit_test"
-}
-
 public enum BazelTargetDiscovererError: LocalizedError, Equatable {
     case noTargetsDiscovered
 
@@ -27,12 +20,11 @@ public enum BazelTargetDiscoverer {
     /// with no targets specified.
     ///
     /// - Parameters:
-    ///   - rules: The rule types to search for (e.g. ios_application, ios_unit_test)
     ///   - bazelWrapper: The Bazel executable to use (defaults to "bazel")
     /// - Returns: An array of discovered target labels
     /// - Throws: DiscoverTargetsError.noTargetsDiscovered if no matching targets are found
     public static func discoverTargets(
-        for rules: [TopLevelTarget] = TopLevelTarget.allCases,
+        for rules: [TopLevelRuleType] = TopLevelRuleType.allCases,
         bazelWrapper: String = "bazel",
         commandRunner: CommandRunner? = nil
     ) throws -> [String] {

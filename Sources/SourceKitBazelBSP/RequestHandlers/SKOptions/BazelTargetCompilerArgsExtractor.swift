@@ -47,7 +47,12 @@ final class BazelTargetCompilerArgsExtractor {
         self.config = config
     }
 
-    func compilerArgs(forDoc textDocument: URI, inTarget bazelTarget: String, language: Language) throws -> [String]? {
+    func compilerArgs(
+        forDoc textDocument: URI,
+        inTarget bazelTarget: String,
+        underlyingLibrary: String,
+        language: Language
+    ) throws -> [String]? {
         // Ignore Obj-C header requests, since these don't compile
         guard !textDocument.stringValue.hasSuffix(".h") else {
             return nil
@@ -80,12 +85,6 @@ final class BazelTargetCompilerArgsExtractor {
 
         // First, run an aquery against the build_test target in question,
         // filtering for the "real" underlying library.
-        // FIXME: This is assuming everything is iOS code. Will soon update this to handle all platforms.
-        let platformBuildTestSuffix = "_ios" + config.baseConfig.buildTestSuffix
-        if !bazelTarget.hasSuffix(platformBuildTestSuffix) {
-            throw BazelTargetCompilerArgsExtractorError.invalidTarget(bazelTarget)
-        }
-        let underlyingLibrary = String(bazelTarget.dropLast(platformBuildTestSuffix.count))
         let resultAquery = try aquerier.aquery(
             target: bazelTarget,
             filteringFor: underlyingLibrary,

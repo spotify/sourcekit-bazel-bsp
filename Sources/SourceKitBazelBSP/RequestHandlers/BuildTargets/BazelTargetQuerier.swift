@@ -26,12 +26,14 @@ enum BazelTargetQuerierError: Error, LocalizedError {
     case noKinds
     case noTargets
     case invalidQueryOutput
+    case unsupportedTopLevelRuleType(String, String)
 
     var errorDescription: String? {
         switch self {
         case .noKinds: return "A list of kinds is necessary to query targets"
         case .noTargets: return "A list of targets is necessary to query targets"
         case .invalidQueryOutput: return "Query output is not valid XML"
+        case .unsupportedTopLevelRuleType(let ruleType, let target): return "Unsupported top-level rule type: \(ruleType) for target: \(target)"
         }
     }
 }
@@ -58,7 +60,29 @@ final class BazelTargetQuerier {
         self.commandRunner = commandRunner
     }
 
+    func queryTopLevelRuleTypes(
+        forConfig config: BaseServerConfig,
+        rootUri: String,
+    ) throws -> [(String, TopLevelRuleType)] {
+        let targetQuery = config.targets.joined(separator: " union ")
+        let cmd = "query \"kind('rule', \(targetQuery))\" --output label_kind"
+        let output: String = try commandRunner.run(config.bazelWrapper + " " + cmd, cwd: rootUri)
+        let parsed = output.components(separatedBy: "\n")
+        var topLevelTargetData: [(String, TopLevelRuleType)] = []
+        for line in parsed {
+            let parts = line.split(separator: " ")
+            let kind = String(parts[0])
+            let target = String(parts[2])
+            guard let ruleType = TopLevelRuleType(rawValue: kind) else {
+                throw BazelTargetQuerierError.unsupportedTopLevelRuleType(kind, target)
+            }
+            topLevelTargetData.append((target, ruleType))
+        }
+        return topLevelTargetData
+    }
+
     func queryTargetDependencies(
+        forTargets targets: [String],
         forConfig config: BaseServerConfig,
         rootUri: String,
         kinds: Set<String>
@@ -67,12 +91,12 @@ final class BazelTargetQuerier {
             throw BazelTargetQuerierError.noKinds
         }
 
-        guard !config.targets.isEmpty else {
+        guard !targets.isEmpty else {
             throw BazelTargetQuerierError.noTargets
         }
 
         let kindsFilter = kinds.sorted().joined(separator: "|")
-        let depsQuery = Self.queryDepsString(forTargets: config.targets)
+        let depsQuery = Self.queryDepsString(forTargets: targets)
         let cacheKey = "\(kindsFilter)+\(depsQuery)"
 
         logger.info("Processing query request for \(cacheKey)")
@@ -92,7 +116,7 @@ final class BazelTargetQuerier {
             throw BazelTargetQuerierError.invalidQueryOutput
         }
 
-        logger.debug("Parsing BlazeQuery_Target: \(targets.count, privacy: .public)")
+        logger.debug("Parsed \(targets.count) targets")
         queryCache[cacheKey] = targets
 
         return targets
@@ -108,12 +132,8 @@ final class BazelTargetQuerier {
             throw BazelTargetQuerierError.noKinds
         }
 
-        guard !config.targets.isEmpty else {
-            throw BazelTargetQuerierError.noTargets
-        }
-
         let kindsFilter = kinds.sorted().joined(separator: "|")
-        let cmd = "query \"kind('\(kindsFilter)', \"deps(\(target))\" --output label"
+        let cmd = "query \"kind('\(kindsFilter)', deps(\(target)))\" --output label"
         let output: String = try commandRunner.run(config.bazelWrapper + " " + cmd, cwd: rootUri)
         return output.components(separatedBy: "\n")
     }

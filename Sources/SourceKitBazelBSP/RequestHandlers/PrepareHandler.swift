@@ -32,8 +32,6 @@ final class PrepareHandler {
     private let commandRunner: CommandRunner
     private weak var connection: LSPConnection?
 
-    private var buildCache: Set<URI> = []
-
     init(
         initializedConfig: InitializedServerConfig,
         targetStore: BazelTargetStore,
@@ -48,10 +46,10 @@ final class PrepareHandler {
 
     func prepareTarget(_ request: BuildTargetPrepareRequest, _ id: RequestID) throws -> VoidResponse {
 
-        let targetsToBuild = request.targets.map { $0.uri }.filter { !buildCache.contains($0) }
+        let targetsToBuild = request.targets.map { $0.uri }
 
         guard !targetsToBuild.isEmpty else {
-            logger.info("No uncached targets to build, skipping redundant build")
+            logger.info("No targets to build, skipping redundant build")
             return VoidResponse()
         }
 
@@ -59,7 +57,6 @@ final class PrepareHandler {
         connection?.startWorkTask(id: taskId, title: "Indexing: Building targets")
         do {
             try prepare(bspURIs: targetsToBuild)
-            buildCache.formUnion(targetsToBuild)
             connection?.finishTask(id: taskId, status: .ok)
             return VoidResponse()
         } catch {
@@ -69,8 +66,8 @@ final class PrepareHandler {
     }
 
     func prepare(bspURIs: [URI]) throws {
-        let labelsToBuild = try bspURIs.map { try targetStore.bazelTargetLabel(forBSPURI: $0) }
-        try build(bazelLabels: labelsToBuild)
+        let labels = try bspURIs.map { try targetStore.platformBuildLabel(forBSPURI: $0) }
+        try build(bazelLabels: labels)
     }
 
     func build(bazelLabels labelsToBuild: [String]) throws {
@@ -83,17 +80,5 @@ final class PrepareHandler {
         )
 
         logger.info("Finished building targets!")
-    }
-}
-
-extension PrepareHandler: InvalidatedTargetObserver {
-    func invalidate(targets: Set<AffectedTarget>) throws {
-        // Extract just the URIs from the affected targets for the build cache
-        let targetURIs = Set(targets.map(\.uri))
-        buildCache.subtract(targetURIs)
-    }
-
-    func invalidateBuildCache() {
-        buildCache.removeAll()
     }
 }

@@ -22,6 +22,8 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
+private let logger = makeFileLevelBSPLogger()
+
 // Represents a type that can query, processes, and store
 // the project's dependency graph and its files.
 protocol BazelTargetStore: AnyObject {
@@ -29,6 +31,7 @@ protocol BazelTargetStore: AnyObject {
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String
     func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI]
     func bspURIs(containingSrc src: URI) throws -> [URI]
+    func platformBuildLabel(forBSPURI uri: URI) throws -> String
     func clearCache()
 }
 
@@ -44,12 +47,25 @@ enum BazelTargetStoreError: Error, LocalizedError {
     }
 }
 
+// The list of **top-level rules** we know how to process in the BSP.
+public enum TopLevelRuleType: String, CaseIterable {
+    case iosApplication = "ios_application"
+    case iosUnitTest = "ios_unit_test"
+
+    var platform: String {
+        switch self {
+        case .iosApplication: return "ios"
+        case .iosUnitTest: return "ios"
+        }
+    }
+}
+
 /// Abstraction that can queries, processes, and stores the project's dependency graph and its files.
 /// Used by many of the requests to calculate and provide data about the project's targets.
 final class BazelTargetStoreImpl: BazelTargetStore {
-    // The list of **library** rules we currently care about and can process
-    // Other things like source files are handled separately.
-    static let supportedRuleTypes: Set<String> = ["swift_library", "objc_library"]
+
+    // The list of kinds we currently care about and can query for.
+    static let supportedKinds: Set<String> = ["source file", "swift_library", "objc_library"]
 
     private let initializedConfig: InitializedServerConfig
     private let bazelTargetQuerier: BazelTargetQuerier
@@ -59,6 +75,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
     private var srcToBspURIsMap: [URI: [URI]] = [:]
     private var availableBazelLabels: Set<String> = []
     private var bazelLabelToParentsMap: [String: [String]] = [:]
+    private var topLevelLabelToRuleMap: [String: TopLevelRuleType] = [:]
 
     init(initializedConfig: InitializedServerConfig, bazelTargetQuerier: BazelTargetQuerier = BazelTargetQuerier()) {
         self.initializedConfig = initializedConfig
@@ -97,17 +114,51 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         return parents
     }
 
+    /// Retrieves the top-level rule type for a given Bazel **top-level** target label.
+    func topLevelRuleType(forBazelLabel label: String) throws -> TopLevelRuleType {
+        guard let ruleType = topLevelLabelToRuleMap[label] else {
+            throw BazelTargetStoreError.unknownBazelLabel(label)
+        }
+        return ruleType
+    }
+
+    /// Provides the bazel label containing **platform information** for a given BSP URI.
+    /// This is used to determine the correct set of compiler flags for the target / platform combo.
+    func platformBuildLabel(forBSPURI uri: URI) throws -> String {
+        let bazelLabel = try bazelTargetLabel(forBSPURI: uri)
+        let parents = try bazelLabelToParents(forBazelLabel: bazelLabel)
+        // FIXME: When a target can compile to multiple platforms, the way Xcode handles it is by selecting
+        // the one matching your selected simulator in the IDE. We don't have any sort of special IDE integration
+        // at the moment, so for now we just select the first parent.
+        let parentToUse = parents[0]
+        let platform = try topLevelRuleType(forBazelLabel: parentToUse).platform
+        return "\(bazelLabel)_\(platform)\(initializedConfig.baseConfig.buildTestSuffix)"
+    }
+
     @discardableResult
     func fetchTargets() throws -> [BuildTarget] {
-        let targets: [BlazeQuery_Target] = try bazelTargetQuerier.queryTargetDependencies(
+
+        // Start by determining which platforms each top-level app is for.
+        // This will allow us to later determine which sets of flags to provide
+        // depending on the target / platform combo the LSP is interested in,
+        // as well as throwing an error if the user provided something that we
+        // don't currently know how to process.
+        let topLevelTargetData = try bazelTargetQuerier.queryTopLevelRuleTypes(
             forConfig: initializedConfig.baseConfig,
             rootUri: initializedConfig.rootUri,
-            kinds: Self.supportedRuleTypes.union(["source file"])
+        )
+
+        logger.debug("Queried top-level target data: \(topLevelTargetData)")
+
+        let targets: [BlazeQuery_Target] = try bazelTargetQuerier.queryTargetDependencies(
+            forTargets: topLevelTargetData.map { $0.0 },
+            forConfig: initializedConfig.baseConfig,
+            rootUri: initializedConfig.rootUri,
+            kinds: Self.supportedKinds
         )
 
         let targetData = try BazelQueryParser.parseTargetsWithProto(
             from: targets,
-            supportedRuleTypes: Self.supportedRuleTypes,
             rootUri: initializedConfig.rootUri,
             toolchainPath: initializedConfig.devToolchainPath,
         )
@@ -126,17 +177,18 @@ final class BazelTargetStoreImpl: BazelTargetStore {
                 srcToBspURIsMap[src, default: []].append(uri)
             }
         }
+        for (target, ruleType) in topLevelTargetData {
+            topLevelLabelToRuleMap[target] = ruleType
+        }
 
-        // We need to now map which targets belong to which top-level apps.
-        // This will allow us to provide different sets of compiler flags depending
-        // on which target platform the LSP is interested in, for the case where
-        // a target is shared between multiple top-level apps.
-        for topLevelTarget in initializedConfig.baseConfig.targets {
+        // We need to now map which targets belong to which top-level apps,
+        // to further support the target / platform combo differentiation mentioned above.
+        for (topLevelTarget, _) in topLevelTargetData {
             let deps = try bazelTargetQuerier.queryDependencyLabels(
                 ofTarget: topLevelTarget,
                 forConfig: initializedConfig.baseConfig,
                 rootUri: initializedConfig.rootUri,
-                kinds: Self.supportedRuleTypes
+                kinds: Self.supportedKinds
             )
             for dep in deps {
                 guard availableBazelLabels.contains(dep) else {
@@ -156,6 +208,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         srcToBspURIsMap = [:]
         bazelLabelToParentsMap = [:]
         availableBazelLabels = []
+        topLevelLabelToRuleMap = [:]
         bazelTargetQuerier.clearCache()
     }
 }

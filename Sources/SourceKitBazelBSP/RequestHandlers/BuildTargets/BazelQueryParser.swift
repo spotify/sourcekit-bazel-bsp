@@ -47,7 +47,6 @@ enum BazelQueryParser {
     ///
     /// - Parameters:
     ///   - targets: Array of `BlazeQuery_Target` protobuf objects from Bazel query output
-    ///   - supportedRuleTypes: Set of Bazel rule types to process (e.g., "swift_library", "objc_library")
     ///   - rootUri: Absolute path to the project root directory
     ///   - toolchainPath: Absolute path to the development toolchain
     ///
@@ -56,7 +55,6 @@ enum BazelQueryParser {
     ///   - `[URI]`: Array of source file URIs associated with the target
     static func parseTargetsWithProto(
         from targets: [BlazeQuery_Target],
-        supportedRuleTypes _: Set<String>,
         rootUri: String,
         toolchainPath: String,
     ) throws -> [(BuildTarget, [URI])] {
