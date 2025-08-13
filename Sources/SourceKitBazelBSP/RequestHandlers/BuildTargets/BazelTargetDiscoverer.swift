@@ -20,6 +20,7 @@ public enum BazelTargetDiscoverer {
     /// with no targets specified.
     ///
     /// - Parameters:
+    ///   - rules: The rule types to search for (e.g. ios_application, ios_unit_test)
     ///   - bazelWrapper: The Bazel executable to use (defaults to "bazel")
     /// - Returns: An array of discovered target labels
     /// - Throws: DiscoverTargetsError.noTargetsDiscovered if no matching targets are found

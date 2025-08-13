@@ -42,7 +42,8 @@ enum BazelTargetStoreError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unknownBSPURI(let uri): return "Requested data about a URI, but couldn't find it in the store: \(uri)"
-        case .unknownBazelLabel(let label): return "Requested data about a Bazel label, but couldn't find it in the store: \(label)"
+        case .unknownBazelLabel(let label):
+            return "Requested data about a Bazel label, but couldn't find it in the store: \(label)"
         }
     }
 }

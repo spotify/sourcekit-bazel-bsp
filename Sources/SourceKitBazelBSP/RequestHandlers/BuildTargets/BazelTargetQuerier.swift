@@ -33,7 +33,8 @@ enum BazelTargetQuerierError: Error, LocalizedError {
         case .noKinds: return "A list of kinds is necessary to query targets"
         case .noTargets: return "A list of targets is necessary to query targets"
         case .invalidQueryOutput: return "Query output is not valid XML"
-        case .unsupportedTopLevelRuleType(let ruleType, let target): return "Unsupported top-level rule type: \(ruleType) for target: \(target)"
+        case .unsupportedTopLevelRuleType(let ruleType, let target):
+            return "Unsupported top-level rule type: \(ruleType) for target: \(target)"
         }
     }
 }
