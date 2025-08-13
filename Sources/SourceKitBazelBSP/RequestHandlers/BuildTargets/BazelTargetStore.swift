@@ -48,19 +48,6 @@ enum BazelTargetStoreError: Error, LocalizedError {
     }
 }
 
-// The list of **top-level rules** we know how to process in the BSP.
-public enum TopLevelRuleType: String, CaseIterable {
-    case iosApplication = "ios_application"
-    case iosUnitTest = "ios_unit_test"
-
-    var platform: String {
-        switch self {
-        case .iosApplication: return "ios"
-        case .iosUnitTest: return "ios"
-        }
-    }
-}
-
 /// Abstraction that can queries, processes, and stores the project's dependency graph and its files.
 /// Used by many of the requests to calculate and provide data about the project's targets.
 final class BazelTargetStoreImpl: BazelTargetStore {
