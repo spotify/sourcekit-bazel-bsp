@@ -25,13 +25,13 @@ import LanguageServerProtocol
 private let logger = makeFileLevelBSPLogger()
 
 enum BazelTargetParserError: Error, LocalizedError {
-    case incorrectName
+    case incorrectName(String)
     case convertUriFailed(String)
     case noSrcFound(String)
 
     var errorDescription: String? {
         switch self {
-        case .incorrectName: return "Target name has zero or more than one colon"
+        case .incorrectName(let target): return "Target name has zero or more than one colon: \(target)"
         case .convertUriFailed(let path): return "Cannot convert target name with path \(path) to Uri with file scheme"
         case .noSrcFound(let src): return "Cannot find source file: \(src)"
         }
@@ -59,8 +59,13 @@ enum BazelQueryParser {
         supportedRuleTypes _: Set<String>,
         rootUri: String,
         toolchainPath: String,
-        buildTestSuffix: String
     ) throws -> [(BuildTarget, [URI])] {
+
+        // FIXME: Most of this logic is hacked together and not thought through, with the
+        // sole intention of getting the example project to work.
+        // Need to understand what exactly we can receive from the queries to know how to properly
+        // parse this info.
+
         var result: [(BuildTarget, [URI])] = []
         let srcMap = buildSourceFilesMap(targets)
 
@@ -76,7 +81,7 @@ enum BazelQueryParser {
 
             let rule = target.rule
 
-            let id: URI = try rule.name.toTargetId(rootUri: rootUri, buildTestSuffix: buildTestSuffix)
+            let id: URI = try rule.name.toTargetId(rootUri: rootUri)
 
             let baseDirectory: URI = try rule.name.toBaseDirectory(rootUri: rootUri)
 
@@ -90,7 +95,7 @@ enum BazelQueryParser {
                 // get direct upstream dependencies only
                 if attr.name == "deps" {
                     let _deps: [BuildTargetIdentifier] = try attr.stringListValue.map {
-                        let id = try $0.toTargetId(rootUri: rootUri, buildTestSuffix: buildTestSuffix)
+                        let id = try $0.toTargetId(rootUri: rootUri)
                         return .init(uri: id)
                     }
                     deps = _deps
@@ -121,13 +126,9 @@ enum BazelQueryParser {
 
             let data = try buildTargetData(for: toolchainPath)
 
-            // FIXME: Most of this logic is hacked together and not thought through, with the
-            // sole intention of getting the example project to work.
-            // Need to understand what exactly we can receive from the queries to know how to properly
-            // parse this info.
             let buildTarget = BuildTarget(
                 id: BuildTargetIdentifier(uri: id),
-                displayName: rule.name + "_ios" + buildTestSuffix,
+                displayName: rule.name,
                 baseDirectory: baseDirectory,
                 tags: testOnly ? [.test, .library] : [.library],
                 capabilities: capabilities,
@@ -181,11 +182,11 @@ extension String {
     ///
     /// file://<path-to-root>/<package-name>___<target-name>_ios<build-test-suffix>
     ///
-    func toTargetId(rootUri: String, buildTestSuffix: String) throws -> URI {
+    func toTargetId(rootUri: String) throws -> URI {
         let (packageName, targetName) = try splitTargetLabel()
 
         // FIXME: This is assuming everything is iOS code. Will soon update this to handle all platforms.
-        let path = "file://" + rootUri + "/" + packageName + "___" + targetName + "_ios" + buildTestSuffix
+        let path = "file://" + rootUri + "/" + packageName + "___" + targetName
 
         guard let uri = try? URI(string: path) else {
             throw BazelTargetParserError.convertUriFailed(path)
@@ -215,7 +216,7 @@ extension String {
         let components = split(separator: ":")
 
         guard components.count == 2 else {
-            throw BazelTargetParserError.incorrectName
+            throw BazelTargetParserError.incorrectName(self)
         }
 
         let packageName =

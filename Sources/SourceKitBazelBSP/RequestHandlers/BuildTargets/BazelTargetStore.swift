@@ -34,10 +34,12 @@ protocol BazelTargetStore: AnyObject {
 
 enum BazelTargetStoreError: Error, LocalizedError {
     case unknownBSPURI(URI)
+    case unknownBazelLabel(String)
 
     var errorDescription: String? {
         switch self {
         case .unknownBSPURI(let uri): return "Requested data about a URI, but couldn't find it in the store: \(uri)"
+        case .unknownBazelLabel(let label): return "Requested data about a Bazel label, but couldn't find it in the store: \(label)"
         }
     }
 }
@@ -45,8 +47,9 @@ enum BazelTargetStoreError: Error, LocalizedError {
 /// Abstraction that can queries, processes, and stores the project's dependency graph and its files.
 /// Used by many of the requests to calculate and provide data about the project's targets.
 final class BazelTargetStoreImpl: BazelTargetStore {
-    // The list of rules we currently care about and can process
-    static let supportedRuleTypes: Set<String> = ["source file", "swift_library", "objc_library"]
+    // The list of **library** rules we currently care about and can process
+    // Other things like source files are handled separately.
+    static let supportedRuleTypes: Set<String> = ["swift_library", "objc_library"]
 
     private let initializedConfig: InitializedServerConfig
     private let bazelTargetQuerier: BazelTargetQuerier
@@ -54,6 +57,8 @@ final class BazelTargetStoreImpl: BazelTargetStore {
     private var bspURIsToBazelLabelsMap: [URI: String] = [:]
     private var bspURIsToSrcsMap: [URI: [URI]] = [:]
     private var srcToBspURIsMap: [URI: [URI]] = [:]
+    private var availableBazelLabels: Set<String> = []
+    private var bazelLabelToParentsMap: [String: [String]] = [:]
 
     init(initializedConfig: InitializedServerConfig, bazelTargetQuerier: BazelTargetQuerier = BazelTargetQuerier()) {
         self.initializedConfig = initializedConfig
@@ -84,30 +89,61 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         return bspURIs
     }
 
+    /// Retrieves the list of top-level apps that a given Bazel target label belongs to.
+    func bazelLabelToParents(forBazelLabel label: String) throws -> [String] {
+        guard let parents = bazelLabelToParentsMap[label] else {
+            throw BazelTargetStoreError.unknownBazelLabel(label)
+        }
+        return parents
+    }
+
     @discardableResult
     func fetchTargets() throws -> [BuildTarget] {
-        var targetData: [(BuildTarget, [URI])] = []
-        let targets: [BlazeQuery_Target] = try bazelTargetQuerier.queryTargets(
+        let targets: [BlazeQuery_Target] = try bazelTargetQuerier.queryTargetDependencies(
             forConfig: initializedConfig.baseConfig,
             rootUri: initializedConfig.rootUri,
-            kinds: Self.supportedRuleTypes
+            kinds: Self.supportedRuleTypes.union(["source file"])
         )
 
-        targetData = try BazelQueryParser.parseTargetsWithProto(
+        let targetData = try BazelQueryParser.parseTargetsWithProto(
             from: targets,
             supportedRuleTypes: Self.supportedRuleTypes,
             rootUri: initializedConfig.rootUri,
             toolchainPath: initializedConfig.devToolchainPath,
-            buildTestSuffix: initializedConfig.baseConfig.buildTestSuffix
         )
 
         // Fill the local cache based on the data we got from the query
         for (target, srcs) in targetData {
+            guard let displayName = target.displayName else {
+                // Should not happen, but the property is an optional
+                continue
+            }
             let uri = target.id.uri
-            bspURIsToBazelLabelsMap[uri] = target.displayName
+            bspURIsToBazelLabelsMap[uri] = displayName
             bspURIsToSrcsMap[uri] = srcs
+            availableBazelLabels.insert(displayName)
             for src in srcs {
                 srcToBspURIsMap[src, default: []].append(uri)
+            }
+        }
+
+        // We need to now map which targets belong to which top-level apps.
+        // This will allow us to provide different sets of compiler flags depending
+        // on which target platform the LSP is interested in, for the case where
+        // a target is shared between multiple top-level apps.
+        for topLevelTarget in initializedConfig.baseConfig.targets {
+            let deps = try bazelTargetQuerier.queryDependencyLabels(
+                ofTarget: topLevelTarget,
+                forConfig: initializedConfig.baseConfig,
+                rootUri: initializedConfig.rootUri,
+                kinds: Self.supportedRuleTypes
+            )
+            for dep in deps {
+                guard availableBazelLabels.contains(dep) else {
+                    // Ignore any labels that we also ignored above
+                    continue
+                }
+                bazelLabelToParentsMap[dep, default: []].append(topLevelTarget)
             }
         }
 
@@ -118,6 +154,8 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         bspURIsToBazelLabelsMap = [:]
         bspURIsToSrcsMap = [:]
         srcToBspURIsMap = [:]
+        bazelLabelToParentsMap = [:]
+        availableBazelLabels = []
         bazelTargetQuerier.clearCache()
     }
 }

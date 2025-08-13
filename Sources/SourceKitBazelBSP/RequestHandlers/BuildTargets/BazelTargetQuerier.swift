@@ -37,8 +37,6 @@ enum BazelTargetQuerierError: Error, LocalizedError {
 }
 
 /// Small abstraction to handle and cache the results of bazel queries.
-///
-/// FIXME: Currently uses XML, should use proto instead so that we can organize and test this properly
 final class BazelTargetQuerier {
 
     private let commandRunner: CommandRunner
@@ -60,7 +58,7 @@ final class BazelTargetQuerier {
         self.commandRunner = commandRunner
     }
 
-    func queryTargets(
+    func queryTargetDependencies(
         forConfig config: BaseServerConfig,
         rootUri: String,
         kinds: Set<String>
@@ -98,6 +96,26 @@ final class BazelTargetQuerier {
         queryCache[cacheKey] = targets
 
         return targets
+    }
+
+    func queryDependencyLabels(
+        ofTarget target: String,
+        forConfig config: BaseServerConfig,
+        rootUri: String,
+        kinds: Set<String>
+    ) throws -> [String] {
+        guard !kinds.isEmpty else {
+            throw BazelTargetQuerierError.noKinds
+        }
+
+        guard !config.targets.isEmpty else {
+            throw BazelTargetQuerierError.noTargets
+        }
+
+        let kindsFilter = kinds.sorted().joined(separator: "|")
+        let cmd = "query \"kind('\(kindsFilter)', \"deps(\(target))\" --output label"
+        let output: String = try commandRunner.run(config.bazelWrapper + " " + cmd, cwd: rootUri)
+        return output.components(separatedBy: "\n")
     }
 
     func clearCache() {
