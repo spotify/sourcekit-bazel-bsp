@@ -22,13 +22,9 @@ public enum TopLevelRuleType: String, CaseIterable {
     case iosApplication = "ios_application"
     case iosUnitTest = "ios_unit_test"
     case iosUiTest = "ios_ui_test"
-
-    // FIXME: In the case of watchOS, companion app libs are being
-    // misclassified as iOS targets.
     case watchosApplication = "watchos_application"
     case watchosUnitTest = "watchos_unit_test"
     case watchosUiTest = "watchos_ui_test"
-
     case macosApplication = "macos_application"
     case macosUnitTest = "macos_unit_test"
     case macosUiTest = "macos_ui_test"

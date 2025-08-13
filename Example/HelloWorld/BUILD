@@ -1,8 +1,9 @@
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test")
+load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application", "macos_unit_test")
 load("@build_bazel_rules_apple//apple:watchos.bzl", "watchos_application", "watchos_extension", "watchos_unit_test")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_interop_hint")
 load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template_rule")
-load("//tools:apple.bzl", "hello_objc_library", "hello_swift_library", "IOS_MINIMUM_OS_VERSION", "WATCHOS_MINIMUM_OS_VERSION")
+load("//tools:apple.bzl", "hello_objc_library", "hello_swift_library", "IOS_MINIMUM_OS_VERSION", "WATCHOS_MINIMUM_OS_VERSION", "MACOS_MINIMUM_OS_VERSION")
 
 ## MARK: iOS / Shared targets
 
@@ -20,7 +21,7 @@ hello_swift_library(
     name = "TodoModels",
     module_name = "TodoModels",
     srcs = glob(["TodoModels/Sources/*.swift"]),
-    platforms = ["ios", "watchos"],
+    platforms = ["ios", "watchos", "macos"],
 )
 
 swift_interop_hint(
@@ -112,32 +113,29 @@ hello_swift_library(
     module_name = "WatchAppLib",
     srcs = glob(["WatchApp/WatchAppLib/Sources/*.swift"]),
     deps = [":TodoModels"],
-    platforms = ["watchos", "ios"], # FIXME: Have to classify this as iOS too due to companion libs being misclassified as iOS targets
+    platforms = ["watchos"],
+)
+
+## MARK: MacOS targets
+
+hello_swift_library(
+    name = "MacAppTestsLib",
+    module_name = "MacAppTestsLib",
+    testonly = True,
+    srcs = glob(["MacApp/MacAppTests/*.swift"]),
+    deps = [":MacAppLib"],
+    platforms = ["macos"],
+)
+
+hello_swift_library(
+    name = "MacAppLib",
+    module_name = "MacAppLib",
+    srcs = glob(["MacApp/MacAppLib/Sources/*.swift"]),
+    deps = [":TodoModels"],
+    platforms = ["macos"],
 )
 
 ## MARK: Top level targets
-
-watchos_application(
-    name = "HelloWorld-WatchApplication",
-    bundle_id = "com.example.HelloWorld.Watch",
-    extensions = [":HelloWorld-WatchExtension"],
-    infoplists = ["Resources/WatchApp-Info.plist"],
-    minimum_os_version = WATCHOS_MINIMUM_OS_VERSION,
-)
-
-watchos_extension(
-    name = "HelloWorld-WatchExtension",
-    bundle_id = "com.example.HelloWorld.Watch.extension",
-    infoplists = ["Resources/WatchExt-Info.plist"],
-    minimum_os_version = WATCHOS_MINIMUM_OS_VERSION,
-    deps = [":WatchAppLib"],
-)
-
-watchos_unit_test(
-    name = "HelloWorldWatchTests",
-    minimum_os_version = WATCHOS_MINIMUM_OS_VERSION,
-    deps = [":WatchAppTestsLib"],
-)
 
 ios_unit_test(
     name = "HelloWorldTests",
@@ -151,6 +149,41 @@ ios_application(
     families = ["iphone", "ipad"],
     infoplists = ["Resources/Info.plist"],
     minimum_os_version = IOS_MINIMUM_OS_VERSION,
-    watch_application = ":HelloWorld-WatchApplication",
     deps = [":HelloWorldLib", ":GeneratedDummy"],
+)
+
+watchos_application(
+    name = "HelloWorldWatchApp",
+    bundle_id = "com.example.HelloWorld.Watch",
+    extensions = [":HelloWorld-WatchExtension"],
+    infoplists = ["Resources/WatchApp-Info.plist"],
+    minimum_os_version = WATCHOS_MINIMUM_OS_VERSION,
+)
+
+watchos_extension(
+    name = "HelloWorldWatchExt",
+    bundle_id = "com.example.HelloWorld.Watch.extension",
+    infoplists = ["Resources/WatchExt-Info.plist"],
+    minimum_os_version = WATCHOS_MINIMUM_OS_VERSION,
+    deps = [":WatchAppLib"],
+)
+
+watchos_unit_test(
+    name = "HelloWorldWatchTests",
+    minimum_os_version = WATCHOS_MINIMUM_OS_VERSION,
+    deps = [":WatchAppTestsLib"],
+)
+
+macos_application(
+    name = "HelloWorldMacApp",
+    bundle_id = "com.example.HelloWorld.Mac",
+    infoplists = ["Resources/MacApp-Info.plist"],
+    minimum_os_version = MACOS_MINIMUM_OS_VERSION,
+    deps = [":MacAppLib"],
+)
+
+macos_unit_test(
+    name = "HelloWorldMacTests",
+    minimum_os_version = MACOS_MINIMUM_OS_VERSION,
+    deps = [":MacAppTestsLib"],
 )

@@ -21,7 +21,7 @@ import SwiftUI
 import TodoModels
 
 @main
-struct WatchApp: App {
+struct MacApp: App {
     var body: some Scene {
         WindowGroup {
             TestView()
