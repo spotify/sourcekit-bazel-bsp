@@ -69,6 +69,7 @@ struct BazelTargetCompilerArgsExtractorTests {
             try extractor.compilerArgs(
                 forDoc: URI(filePath: "not relevant for Swift", isDirectory: false),
                 inTarget: "//HelloWorld:HelloWorldLib_ios_skbsp",
+                underlyingLibrary: "//HelloWorld:HelloWorldLib",
                 language: .swift,
             )
         )
@@ -90,6 +91,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                     isDirectory: false
                 ),
                 inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
+                underlyingLibrary: "//HelloWorld:TodoObjCSupport",
                 language: .objective_c,
             )
         )
@@ -107,6 +109,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                 isDirectory: false
             ),
             inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
+            underlyingLibrary: "//HelloWorld:TodoObjCSupport",
             language: .objective_c,
         )
         #expect(result == nil)
@@ -125,6 +128,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                 isDirectory: false
             ),
             inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
+            underlyingLibrary: "//HelloWorld:TodoObjCSupport",
             language: .objective_c,
         )
         #expect(result == nil)
@@ -141,6 +145,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                     isDirectory: false
                 ),
                 inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
+                underlyingLibrary: "//HelloWorld:TodoObjCSupport",
                 language: .objective_c,
             )
         }
@@ -160,6 +165,7 @@ struct BazelTargetCompilerArgsExtractorTests {
         let result = try extractor.compilerArgs(
             forDoc: URI(filePath: "not relevant for Swift", isDirectory: false),
             inTarget: "//HelloWorld:SomethingElseLib_ios_skbsp",
+            underlyingLibrary: "//HelloWorld:SomethingElseLib",
             language: .swift,
         )
         #expect(result == nil)
@@ -172,20 +178,21 @@ struct BazelTargetCompilerArgsExtractorTests {
             "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:HelloWorldLib, deps(//HelloWorld:HelloWorldLib_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects"
         mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
 
-        func run(_ lib: String) -> [String]? {
+        func run(_ lib: String, _ underlyingLibrary: String) -> [String]? {
             return try? extractor.compilerArgs(
                 forDoc: URI(filePath: "not relevant for Swift", isDirectory: false),
                 inTarget: lib,
+                underlyingLibrary: underlyingLibrary,
                 language: .swift,
             )
         }
 
-        let result1 = try #require(run("//HelloWorld:HelloWorldLib_ios_skbsp"))
+        let result1 = try #require(run("//HelloWorld:HelloWorldLib_ios_skbsp", "//HelloWorld:HelloWorldLib"))
 
         // Remove the mock aquery responses to indicate that we skipped that section of the logic entirely
         mockRunner.reset()
 
-        let result2 = try #require(run("//HelloWorld:HelloWorldLib_ios_skbsp"))
+        let result2 = try #require(run("//HelloWorld:HelloWorldLib_ios_skbsp", "//HelloWorld:HelloWorldLib"))
         #expect(result1 == result2)
     }
 }

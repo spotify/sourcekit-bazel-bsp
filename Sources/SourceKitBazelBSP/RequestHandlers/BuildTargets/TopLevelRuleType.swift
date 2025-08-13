@@ -22,9 +22,13 @@ public enum TopLevelRuleType: String, CaseIterable {
     case iosApplication = "ios_application"
     case iosUnitTest = "ios_unit_test"
     case iosUiTest = "ios_ui_test"
-    case watchosApplication = "watchos_application"
-    case watchosUnitTest = "watchos_unit_test"
-    case watchosUiTest = "watchos_ui_test"
+
+    // FIXME: In the case of watchOS, companion app libs are being
+    // misclassified as watchOS targets. Disabling for now.
+    // case watchosApplication = "watchos_application"
+    // case watchosUnitTest = "watchos_unit_test"
+    // case watchosUiTest = "watchos_ui_test"
+
     case macosApplication = "macos_application"
     case macosUnitTest = "macos_unit_test"
     case macosUiTest = "macos_ui_test"
@@ -40,9 +44,9 @@ public enum TopLevelRuleType: String, CaseIterable {
         case .iosApplication: return "ios"
         case .iosUnitTest: return "ios"
         case .iosUiTest: return "ios"
-        case .watchosApplication: return "watchos"
-        case .watchosUnitTest: return "watchos"
-        case .watchosUiTest: return "watchos"
+        // case .watchosApplication: return "watchos"
+        // case .watchosUnitTest: return "watchos"
+        // case .watchosUiTest: return "watchos"
         case .macosApplication: return "macos"
         case .macosUnitTest: return "macos"
         case .macosUiTest: return "macos"

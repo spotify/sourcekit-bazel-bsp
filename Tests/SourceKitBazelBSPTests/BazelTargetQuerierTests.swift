@@ -44,7 +44,12 @@ struct BazelTargetQuerierTests {
         runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: mockProtobuf)
 
         let kinds: Set<String> = ["source file", "swift_library"]
-        let result = try querier.queryTargets(forConfig: config, rootUri: mockRootUri, kinds: kinds)
+        let result = try querier.queryTargetDependencies(
+            forTargets: config.targets,
+            forConfig: config,
+            rootUri: mockRootUri,
+            kinds: kinds
+        )
 
         let ranCommands = runnerMock.commands
         #expect(ranCommands.count == 1)
@@ -72,7 +77,12 @@ struct BazelTargetQuerierTests {
         runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: mockProtobuf)
 
         let kinds: Set<String> = ["swift_library", "objc_library"]
-        let result = try querier.queryTargets(forConfig: config, rootUri: mockRootUri, kinds: kinds)
+        let result = try querier.queryTargetDependencies(
+            forTargets: config.targets,
+            forConfig: config,
+            rootUri: mockRootUri,
+            kinds: kinds
+        )
 
         let ranCommands = runnerMock.commands
         #expect(ranCommands.count == 1)
@@ -97,7 +107,12 @@ struct BazelTargetQuerierTests {
         let mockRootUri = "/path/to/project"
 
         func run(_ kinds: Set<String>) throws {
-            _ = try querier.queryTargets(forConfig: config, rootUri: mockRootUri, kinds: kinds)
+            _ = try querier.queryTargetDependencies(
+                forTargets: config.targets,
+                forConfig: config,
+                rootUri: mockRootUri,
+                kinds: kinds
+            )
         }
 
         var kinds: Set<String> = ["swift_library"]
@@ -155,7 +170,8 @@ struct BazelTargetQuerierTests {
 
         runner.setResponse(for: command, cwd: rootUri, response: data)
 
-        let result = try querier.queryTargets(
+        let result = try querier.queryTargetDependencies(
+            forTargets: config.targets,
             forConfig: config,
             rootUri: rootUri,
             kinds: .init(["objc_library", "source file", "swift_library"])

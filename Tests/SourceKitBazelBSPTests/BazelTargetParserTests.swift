@@ -46,7 +46,8 @@ struct BazelTargetParserTests {
 
         runner.setResponse(for: command, cwd: rootUri, response: mockProtobuf)
 
-        let targets = try querier.queryTargets(
+        let targets = try querier.queryTargetDependencies(
+            forTargets: config.targets,
             forConfig: config,
             rootUri: rootUri,
             kinds: kinds
@@ -54,18 +55,16 @@ struct BazelTargetParserTests {
 
         let result = try BazelQueryParser.parseTargetsWithProto(
             from: targets,
-            supportedRuleTypes: kinds,
             rootUri: rootUri,
             toolchainPath: toolchainPath,
-            buildTestSuffix: "_skbsp",
         )
 
         let expected = [
-            "file:///path/to/project/HelloWorld___ExpandedTemplate_ios_skbsp",
-            "file:///path/to/project/HelloWorld___GeneratedDummy_ios_skbsp",
-            "file:///path/to/project/HelloWorld___HelloWorldLib_ios_skbsp",
-            "file:///path/to/project/HelloWorld___TodoModels_ios_skbsp",
-            "file:///path/to/project/HelloWorld___TodoObjCSupport_ios_skbsp",
+            "file:///path/to/project/HelloWorld___ExpandedTemplate",
+            "file:///path/to/project/HelloWorld___GeneratedDummy",
+            "file:///path/to/project/HelloWorld___HelloWorldLib",
+            "file:///path/to/project/HelloWorld___TodoModels",
+            "file:///path/to/project/HelloWorld___TodoObjCSupport",
         ].sorted()
 
         let actual = result.map(\.0.id.uri.stringValue).sorted()

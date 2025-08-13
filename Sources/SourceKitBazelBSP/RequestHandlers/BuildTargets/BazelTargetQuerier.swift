@@ -43,7 +43,10 @@ enum BazelTargetQuerierError: Error, LocalizedError {
 final class BazelTargetQuerier {
 
     private let commandRunner: CommandRunner
+
+    private var topLevelRuleCache = [String: [(String, TopLevelRuleType)]]()
     private var queryCache = [String: [BlazeQuery_Target]]()
+    private var dependencyLabelsCache = [String: [String]]()
 
     static func queryDepsString(forTargets targets: [String]) -> String {
         var query = ""
@@ -66,6 +69,14 @@ final class BazelTargetQuerier {
         rootUri: String,
     ) throws -> [(String, TopLevelRuleType)] {
         let targetQuery = config.targets.joined(separator: " union ")
+
+        logger.info("Processing top level rules request for \(targetQuery)")
+
+        if let cached = topLevelRuleCache[targetQuery] {
+            logger.debug("Returning cached results")
+            return cached
+        }
+
         let cmd = "query \"kind('rule', \(targetQuery))\" --output label_kind"
         let output: String = try commandRunner.run(config.bazelWrapper + " " + cmd, cwd: rootUri)
         let parsed = output.components(separatedBy: "\n")
@@ -79,6 +90,9 @@ final class BazelTargetQuerier {
             }
             topLevelTargetData.append((target, ruleType))
         }
+
+        topLevelRuleCache[targetQuery] = topLevelTargetData
+
         return topLevelTargetData
     }
 
@@ -134,12 +148,27 @@ final class BazelTargetQuerier {
         }
 
         let kindsFilter = kinds.sorted().joined(separator: "|")
+
+        let cacheKey = "\(kindsFilter)+\(target)"
+
+        logger.info("Processing dependency labels request for \(cacheKey)")
+
+        if let cached = dependencyLabelsCache[cacheKey] {
+            logger.debug("Returning cached results")
+            return cached
+        }
+
         let cmd = "query \"kind('\(kindsFilter)', deps(\(target)))\" --output label"
         let output: String = try commandRunner.run(config.bazelWrapper + " " + cmd, cwd: rootUri)
-        return output.components(separatedBy: "\n")
+        let result = output.components(separatedBy: "\n")
+
+        dependencyLabelsCache[cacheKey] = result
+        return result
     }
 
     func clearCache() {
+        topLevelRuleCache = [:]
         queryCache = [:]
+        dependencyLabelsCache = [:]
     }
 }
