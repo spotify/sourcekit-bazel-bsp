@@ -56,4 +56,8 @@ class TodoItemTests: XCTestCase {
             XCTFail("Failed to encode/decode TodoItem: \(error)")
         }
     }
+
+    func testTodoItemiOSOnlyContent() {
+        XCTAssertEqual(TodoItem.iOSOnlyContent(), "iOS only content")
+    }
 }

@@ -38,11 +38,17 @@ enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
 /// Abstraction that handles running action queries and extracting the compiler args for a given target file.
 final class BazelTargetCompilerArgsExtractor {
 
+    private let commandRunner: CommandRunner
     private let aquerier: BazelTargetAquerier
     private let config: InitializedServerConfig
     private var argsCache = [String: [String]?]()
 
-    init(aquerier: BazelTargetAquerier = BazelTargetAquerier(), config: InitializedServerConfig) {
+    init(
+        commandRunner: CommandRunner = ShellCommandRunner(),
+        aquerier: BazelTargetAquerier = BazelTargetAquerier(),
+        config: InitializedServerConfig
+    ) {
+        self.commandRunner = commandRunner
         self.aquerier = aquerier
         self.config = config
     }
@@ -51,7 +57,8 @@ final class BazelTargetCompilerArgsExtractor {
         forDoc textDocument: URI,
         inTarget bazelTarget: String,
         underlyingLibrary: String,
-        language: Language
+        language: Language,
+        platform: TopLevelRuleType
     ) throws -> [String]? {
         // Ignore Obj-C header requests, since these don't compile
         guard !textDocument.stringValue.hasSuffix(".h") else {
@@ -93,12 +100,17 @@ final class BazelTargetCompilerArgsExtractor {
             additionalFlags: ["--noinclude_artifacts", "--noinclude_aspects"]
         )
 
+        // Then, determine the SDK root based on the platform the target is built for
+        let platformSdk = platform.sdkName
+        let sdkRoot = try commandRunner.run("xcrun --sdk \(platformSdk) --show-sdk-path")
+
         // Then, extract the compiler arguments for the target file from the resulting aquery.
         let processedArgs = CompilerArgumentsProcessor.extractAndProcessCompilerArgs(
             fromAquery: resultAquery,
             bazelTarget: underlyingLibrary,
             contentToQuery: contentToQuery,
             language: language,
+            sdkRoot: sdkRoot,
             initializedConfig: config
         )
         argsCache[cacheKey] = processedArgs

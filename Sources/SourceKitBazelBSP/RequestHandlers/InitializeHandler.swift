@@ -102,11 +102,9 @@ final class InitializeHandler {
 
         // Collecting the rest of the env's details
         let devDir: String = try commandRunner.run("xcode-select --print-path")
-        let sdkRoot: String = try commandRunner.run("xcrun --sdk iphonesimulator --show-sdk-path")
         let toolchain = try getToolchainPath(with: commandRunner)
 
         logger.debug("devDir: \(devDir)")
-        logger.debug("sdkRoot: \(sdkRoot)")
         logger.debug("toolchain: \(toolchain)")
 
         return InitializedServerConfig(
@@ -115,7 +113,6 @@ final class InitializeHandler {
             outputBase: outputBase,
             outputPath: outputPath,
             devDir: devDir,
-            sdkRoot: sdkRoot,
             devToolchainPath: toolchain
         )
     }

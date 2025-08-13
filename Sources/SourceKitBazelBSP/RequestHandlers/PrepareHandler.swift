@@ -66,7 +66,7 @@ final class PrepareHandler {
     }
 
     func prepare(bspURIs: [URI]) throws {
-        let labels = try bspURIs.map { try targetStore.platformBuildLabel(forBSPURI: $0) }
+        let labels = try bspURIs.map { try targetStore.platformBuildLabel(forBSPURI: $0).0 }
         try build(bazelLabels: labels)
     }
 

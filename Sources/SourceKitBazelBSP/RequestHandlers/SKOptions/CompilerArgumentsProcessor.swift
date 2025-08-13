@@ -30,6 +30,7 @@ enum CompilerArgumentsProcessor {
         bazelTarget: String,
         contentToQuery: String,
         language: Language,
+        sdkRoot: String,
         initializedConfig: InitializedServerConfig
     ) -> [String]? {
         var lines: [String] = aqueryOutput.components(separatedBy: "\n")
@@ -110,6 +111,7 @@ enum CompilerArgumentsProcessor {
             rawArguments: lines,
             contentToQuery: contentToQuery,
             language: language,
+            sdkRoot: sdkRoot,
             initializedConfig: initializedConfig
         )
 
@@ -130,10 +132,10 @@ enum CompilerArgumentsProcessor {
         rawArguments: [String],
         contentToQuery: String,
         language: Language,
+        sdkRoot: String,
         initializedConfig: InitializedServerConfig
     ) -> [String] {
 
-        let sdkRoot = initializedConfig.sdkRoot
         let devDir = initializedConfig.devDir
         let outputPath = initializedConfig.outputPath
         let rootUri = initializedConfig.rootUri

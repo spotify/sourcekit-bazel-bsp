@@ -31,7 +31,7 @@ protocol BazelTargetStore: AnyObject {
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String
     func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI]
     func bspURIs(containingSrc src: URI) throws -> [URI]
-    func platformBuildLabel(forBSPURI uri: URI) throws -> String
+    func platformBuildLabel(forBSPURI uri: URI) throws -> (String, TopLevelRuleType)
     func clearCache()
 }
 
@@ -112,15 +112,18 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
     /// Provides the bazel label containing **platform information** for a given BSP URI.
     /// This is used to determine the correct set of compiler flags for the target / platform combo.
-    func platformBuildLabel(forBSPURI uri: URI) throws -> String {
+    func platformBuildLabel(forBSPURI uri: URI) throws -> (String, TopLevelRuleType) {
         let bazelLabel = try bazelTargetLabel(forBSPURI: uri)
         let parents = try bazelLabelToParents(forBazelLabel: bazelLabel)
         // FIXME: When a target can compile to multiple platforms, the way Xcode handles it is by selecting
         // the one matching your selected simulator in the IDE. We don't have any sort of special IDE integration
         // at the moment, so for now we just select the first parent.
         let parentToUse = parents[0]
-        let platform = try topLevelRuleType(forBazelLabel: parentToUse).platform
-        return "\(bazelLabel)_\(platform)\(initializedConfig.baseConfig.buildTestSuffix)"
+        let rule = try topLevelRuleType(forBazelLabel: parentToUse)
+        return (
+            "\(bazelLabel)_\(rule.platform)\(initializedConfig.baseConfig.buildTestSuffix)",
+            rule
+        )
     }
 
     @discardableResult

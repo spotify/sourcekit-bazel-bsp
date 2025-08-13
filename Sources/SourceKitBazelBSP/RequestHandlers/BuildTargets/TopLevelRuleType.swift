@@ -24,10 +24,10 @@ public enum TopLevelRuleType: String, CaseIterable {
     case iosUiTest = "ios_ui_test"
 
     // FIXME: In the case of watchOS, companion app libs are being
-    // misclassified as watchOS targets. Disabling for now.
-    // case watchosApplication = "watchos_application"
-    // case watchosUnitTest = "watchos_unit_test"
-    // case watchosUiTest = "watchos_ui_test"
+    // misclassified as iOS targets.
+    case watchosApplication = "watchos_application"
+    case watchosUnitTest = "watchos_unit_test"
+    case watchosUiTest = "watchos_ui_test"
 
     case macosApplication = "macos_application"
     case macosUnitTest = "macos_unit_test"
@@ -44,9 +44,9 @@ public enum TopLevelRuleType: String, CaseIterable {
         case .iosApplication: return "ios"
         case .iosUnitTest: return "ios"
         case .iosUiTest: return "ios"
-        // case .watchosApplication: return "watchos"
-        // case .watchosUnitTest: return "watchos"
-        // case .watchosUiTest: return "watchos"
+        case .watchosApplication: return "watchos"
+        case .watchosUnitTest: return "watchos"
+        case .watchosUiTest: return "watchos"
         case .macosApplication: return "macos"
         case .macosUnitTest: return "macos"
         case .macosUiTest: return "macos"
@@ -56,6 +56,28 @@ public enum TopLevelRuleType: String, CaseIterable {
         case .visionosApplication: return "visionos"
         case .visionosUnitTest: return "visionos"
         case .visionosUiTest: return "visionos"
+        }
+    }
+
+    // FIXME: Not the best way to handle this as we need to eventually
+    // handle device builds as well
+    var sdkName: String {
+        switch self {
+        case .iosApplication: return "iphonesimulator"
+        case .iosUnitTest: return "iphonesimulator"
+        case .iosUiTest: return "iphonesimulator"
+        case .watchosApplication: return "watchsimulator"
+        case .watchosUnitTest: return "watchsimulator"
+        case .watchosUiTest: return "watchsimulator"
+        case .macosApplication: return "macosx"
+        case .macosUnitTest: return "macosx"
+        case .macosUiTest: return "macosx"
+        case .tvosApplication: return "appletvsimulator"
+        case .tvosUnitTest: return "appletvsimulator"
+        case .tvosUiTest: return "appletvsimulator"
+        case .visionosApplication: return "xrsimulator"
+        case .visionosUnitTest: return "xrsimulator"
+        case .visionosUiTest: return "xrsimulator"
         }
     }
 }
