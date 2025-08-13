@@ -30,10 +30,11 @@ struct WatchApp: App {
 }
 
 struct TestView: View {
-    @State private var items: [TodoItem] = [
+    @State
+    private var items: [TodoItem] = [
         TodoItem(title: "Buy milk"),
         TodoItem(title: "Walk the dog"),
-        TodoItem(title: "Read a book")
+        TodoItem(title: "Read a book"),
     ]
 
     var body: some View {

@@ -33,16 +33,16 @@ public struct TodoItem: Identifiable, Codable {
     }
 
     #if os(watchOS)
-        public static func watchOnlyContent() -> String {
-            return "Watch only content"
-        }
+    public static func watchOnlyContent() -> String {
+        return "Watch only content"
+    }
     #elseif os(iOS)
-        public static func iOSOnlyContent() -> String {
-            return "iOS only content"
-        }
+    public static func iOSOnlyContent() -> String {
+        return "iOS only content"
+    }
     #elseif os(macOS)
-        public static func macOnlyContent() -> String {
-            return "Mac only content"
-        }
+    public static func macOnlyContent() -> String {
+        return "Mac only content"
+    }
     #endif
 }
