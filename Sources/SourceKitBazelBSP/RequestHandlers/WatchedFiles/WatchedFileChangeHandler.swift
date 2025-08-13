@@ -31,6 +31,12 @@ final class WatchedFileChangeHandler {
     private var observers: [any InvalidatedTargetObserver]
     private weak var connection: LSPConnection?
 
+    private let supportedFileExtensions: Set<String> = [
+        "swift",
+        "h",
+        "m",
+    ]
+
     init(
         targetStore: BazelTargetStore,
         observers: [any InvalidatedTargetObserver] = [],
@@ -42,10 +48,24 @@ final class WatchedFileChangeHandler {
     }
 
     func onWatchedFilesDidChange(_ notification: OnWatchedFilesDidChangeNotification) throws {
+
+        // As of writing, SourceKit-LSP intentionally ignores our fileSystemWatchers
+        // and notifies us of everything. This means we need to filter them out on our end.
+        // See SourceKitLSPServer.didChangeWatchedFiles in sourcekit-lsp for more details.
+        let changes = notification.changes.filter { change in
+            let result = isSupportedFile(uri: change.uri)
+            if !result {
+                logger.debug("Ignoring file change (unsupported extension): \(change.uri.stringValue)")
+            }
+            return result
+        }
+
+        logger.info("Received \(changes.count) file changes")
+
         // First, calculate deleted targets before we clear them from the targetStore
         let deletedTargets = {
             do {
-                return try notification.changes
+                return try changes
                     .filter { $0.type == .deleted }
                     .flatMap { change -> [AffectedTarget] in
                         try targetStore.bspURIs(containingSrc: change.uri)
@@ -59,7 +79,7 @@ final class WatchedFileChangeHandler {
 
         // If there are any 'created' files, we need to clear the targetStore and fetch targets again
         // Otherwise, the targetStore won't know about them
-        if notification.changes.contains(where: { $0.type == .created }) {
+        if changes.contains(where: { $0.type == .created }) {
             targetStore.clearCache()
             do {
                 _ = try targetStore.fetchTargets()
@@ -72,7 +92,7 @@ final class WatchedFileChangeHandler {
         // Now that the targetStore knows about the newly created files, we can calculate the created targets
         let createdTargets = {
             do {
-                return try notification.changes
+                return try changes
                     .filter { $0.type == .created }
                     .flatMap { change -> [AffectedTarget] in
                         try targetStore.bspURIs(containingSrc: change.uri)
@@ -87,7 +107,7 @@ final class WatchedFileChangeHandler {
         // Finally, calculate the changed targets
         let changedTargets = {
             do {
-                return try notification.changes
+                return try changes
                     .filter { $0.type == .changed }
                     .flatMap { change -> [AffectedTarget] in
                         try targetStore.bspURIs(containingSrc: change.uri)
@@ -124,6 +144,15 @@ final class WatchedFileChangeHandler {
         )
 
         connection?.send(response)
+    }
+
+    func isSupportedFile(uri: DocumentURI) -> Bool {
+        let path = uri.stringValue
+        let ext: [ReversedCollection<String>.SubSequence] = path.reversed().split(separator: ".", maxSplits: 1)
+        guard let result = ext.first else {
+            return false
+        }
+        return supportedFileExtensions.contains(String(result.reversed()))
     }
 }
 
