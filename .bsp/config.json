@@ -10,8 +10,15 @@
 		"swift"
 	],
 	"argv": [
-		"(path_to_a_sourcekit-bazel-bsp_binary)",
-		"--app",
-		"//path/to/your:apptarget"
+		".bsp/sourcekit-bazel-bsp",
+		"serve",
+		"--target",
+		"//Example/HelloWorld",
+		"--bazel-wrapper",
+		"/Users/maxwellelliott/tinder_toolchain/bazelisk",
+		"--target",
+		"//Example/HelloWorld:HelloWorldTests",
+		"--files-to-watch",
+		"Example/HelloWorld/**/*.swift,Example/HelloWorld/**/*.m,Example/HelloWorld/**/*.h"
 	]
 }
