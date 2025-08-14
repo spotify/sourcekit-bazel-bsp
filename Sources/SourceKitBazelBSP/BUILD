@@ -1,0 +1,13 @@
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
+
+swift_library(
+    name = "SourceKitBazelBSP",
+    srcs = glob(["**/*.swift"], allow_empty = False),
+    module_name = "SourceKitBazelBSP",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//Sources/BazelProtobufBindings",
+        "@swiftpkg_sourcekit_lsp//:BuildServerProtocol",
+    ],
+    package_name = "SourceKitBazelBSP",
+)
