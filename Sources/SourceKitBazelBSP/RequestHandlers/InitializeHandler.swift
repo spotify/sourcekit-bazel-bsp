@@ -81,6 +81,7 @@ final class InitializeHandler {
         logger.debug("rootUri: \(rootUri)")
         let regularOutputBase = URL(
             fileURLWithPath: try commandRunner.bazel(baseConfig: baseConfig, rootUri: rootUri, cmd: "info output_base")
+                .asString
         )
         logger.debug("regularOutputBase: \(regularOutputBase)")
 
@@ -97,7 +98,7 @@ final class InitializeHandler {
             outputBase: outputBase,
             cmd: "info output_path",
             rootUri: rootUri
-        )
+        ).asString
         logger.debug("outputPath: \(outputPath)")
 
         // Collecting the rest of the env's details

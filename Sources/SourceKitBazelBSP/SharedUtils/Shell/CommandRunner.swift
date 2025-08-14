@@ -38,12 +38,12 @@ extension CommandRunner {
 // MARK: Bazel-related helpers
 
 extension CommandRunner {
-    func bazel(baseConfig: BaseServerConfig, rootUri: String, cmd: String) throws -> String {
+    func bazel(baseConfig: BaseServerConfig, rootUri: String, cmd: String) throws -> some ContentRepresentable {
         try run(baseConfig.bazelWrapper + " " + cmd, cwd: rootUri)
     }
 
     /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.
-    func bazelIndexAction(initializedConfig: InitializedServerConfig, cmd: String) throws -> String {
+    func bazelIndexAction(initializedConfig: InitializedServerConfig, cmd: String) throws -> some ContentRepresentable {
         return try bazelIndexAction(
             baseConfig: initializedConfig.baseConfig,
             outputBase: initializedConfig.outputBase,
@@ -52,25 +52,13 @@ extension CommandRunner {
         )
     }
 
-    /// A  bazel action query command, but at this BSP's special output base and taking into account the special index flags.
-    func bazelActionQuery(initializedConfig: InitializedServerConfig, cmd: String) throws -> Data {
-        let baseCommand = [
-            initializedConfig.baseConfig.bazelWrapper,
-            "--output_base=\(initializedConfig.outputBase)",
-            cmd,
-        ]
-        let additionalFlags = initializedConfig.baseConfig.indexFlags
-        let command = (baseCommand + additionalFlags).joined(separator: " ")
-        return try run(command, cwd: initializedConfig.rootUri)
-    }
-
     /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.
     func bazelIndexAction(
         baseConfig: BaseServerConfig,
         outputBase: String,
         cmd: String,
         rootUri: String,
-    ) throws -> String {
+    ) throws -> some ContentRepresentable {
         let indexFlags = baseConfig.indexFlags
         let additionalFlags: String
         if indexFlags.isEmpty {
@@ -80,5 +68,32 @@ extension CommandRunner {
         }
         let cmd = "--output_base=\(outputBase) \(cmd)\(additionalFlags)"
         return try bazel(baseConfig: baseConfig, rootUri: rootUri, cmd: cmd)
+    }
+}
+
+// Define a protocol that both String and Data types can conform to
+protocol ContentRepresentable {
+    var asData: Data { get }
+    var asString: String { get }
+}
+
+extension String: ContentRepresentable {
+    var asData: Data {
+        Data(self.utf8)
+    }
+
+    var asString: String {
+        return self
+    }
+}
+
+extension Data: ContentRepresentable {
+    var asData: Data {
+        self
+    }
+
+    var asString: String {
+        let str = String(data: self, encoding: .utf8) ?? ""
+        return str.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
