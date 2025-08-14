@@ -282,7 +282,6 @@ let expectedSwiftResult: [String] = [
 let expectedObjCResult: [String] = [
     "-x",
     "objective-c",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/darwin_arm64-opt-exec-ST-d57f47055a04/bin/external/apple_support+/crosstool/wrapped_clang",
     "-target",
     "arm64-apple-ios17.0-simulator",
     "-D_FORTIFY_SOURCE=1",

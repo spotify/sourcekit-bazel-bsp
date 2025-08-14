@@ -75,6 +75,15 @@ enum CompilerArgumentsProcessor {
 
         var compilerArguments: [String] = []
 
+        // drop clang and swiftc compiler call
+        // FIXME: handle other language types when adding other language support
+        var rawArguments = rawArguments
+        switch language {
+        case .swift: rawArguments.removeFirst(2)
+        case .objective_c: rawArguments.removeFirst()
+        default: break
+        }
+
         let isObjCImpl = language == .objective_c && contentToQuery.hasSuffix(".m")
         // For Obj-C, start by adding some necessary args that wouldn't show up in the aquery
         if isObjCImpl {
@@ -87,15 +96,6 @@ enum CompilerArgumentsProcessor {
 
         while index < count {
             let arg = rawArguments[index]
-
-            // Skip worker and swiftc
-            if arg.hasSuffix("/worker"),
-                index + 1 < count,
-                rawArguments[index + 1] == "swiftc"
-            {
-                index += 2
-                continue
-            }
 
             // Skip wrapped arguments. These don't work for some reason
             if arg.hasPrefix("-Xwrapped-swift") {
