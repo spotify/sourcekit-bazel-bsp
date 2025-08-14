@@ -56,7 +56,10 @@ struct ShellCommandRunner: CommandRunner {
 
         task.waitUntilExit()
 
+        logger.debug("Finished running shell")
+
         guard task.terminationStatus == 0 else {
+            logger.debug("Command failed: \(cmd)")
             let stderrString: String = String(data: stderrData, encoding: .utf8) ?? "(no stderr)"
             throw ShellCommandRunnerError.failed(cmd, stderrString)
         }

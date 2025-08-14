@@ -17,32 +17,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import Foundation
+import TodoModels
+import XCTest
 
-public struct TodoItem: Identifiable, Codable {
-    public let id: UUID
-    public var title: String
-    public var isCompleted: Bool
-    public var createdAt: Date
+@testable import MacAppLib
 
-    public init(title: String, isCompleted: Bool = false) {
-        self.id = UUID()
-        self.title = title
-        self.isCompleted = isCompleted
-        self.createdAt = Date()
+class TodoItemMacTests: XCTestCase {
+    func canReferenceMacnlyContent() {
+        let title = "Test Task"
+        _ = TodoItem(title: title)
+        XCTAssertEqual(TodoItem.macOnlyContent(), "Mac only content")
     }
-
-    #if os(watchOS)
-    public static func watchOnlyContent() -> String {
-        return "Watch only content"
-    }
-    #elseif os(iOS)
-    public static func iOSOnlyContent() -> String {
-        return "iOS only content"
-    }
-    #elseif os(macOS)
-    public static func macOnlyContent() -> String {
-        return "Mac only content"
-    }
-    #endif
 }

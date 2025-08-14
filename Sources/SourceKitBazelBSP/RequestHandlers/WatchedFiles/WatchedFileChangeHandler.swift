@@ -79,6 +79,8 @@ final class WatchedFileChangeHandler {
         // If there are any 'created' files, we need to clear the targetStore and fetch targets again
         // Otherwise, the targetStore won't know about them
         if changes.contains(where: { $0.type == .created }) {
+            let taskId = TaskId(id: "watchedFiles-\(UUID().uuidString)")
+            connection?.startWorkTask(id: taskId, title: "Indexing: Re-processing build graph")
             targetStore.clearCache()
             do {
                 _ = try targetStore.fetchTargets()
@@ -86,6 +88,7 @@ final class WatchedFileChangeHandler {
                 logger.error("Error fetching targets after file creation: \(error)")
                 // Continue processing with existing target store data
             }
+            connection?.finishTask(id: taskId, status: .ok)
         }
 
         // Now that the targetStore knows about the newly created files, we can calculate the created targets

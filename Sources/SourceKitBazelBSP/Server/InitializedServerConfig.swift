@@ -27,7 +27,6 @@ struct InitializedServerConfig: Equatable {
     let outputBase: String
     let outputPath: String
     let devDir: String
-    let sdkRoot: String
     let devToolchainPath: String
 
     var indexDatabasePath: String {

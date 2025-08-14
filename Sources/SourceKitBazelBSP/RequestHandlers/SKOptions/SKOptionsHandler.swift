@@ -64,7 +64,8 @@ final class SKOptionsHandler: InvalidatedTargetObserver {
 
     func handle(request: TextDocumentSourceKitOptionsRequest) throws -> TextDocumentSourceKitOptionsResponse? {
         let targetUri = request.target.uri
-        let bazelTarget = try targetStore.bazelTargetLabel(forBSPURI: targetUri)
+        let (bazelTarget, platform) = try targetStore.platformBuildLabel(forBSPURI: targetUri)
+        let underlyingLibrary = try targetStore.bazelTargetLabel(forBSPURI: targetUri)
 
         logger.info(
             "Fetching SKOptions for \(targetUri.stringValue), target: \(bazelTarget), language: \(request.language)"
@@ -74,7 +75,9 @@ final class SKOptionsHandler: InvalidatedTargetObserver {
             try extractor.compilerArgs(
                 forDoc: request.textDocument.uri,
                 inTarget: bazelTarget,
-                language: request.language
+                underlyingLibrary: underlyingLibrary,
+                language: request.language,
+                platform: platform
             ) ?? []
 
         // If no compiler arguments are found, return nil to avoid sourcekit indexing with no input files
