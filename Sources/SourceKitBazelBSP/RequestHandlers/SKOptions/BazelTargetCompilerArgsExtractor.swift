@@ -102,7 +102,10 @@ final class BazelTargetCompilerArgsExtractor {
 
         // Then, determine the SDK root based on the platform the target is built for
         let platformSdk = platform.sdkName
-        let sdkRoot = try commandRunner.run("xcrun --sdk \(platformSdk) --show-sdk-path")
+        let sdkRoot: String = try commandRunner.run(
+            "xcrun --sdk \(platformSdk) --show-sdk-path",
+            cwd: config.rootUri
+        )
 
         // Then, extract the compiler arguments for the target file from the resulting aquery.
         let processedArgs = CompilerArgumentsProcessor.extractAndProcessCompilerArgs(

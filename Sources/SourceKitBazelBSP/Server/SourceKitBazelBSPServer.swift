@@ -94,7 +94,7 @@ package final class SourceKitBazelBSPServer {
         // OnWatchedFilesDidChangeNotification
         let watchedFileChangeHandler = WatchedFileChangeHandler(
             targetStore: targetStore,
-            observers: [skOptionsHandler],
+            observers: [prepareHandler, skOptionsHandler],
             connection: connection
         )
         registry.register(notificationHandler: watchedFileChangeHandler.onWatchedFilesDidChange)

@@ -52,7 +52,7 @@ final class BazelTargetStoreFake: BazelTargetStore {
         unimplemented()
     }
 
-    func platformBuildLabel(forBSPURI uri: DocumentURI) throws -> String {
+    func platformBuildLabel(forBSPURI uri: DocumentURI) throws -> (String, TopLevelRuleType) {
         unimplemented()
     }
 

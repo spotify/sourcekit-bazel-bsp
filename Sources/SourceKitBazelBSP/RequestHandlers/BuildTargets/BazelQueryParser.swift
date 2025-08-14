@@ -178,7 +178,7 @@ enum BazelQueryParser {
 extension String {
     /// Converts the target name into a URI and returns a unique target id.
     ///
-    /// file://<path-to-root>/<package-name>___<target-name>_ios<build-test-suffix>
+    /// file://<path-to-root>/<package-name>___<target-name>
     ///
     func toTargetId(rootUri: String) throws -> URI {
         let (packageName, targetName) = try splitTargetLabel()

@@ -32,6 +32,10 @@ final class PrepareHandler {
     private let commandRunner: CommandRunner
     private weak var connection: LSPConnection?
 
+    // SourceKit-LSP sometimes re-shuffles tasks mid-execution, so we need to
+    // cache things from our side as well to prevent duplicated builds.
+    private var buildCache: Set<URI> = []
+
     init(
         initializedConfig: InitializedServerConfig,
         targetStore: BazelTargetStore,
@@ -46,10 +50,10 @@ final class PrepareHandler {
 
     func prepareTarget(_ request: BuildTargetPrepareRequest, _ id: RequestID) throws -> VoidResponse {
 
-        let targetsToBuild = request.targets.map { $0.uri }
+        let targetsToBuild = request.targets.map { $0.uri }.filter { !buildCache.contains($0) }
 
         guard !targetsToBuild.isEmpty else {
-            logger.info("No targets to build, skipping redundant build")
+            logger.info("No uncached targets to build, skipping redundant build")
             return VoidResponse()
         }
 
@@ -58,6 +62,7 @@ final class PrepareHandler {
         do {
             try prepare(bspURIs: targetsToBuild)
             connection?.finishTask(id: taskId, status: .ok)
+            buildCache.formUnion(targetsToBuild)
             return VoidResponse()
         } catch {
             connection?.finishTask(id: taskId, status: .error)
@@ -80,5 +85,17 @@ final class PrepareHandler {
         )
 
         logger.info("Finished building targets!")
+    }
+}
+
+extension PrepareHandler: InvalidatedTargetObserver {
+    func invalidate(targets: Set<AffectedTarget>) throws {
+        // Extract just the URIs from the affected targets for the build cache
+        let targetURIs = Set(targets.map(\.uri))
+        buildCache.subtract(targetURIs)
+    }
+
+    func invalidateBuildCache() {
+        buildCache.removeAll()
     }
 }
