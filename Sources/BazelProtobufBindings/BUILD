@@ -8,5 +8,5 @@ swift_library(
     deps = [
         "@swiftpkg_swift_protobuf//:SwiftProtobuf",
     ],
-    package_name = "BazelProtobufBindings",
+    package_name = "sourcekit-bazel-bsp",
 )

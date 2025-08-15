@@ -10,5 +10,5 @@ swift_library(
         "@swiftpkg_sourcekit_lsp//:BuildServerProtocol",
         "@swiftpkg_sourcekit_lsp//:LSPBindings",
     ],
-    package_name = "SourceKitBazelBSP",
+    package_name = "sourcekit-bazel-bsp",
 )

@@ -9,4 +9,5 @@ swift_binary(
         "@swiftpkg_swift_protobuf//:SwiftProtobuf",
     ],
     visibility = ["//visibility:public"],
+    package_name = "sourcekit-bazel-bsp",
 )
