@@ -487,7 +487,7 @@
         "bzlTransitiveDigest": "+z+pZIYCLcHGxGMADT76Mme+Sq6/ptcE1QGsNUmgRZ4=",
         "usagesDigest": "T4dq2DHED4ab12ozS9tPTQVfZ9Cam3vb0tp0kK63WJQ=",
         "recordedFileInputs": {
-          "@@//Package.resolved": "b0125b454baa8c13cacd514d12451cc52d8b340579d84d3e8fbe0f123a6f614d"
+          "@@//Package.resolved": "2945e865bd82369286eac444168b30c8b557d4a6112b1c2d6fa572099e99868e"
         },
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -525,7 +525,7 @@
             "repoRuleId": "@@rules_swift_package_manager+//swiftpkg/internal:swift_package.bzl%swift_package",
             "attributes": {
               "bazel_package_name": "swiftpkg_sourcekit_lsp",
-              "commit": "5df8f3d9ac0e647238ed4203e8f399ae5a095aa3",
+              "commit": "6022af05e92b1fb9e3e17a09753d6434d8f0dc9b",
               "remote": "https://github.com/apple/sourcekit-lsp",
               "version": "",
               "env": {},
