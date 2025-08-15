@@ -3,9 +3,9 @@ def _setup_sourcekit_bsp_impl(ctx):
     bsp_config_argv = [
         ".bsp/sourcekit-bazel-bsp",
         "serve",
-        "--target",
     ]
     for target in ctx.attr.targets:
+        bsp_config_argv.append("--target")
         bsp_config_argv.append(target.label)
     bsp_config_argv.append("--bazel-wrapper")
     bsp_config_argv.append(ctx.attr.bazel_wrapper)
