@@ -12,3 +12,4 @@ Package.resolved
 __pycache__
 /.vscode/
 swift-cmark
+bazel-*
