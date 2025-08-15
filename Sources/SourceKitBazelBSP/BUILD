@@ -8,6 +8,7 @@ swift_library(
     deps = [
         "//Sources/BazelProtobufBindings",
         "@swiftpkg_sourcekit_lsp//:BuildServerProtocol",
+        "@swiftpkg_sourcekit_lsp//:LSPBindings",
     ],
     package_name = "SourceKitBazelBSP",
 )
