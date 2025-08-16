@@ -30,6 +30,7 @@ enum CompilerArgumentsProcessor {
         bazelTarget: String,
         contentToQuery: String,
         language: Language,
+        sdkRoot: String,
         initializedConfig: InitializedServerConfig
     ) -> [String]? {
         guard let target = aqueryOutput.targets.first(where: { $0.label == bazelTarget }) else {
@@ -47,6 +48,7 @@ enum CompilerArgumentsProcessor {
             rawArguments: rawArguments,
             contentToQuery: contentToQuery,
             language: language,
+            sdkRoot: sdkRoot,
             initializedConfig: initializedConfig
         )
 
@@ -64,10 +66,10 @@ enum CompilerArgumentsProcessor {
         rawArguments: [String],
         contentToQuery: String,
         language: Language,
+        sdkRoot: String,
         initializedConfig: InitializedServerConfig
     ) -> [String] {
 
-        let sdkRoot = initializedConfig.sdkRoot
         let devDir = initializedConfig.devDir
         let outputPath = initializedConfig.outputPath
         let rootUri = initializedConfig.rootUri

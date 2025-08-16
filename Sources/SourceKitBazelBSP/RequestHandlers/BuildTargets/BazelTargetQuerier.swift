@@ -26,23 +26,27 @@ enum BazelTargetQuerierError: Error, LocalizedError {
     case noKinds
     case noTargets
     case invalidQueryOutput
+    case unsupportedTopLevelRuleType(String, String)
 
     var errorDescription: String? {
         switch self {
         case .noKinds: return "A list of kinds is necessary to query targets"
         case .noTargets: return "A list of targets is necessary to query targets"
         case .invalidQueryOutput: return "Query output is not valid XML"
+        case .unsupportedTopLevelRuleType(let ruleType, let target):
+            return "Unsupported top-level rule type: \(ruleType) for target: \(target)"
         }
     }
 }
 
 /// Small abstraction to handle and cache the results of bazel queries.
-///
-/// FIXME: Currently uses XML, should use proto instead so that we can organize and test this properly
 final class BazelTargetQuerier {
 
     private let commandRunner: CommandRunner
+
+    private var topLevelRuleCache = [String: [(String, TopLevelRuleType)]]()
     private var queryCache = [String: [BlazeQuery_Target]]()
+    private var dependencyLabelsCache = [String: [String]]()
 
     static func queryDepsString(forTargets targets: [String]) -> String {
         var query = ""
@@ -60,7 +64,40 @@ final class BazelTargetQuerier {
         self.commandRunner = commandRunner
     }
 
-    func queryTargets(
+    func queryTopLevelRuleTypes(
+        forConfig config: BaseServerConfig,
+        rootUri: String,
+    ) throws -> [(String, TopLevelRuleType)] {
+        let targetQuery = config.targets.joined(separator: " union ")
+
+        logger.info("Processing top level rules request for \(targetQuery)")
+
+        if let cached = topLevelRuleCache[targetQuery] {
+            logger.debug("Returning cached results")
+            return cached
+        }
+
+        let cmd = "query \"kind('rule', \(targetQuery))\" --output label_kind"
+        let output: String = try commandRunner.run(config.bazelWrapper + " " + cmd, cwd: rootUri)
+        let parsed = output.components(separatedBy: "\n")
+        var topLevelTargetData: [(String, TopLevelRuleType)] = []
+        for line in parsed {
+            let parts = line.split(separator: " ")
+            let kind = String(parts[0])
+            let target = String(parts[2])
+            guard let ruleType = TopLevelRuleType(rawValue: kind) else {
+                throw BazelTargetQuerierError.unsupportedTopLevelRuleType(kind, target)
+            }
+            topLevelTargetData.append((target, ruleType))
+        }
+
+        topLevelRuleCache[targetQuery] = topLevelTargetData
+
+        return topLevelTargetData
+    }
+
+    func queryTargetDependencies(
+        forTargets targets: [String],
         forConfig config: BaseServerConfig,
         rootUri: String,
         kinds: Set<String>
@@ -69,12 +106,12 @@ final class BazelTargetQuerier {
             throw BazelTargetQuerierError.noKinds
         }
 
-        guard !config.targets.isEmpty else {
+        guard !targets.isEmpty else {
             throw BazelTargetQuerierError.noTargets
         }
 
         let kindsFilter = kinds.sorted().joined(separator: "|")
-        let depsQuery = Self.queryDepsString(forTargets: config.targets)
+        let depsQuery = Self.queryDepsString(forTargets: targets)
         let cacheKey = "\(kindsFilter)+\(depsQuery)"
 
         logger.info("Processing query request for \(cacheKey)")
@@ -94,13 +131,44 @@ final class BazelTargetQuerier {
             throw BazelTargetQuerierError.invalidQueryOutput
         }
 
-        logger.debug("Parsing BlazeQuery_Target: \(targets.count, privacy: .public)")
+        logger.debug("Parsed \(targets.count) targets")
         queryCache[cacheKey] = targets
 
         return targets
     }
 
+    func queryDependencyLabels(
+        ofTarget target: String,
+        forConfig config: BaseServerConfig,
+        rootUri: String,
+        kinds: Set<String>
+    ) throws -> [String] {
+        guard !kinds.isEmpty else {
+            throw BazelTargetQuerierError.noKinds
+        }
+
+        let kindsFilter = kinds.sorted().joined(separator: "|")
+
+        let cacheKey = "\(kindsFilter)+\(target)"
+
+        logger.info("Processing dependency labels request for \(cacheKey)")
+
+        if let cached = dependencyLabelsCache[cacheKey] {
+            logger.debug("Returning cached results")
+            return cached
+        }
+
+        let cmd = "query \"kind('\(kindsFilter)', deps(\(target)))\" --output label"
+        let output: String = try commandRunner.run(config.bazelWrapper + " " + cmd, cwd: rootUri)
+        let result = output.components(separatedBy: "\n")
+
+        dependencyLabelsCache[cacheKey] = result
+        return result
+    }
+
     func clearCache() {
+        topLevelRuleCache = [:]
         queryCache = [:]
+        dependencyLabelsCache = [:]
     }
 }

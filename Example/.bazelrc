@@ -19,7 +19,6 @@ common --features=swift.use_global_module_cache
 common --features=swift.emit_swiftsourceinfo
 build --noworker_sandboxing
 build --spawn_strategy=remote,worker,local
-build --symlink_prefix=custom-out/
 
 # Only for BSP builds
 common:index_build --experimental_convenience_symlinks=ignore

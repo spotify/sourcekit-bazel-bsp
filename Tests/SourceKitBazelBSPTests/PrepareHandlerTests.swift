@@ -47,7 +47,6 @@ struct PrepareHandlerTests {
             outputBase: "/tmp/output_base",
             outputPath: "/tmp/output_path",
             devDir: "/Applications/Xcode.app/Contents/Developer",
-            sdkRoot: "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.sdk",
             devToolchainPath: "/a/b/XcodeDefault.xctoolchain/"
         )
 
@@ -56,7 +55,7 @@ struct PrepareHandlerTests {
 
         let handler = PrepareHandler(
             initializedConfig: initializedConfig,
-            targetStore: BazelTargetStore(initializedConfig: initializedConfig),
+            targetStore: BazelTargetStoreImpl(initializedConfig: initializedConfig),
             commandRunner: commandRunner,
             connection: connection
         )
@@ -87,7 +86,6 @@ struct PrepareHandlerTests {
             outputBase: "/tmp/output_base",
             outputPath: "/tmp/output_path",
             devDir: "/Applications/Xcode.app/Contents/Developer",
-            sdkRoot: "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.sdk",
             devToolchainPath: "/a/b/XcodeDefault.xctoolchain/"
         )
 
@@ -96,7 +94,7 @@ struct PrepareHandlerTests {
 
         let handler = PrepareHandler(
             initializedConfig: initializedConfig,
-            targetStore: BazelTargetStore(initializedConfig: initializedConfig),
+            targetStore: BazelTargetStoreImpl(initializedConfig: initializedConfig),
             commandRunner: commandRunner,
             connection: connection
         )

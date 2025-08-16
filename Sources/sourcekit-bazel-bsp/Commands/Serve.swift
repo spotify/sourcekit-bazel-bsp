@@ -54,11 +54,15 @@ struct Serve: ParsableCommand {
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
+        // If the user provided no specific targets, try to discover them
+        // in the workspace.
         let targets = try {
             if !target.isEmpty {
                 return target
             }
-            return try discoverTargets(for: .iosApplication, .iosUnitTest, bazelWrapper: bazelWrapper)
+            return try BazelTargetDiscoverer.discoverTargets(
+                bazelWrapper: bazelWrapper
+            )
         }()
 
         let config = BaseServerConfig(

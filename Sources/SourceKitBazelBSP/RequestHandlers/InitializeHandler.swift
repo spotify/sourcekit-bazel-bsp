@@ -21,7 +21,7 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
-package let sourcekitBazelBSPVersion = "0.0.2"
+package let sourcekitBazelBSPVersion = "0.0.3"
 private let logger = makeFileLevelBSPLogger()
 
 enum InitializeHandlerError: Error, LocalizedError {
@@ -103,11 +103,9 @@ final class InitializeHandler {
 
         // Collecting the rest of the env's details
         let devDir: String = try commandRunner.run("xcode-select --print-path")
-        let sdkRoot: String = try commandRunner.run("xcrun --sdk iphonesimulator --show-sdk-path")
         let toolchain = try getToolchainPath(with: commandRunner)
 
         logger.debug("devDir: \(devDir)")
-        logger.debug("sdkRoot: \(sdkRoot)")
         logger.debug("toolchain: \(toolchain)")
 
         return InitializedServerConfig(
@@ -116,7 +114,6 @@ final class InitializeHandler {
             outputBase: outputBase,
             outputPath: outputPath,
             devDir: devDir,
-            sdkRoot: sdkRoot,
             devToolchainPath: toolchain
         )
     }
@@ -143,7 +140,10 @@ final class InitializeHandler {
         let rootUri = initializedConfig.rootUri
         if let filesToWatch = initializedConfig.baseConfig.filesToWatch {
             watchers = filesToWatch.components(separatedBy: ",").map {
-                FileSystemWatcher(globPattern: rootUri + "/" + $0, kind: [.change, .create, .delete])
+                FileSystemWatcher(
+                    globPattern: rootUri + "/" + $0,
+                    kind: [.change, .create, .delete]
+                )
             }
         } else {
             watchers = nil

@@ -30,8 +30,6 @@ struct BazelTargetCompilerArgsExtractorTests {
     private static func makeMockExtractor() -> (BazelTargetCompilerArgsExtractor, CommandRunnerFake, String) {
         let mockRunner = CommandRunnerFake()
         let mockRootUri = "/Users/user/Documents/demo-ios-project"
-        let mockSdkRoot =
-            "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
         let mockDevDir = "/Applications/Xcode.app/Contents/Developer"
         let mockOutputPath = "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out"
         let mockOutputBase = "/private/var/tmp/_bazel_user/hash123"
@@ -48,10 +46,10 @@ struct BazelTargetCompilerArgsExtractorTests {
             outputBase: mockOutputBase,
             outputPath: mockOutputPath,
             devDir: mockDevDir,
-            sdkRoot: mockSdkRoot,
             devToolchainPath: mockDevToolchainPath
         )
         let extractor = BazelTargetCompilerArgsExtractor(
+            commandRunner: mockRunner,
             aquerier: BazelTargetAquerier(commandRunner: mockRunner),
             config: config
         )
@@ -64,12 +62,21 @@ struct BazelTargetCompilerArgsExtractorTests {
         let expectedAQuery =
             "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:HelloWorldLib, deps(//HelloWorld:HelloWorldLib_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects --output proto"
         mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
+        let expectedSdkRoot =
+            "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
+        mockRunner.setResponse(
+            for: "xcrun --sdk iphonesimulator --show-sdk-path",
+            cwd: mockRootUri,
+            response: expectedSdkRoot
+        )
 
         let result = try #require(
             try extractor.compilerArgs(
                 forDoc: URI(filePath: "not relevant for Swift", isDirectory: false),
                 inTarget: "//HelloWorld:HelloWorldLib_ios_skbsp",
+                underlyingLibrary: "//HelloWorld:HelloWorldLib",
                 language: .swift,
+                platform: .iosApplication,
             )
         )
         #expect(result == expectedSwiftResult)
@@ -79,8 +86,15 @@ struct BazelTargetCompilerArgsExtractorTests {
     func extractsAndProcessesCompilerArguments_complexRealWorldObjCExample() throws {
         let (extractor, mockRunner, mockRootUri) = Self.makeMockExtractor()
         let expectedAQuery =
-            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:TodoObjCSupport, deps(//HelloWorld:TodoObjCSupport_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects --output proto"
-        mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryObjcOutput)
+            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:TodoObjCSupport, deps(//HelloWorld:TodoObjCSupport_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects"
+        mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
+        let expectedSdkRoot =
+            "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
+        mockRunner.setResponse(
+            for: "xcrun --sdk iphonesimulator --show-sdk-path",
+            cwd: mockRootUri,
+            response: expectedSdkRoot
+        )
 
         let result = try #require(
             try extractor.compilerArgs(
@@ -90,7 +104,9 @@ struct BazelTargetCompilerArgsExtractorTests {
                     isDirectory: false
                 ),
                 inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
+                underlyingLibrary: "//HelloWorld:TodoObjCSupport",
                 language: .objective_c,
+                platform: .iosApplication,
             )
         )
         #expect(result == expectedObjCResult)
@@ -107,7 +123,9 @@ struct BazelTargetCompilerArgsExtractorTests {
                 isDirectory: false
             ),
             inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
+            underlyingLibrary: "//HelloWorld:TodoObjCSupport",
             language: .objective_c,
+            platform: .iosApplication,
         )
         #expect(result == nil)
     }
@@ -118,6 +136,13 @@ struct BazelTargetCompilerArgsExtractorTests {
         let expectedAQuery =
             "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:TodoObjCSupport, deps(//HelloWorld:TodoObjCSupport_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects --output proto"
         mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
+        let expectedSdkRoot =
+            "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
+        mockRunner.setResponse(
+            for: "xcrun --sdk iphonesimulator --show-sdk-path",
+            cwd: mockRootUri,
+            response: expectedSdkRoot
+        )
 
         let result = try extractor.compilerArgs(
             forDoc: URI(
@@ -125,7 +150,9 @@ struct BazelTargetCompilerArgsExtractorTests {
                 isDirectory: false
             ),
             inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
+            underlyingLibrary: "//HelloWorld:TodoObjCSupport",
             language: .objective_c,
+            platform: .iosApplication,
         )
         #expect(result == nil)
     }
@@ -141,7 +168,9 @@ struct BazelTargetCompilerArgsExtractorTests {
                     isDirectory: false
                 ),
                 inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
+                underlyingLibrary: "//HelloWorld:TodoObjCSupport",
                 language: .objective_c,
+                platform: .iosApplication,
             )
         }
         #expect(
@@ -156,11 +185,20 @@ struct BazelTargetCompilerArgsExtractorTests {
         let expectedAQuery =
             "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:SomethingElseLib, deps(//HelloWorld:SomethingElseLib_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects --output proto"
         mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
+        let expectedSdkRoot =
+            "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
+        mockRunner.setResponse(
+            for: "xcrun --sdk iphonesimulator --show-sdk-path",
+            cwd: mockRootUri,
+            response: expectedSdkRoot
+        )
 
         let result = try extractor.compilerArgs(
             forDoc: URI(filePath: "not relevant for Swift", isDirectory: false),
             inTarget: "//HelloWorld:SomethingElseLib_ios_skbsp",
+            underlyingLibrary: "//HelloWorld:SomethingElseLib",
             language: .swift,
+            platform: .iosApplication,
         )
         #expect(result == nil)
     }
@@ -171,21 +209,30 @@ struct BazelTargetCompilerArgsExtractorTests {
         let expectedAQuery =
             "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:HelloWorldLib, deps(//HelloWorld:HelloWorldLib_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects --output proto"
         mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
+        let expectedSdkRoot =
+            "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
+        mockRunner.setResponse(
+            for: "xcrun --sdk iphonesimulator --show-sdk-path",
+            cwd: mockRootUri,
+            response: expectedSdkRoot
+        )
 
-        func run(_ lib: String) -> [String]? {
+        func run(_ lib: String, _ underlyingLibrary: String) -> [String]? {
             return try? extractor.compilerArgs(
                 forDoc: URI(filePath: "not relevant for Swift", isDirectory: false),
                 inTarget: lib,
+                underlyingLibrary: underlyingLibrary,
                 language: .swift,
+                platform: .iosApplication,
             )
         }
 
-        let result1 = try #require(run("//HelloWorld:HelloWorldLib_ios_skbsp"))
+        let result1 = try #require(run("//HelloWorld:HelloWorldLib_ios_skbsp", "//HelloWorld:HelloWorldLib"))
 
         // Remove the mock aquery responses to indicate that we skipped that section of the logic entirely
         mockRunner.reset()
 
-        let result2 = try #require(run("//HelloWorld:HelloWorldLib_ios_skbsp"))
+        let result2 = try #require(run("//HelloWorld:HelloWorldLib_ios_skbsp", "//HelloWorld:HelloWorldLib"))
         #expect(result1 == result2)
     }
 }

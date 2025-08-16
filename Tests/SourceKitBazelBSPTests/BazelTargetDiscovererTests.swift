@@ -22,37 +22,37 @@ import Testing
 
 @testable import SourceKitBazelBSP
 
-struct DiscoverTargetsTests {
+struct BazelTargetDiscovererTests {
     @Test("Discovers single rule type with multiple targets")
     func discoverSingleRuleTypeWithMultipleTargets() throws {
         let commandRunner = CommandRunnerFake()
         commandRunner.setResponse(
-            for: "bazel query 'kind(ios_application, ...)' --output label",
+            for: "fakeBazel query 'kind(ios_application, ...)' --output label",
             response: "//Example/HelloWorld:HelloWorld\n//Example/AnotherApp:AnotherApp\n"
         )
 
-        let targets = try discoverTargetsInternal(
+        let targets = try BazelTargetDiscoverer.discoverTargets(
             for: [.iosApplication],
-            bazelWrapper: "bazel",
+            bazelWrapper: "fakeBazel",
             commandRunner: commandRunner
         )
 
         #expect(targets == ["//Example/HelloWorld:HelloWorld", "//Example/AnotherApp:AnotherApp"])
         #expect(commandRunner.commands.count == 1)
-        #expect(commandRunner.commands[0].command == "bazel query 'kind(ios_application, ...)' --output label")
+        #expect(commandRunner.commands[0].command == "fakeBazel query 'kind(ios_application, ...)' --output label")
     }
 
     @Test("Discovers multiple rule types")
     func discoverMultipleRuleTypes() throws {
         let commandRunner = CommandRunnerFake()
         commandRunner.setResponse(
-            for: "bazel query 'kind(ios_application, ...) + kind(ios_unit_test, ...)' --output label",
+            for: "fakeBazel query 'kind(ios_application, ...) + kind(ios_unit_test, ...)' --output label",
             response: "//Example/HelloWorld:HelloWorld\n//Example/HelloWorldTests:HelloWorldTests\n"
         )
 
-        let targets = try discoverTargetsInternal(
+        let targets = try BazelTargetDiscoverer.discoverTargets(
             for: [.iosApplication, .iosUnitTest],
-            bazelWrapper: "bazel",
+            bazelWrapper: "fakeBazel",
             commandRunner: commandRunner
         )
 
@@ -60,7 +60,7 @@ struct DiscoverTargetsTests {
         #expect(commandRunner.commands.count == 1)
         #expect(
             commandRunner.commands[0].command
-                == "bazel query 'kind(ios_application, ...) + kind(ios_unit_test, ...)' --output label"
+                == "fakeBazel query 'kind(ios_application, ...) + kind(ios_unit_test, ...)' --output label"
         )
     }
 
@@ -68,14 +68,14 @@ struct DiscoverTargetsTests {
     func throwsErrorWhenNoTargetsFound() throws {
         let commandRunner = CommandRunnerFake()
         commandRunner.setResponse(
-            for: "bazel query 'kind(ios_application, ...)' --output label",
+            for: "fakeBazel query 'kind(ios_application, ...)' --output label",
             response: "\n  \n"
         )
 
-        #expect(throws: DiscoverTargetsError.noTargetsDiscovered) {
-            try discoverTargetsInternal(
+        #expect(throws: BazelTargetDiscovererError.noTargetsDiscovered) {
+            try BazelTargetDiscoverer.discoverTargets(
                 for: [.iosApplication],
-                bazelWrapper: "bazel",
+                bazelWrapper: "fakeBazel",
                 commandRunner: commandRunner
             )
         }

@@ -32,6 +32,8 @@ final class PrepareHandler {
     private let commandRunner: CommandRunner
     private weak var connection: LSPConnection?
 
+    // SourceKit-LSP sometimes re-shuffles tasks mid-execution, so we need to
+    // cache things from our side as well to prevent duplicated builds.
     private var buildCache: Set<URI> = []
 
     init(
@@ -59,8 +61,8 @@ final class PrepareHandler {
         connection?.startWorkTask(id: taskId, title: "Indexing: Building targets")
         do {
             try prepare(bspURIs: targetsToBuild)
-            buildCache.formUnion(targetsToBuild)
             connection?.finishTask(id: taskId, status: .ok)
+            buildCache.formUnion(targetsToBuild)
             return VoidResponse()
         } catch {
             connection?.finishTask(id: taskId, status: .error)
@@ -69,8 +71,8 @@ final class PrepareHandler {
     }
 
     func prepare(bspURIs: [URI]) throws {
-        let labelsToBuild = try bspURIs.map { try targetStore.bazelTargetLabel(forBSPURI: $0) }
-        try build(bazelLabels: labelsToBuild)
+        let labels = try bspURIs.map { try targetStore.platformBuildLabel(forBSPURI: $0).0 }
+        try build(bazelLabels: labels)
     }
 
     func build(bazelLabels labelsToBuild: [String]) throws {

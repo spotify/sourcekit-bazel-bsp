@@ -17,17 +17,25 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import BuildServerProtocol
-import LanguageServerProtocol
+import Foundation
 
-/// Protocol defining the minimal interface needed for a target store
-protocol BazelTargetStoreProtocol {
-    /// Clear any cached target information
-    func clearCache()
+@testable import SourceKitBazelBSP
 
-    /// Fetch and update target information from Bazel
-    func fetchTargets() throws -> [BuildTarget]
+final class InvalidatedTargetObserverFake: InvalidatedTargetObserver {
 
-    /// Get the BSP URIs of targets that contain a given source file
-    func bspURIs(containingSrc src: URI) throws -> [URI]
+    enum TestError: Error {
+        case intentional
+    }
+
+    var invalidatedTargets: Set<AffectedTarget> = []
+    var invalidateCalled = false
+    var shouldThrowOnInvalidate = false
+
+    func invalidate(targets: Set<AffectedTarget>) throws {
+        invalidateCalled = true
+        invalidatedTargets = targets
+        if shouldThrowOnInvalidate {
+            throw TestError.intentional
+        }
+    }
 }
