@@ -33,11 +33,11 @@ enum CompilerArgumentsProcessor {
         initializedConfig: InitializedServerConfig
     ) -> [String]? {
         guard let target = aqueryOutput.targets.first(where: { $0.label == bazelTarget }) else {
-            logger.debug("\(CompilerArgError.targetNotFound(bazelTarget)), privacy: .public")
+            logger.debug("Target: \(bazelTarget, privacy: .private) not found.")
             return nil
         }
         guard let action = aqueryOutput.actions.first(where: { $0.targetID == target.id }) else {
-            logger.debug("\(CompilerArgError.actionNotFound(bazelTarget)), privacy: .public")
+            logger.debug("Action for \(bazelTarget, privacy: .private) not found.")
             return nil
         }
 
@@ -75,15 +75,6 @@ enum CompilerArgumentsProcessor {
 
         var compilerArguments: [String] = []
 
-        // drop clang and swiftc compiler call
-        // FIXME: handle other language types when adding other language support
-        var rawArguments = rawArguments
-        switch language {
-        case .swift: rawArguments.removeFirst(2)
-        case .objective_c: rawArguments.removeFirst()
-        default: break
-        }
-
         let isObjCImpl = language == .objective_c && contentToQuery.hasSuffix(".m")
         // For Obj-C, start by adding some necessary args that wouldn't show up in the aquery
         if isObjCImpl {
@@ -93,6 +84,13 @@ enum CompilerArgumentsProcessor {
 
         var index = 0
         let count = rawArguments.count
+
+        // drop clang and swiftc compiler call
+        switch language {
+        case .swift: index = 2
+        case .objective_c: index = 1
+        default: break
+        }
 
         while index < count {
             let arg = rawArguments[index]
@@ -207,16 +205,5 @@ enum CompilerArgumentsProcessor {
             return
         }
         lines[idx + 1] = new
-    }
-}
-
-enum CompilerArgError: Error, CustomStringConvertible {
-    case targetNotFound(String)
-    case actionNotFound(String)
-    var description: String {
-        switch self {
-        case .targetNotFound(let target): "Target: \(target) not found."
-        case .actionNotFound(let target): "Action not found for target: \(target)."
-        }
     }
 }
