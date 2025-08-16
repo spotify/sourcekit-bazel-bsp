@@ -20,16 +20,10 @@
 import Foundation
 
 public protocol CommandRunner {
-    func run(_ cmd: String, cwd: String?) throws -> Data
+    func run<T: DataConvertible>(_ cmd: String, cwd: String?) throws -> T
 }
 
 extension CommandRunner {
-    func run(_ cmd: String, cwd: String?) throws -> String {
-        let data: Data = try run(cmd, cwd: cwd)
-        let str = String(data: data, encoding: .utf8) ?? ""
-        return str.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
     func run(_ cmd: String) throws -> String {
         try run(cmd, cwd: nil)
     }
@@ -38,12 +32,12 @@ extension CommandRunner {
 // MARK: Bazel-related helpers
 
 extension CommandRunner {
-    func bazel(baseConfig: BaseServerConfig, rootUri: String, cmd: String) throws -> some ContentRepresentable {
+    func bazel<T: DataConvertible>(baseConfig: BaseServerConfig, rootUri: String, cmd: String) throws -> T {
         try run(baseConfig.bazelWrapper + " " + cmd, cwd: rootUri)
     }
 
     /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.
-    func bazelIndexAction(initializedConfig: InitializedServerConfig, cmd: String) throws -> some ContentRepresentable {
+    func bazelIndexAction<T: DataConvertible>(initializedConfig: InitializedServerConfig, cmd: String) throws -> T {
         return try bazelIndexAction(
             baseConfig: initializedConfig.baseConfig,
             outputBase: initializedConfig.outputBase,
@@ -53,12 +47,12 @@ extension CommandRunner {
     }
 
     /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.
-    func bazelIndexAction(
+    func bazelIndexAction<T: DataConvertible>(
         baseConfig: BaseServerConfig,
         outputBase: String,
         cmd: String,
         rootUri: String,
-    ) throws -> some ContentRepresentable {
+    ) throws -> T {
         let indexFlags = baseConfig.indexFlags
         let additionalFlags: String
         if indexFlags.isEmpty {
@@ -71,29 +65,19 @@ extension CommandRunner {
     }
 }
 
-// Define a protocol that both String and Data types can conform to
-protocol ContentRepresentable {
-    var asData: Data { get }
-    var asString: String { get }
+public protocol DataConvertible {
+    static func convert(from data: Data) -> Self
 }
 
-extension String: ContentRepresentable {
-    var asData: Data {
-        Data(self.utf8)
-    }
-
-    var asString: String {
-        return self
-    }
-}
-
-extension Data: ContentRepresentable {
-    var asData: Data {
-        self
-    }
-
-    var asString: String {
-        let str = String(data: self, encoding: .utf8) ?? ""
+extension String: DataConvertible {
+    public static func convert(from data: Data) -> Self {
+        let str = String(data: data, encoding: .utf8) ?? ""
         return str.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+extension Data: DataConvertible {
+    public static func convert(from data: Data) -> Self {
+        return data
     }
 }

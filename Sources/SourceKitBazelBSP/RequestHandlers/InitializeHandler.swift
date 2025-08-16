@@ -81,7 +81,6 @@ final class InitializeHandler {
         logger.debug("rootUri: \(rootUri)")
         let regularOutputBase = URL(
             fileURLWithPath: try commandRunner.bazel(baseConfig: baseConfig, rootUri: rootUri, cmd: "info output_base")
-                .asString
         )
         logger.debug("regularOutputBase: \(regularOutputBase)")
 
@@ -93,12 +92,12 @@ final class InitializeHandler {
         logger.debug("outputBase: \(outputBase)")
 
         // Now, get the full output path based on the above output base.
-        let outputPath = try commandRunner.bazelIndexAction(
+        let outputPath: String = try commandRunner.bazelIndexAction(
             baseConfig: baseConfig,
             outputBase: outputBase,
             cmd: "info output_path",
             rootUri: rootUri
-        ).asString
+        )
         logger.debug("outputPath: \(outputPath)")
 
         // Collecting the rest of the env's details
