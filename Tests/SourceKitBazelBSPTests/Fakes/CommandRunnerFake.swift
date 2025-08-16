@@ -47,7 +47,7 @@ final class CommandRunnerFake: CommandRunner {
 
     func setError(for command: String, cwd: String? = nil, error: Error) { errors[key(for: command, cwd: cwd)] = error }
 
-    func run(_ cmd: String, cwd: String?) throws -> Data {
+    func run<T: DataConvertible>(_ cmd: String, cwd: String?) throws -> T {
         commands.append((command: cmd, cwd: cwd))
 
         let cacheKey = key(for: cmd, cwd: cwd)
@@ -57,7 +57,7 @@ final class CommandRunnerFake: CommandRunner {
             throw CommandRunnerFakeError.unregisteredCommand(cmd, cwd)
         }
 
-        return response
+        return T.convert(from: response)
     }
 
     private func key(for command: String, cwd: String?) -> String { return command + "|" + (cwd ?? "nil") }

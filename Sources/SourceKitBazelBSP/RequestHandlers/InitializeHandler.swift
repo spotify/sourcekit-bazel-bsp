@@ -92,7 +92,7 @@ final class InitializeHandler {
         logger.debug("outputBase: \(outputBase)")
 
         // Now, get the full output path based on the above output base.
-        let outputPath = try commandRunner.bazelIndexAction(
+        let outputPath: String = try commandRunner.bazelIndexAction(
             baseConfig: baseConfig,
             outputBase: outputBase,
             cmd: "info output_path",
