@@ -34,9 +34,35 @@
 - Make sure all transitive libraries you'd like to use the BSP for have accompanying `(platform)_build_test` rules that directly targets them and are named `(lib_name)_ios_skbsp`. Only iOS rules are supported as of writing.
   - This is because Bazel is currently missing a couple of important features we need in order to make this work in a clean way. This requirement can thus be seen as temporary, and you can expect it to be removed in the future as we evolve the tool and those missing features are introduced.
 - Download and install [the official Swift extension](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) for Cursor / VSCode.
-- Copy the .bsp/ folder on this repository to the root of the repository you'd like to use this tool for.
-- Edit the `argv` fields in `.bsp/config.json` to match the details for your app / setup. You can see all available options by running `sourcekit-bazel-bsp serve --help`.
 - On Cursor / VSCode, open a workspace containing the repository in question.
+- Integrate BSP Server:
+  - Automated (suggested)
+    - Add the following to your `MODULE.bazel` file:
+
+    ```python
+    bazel_dep(name = "sourcekit_bazel_bsp", version = "0.0.1", repo_name = "sourcekit_bazel_bsp")
+    ```
+
+    - Define a `setup_sourcekit_bsp` in a BUILD.bazel file in the root of your workspace:
+
+      ```python
+      load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl")
+
+      setup_sourcekit_bsp(
+        name = "setup_sourcekit_bsp",
+        targets = YOUR_TARGETS,
+        bazel_wrapper = "/usr/local/bin/bazelisk" # Defaults to bazel
+        index_flags = [], # Optional indexing flags to pass to the build
+        files_to_watch = ["src/MyApp/**/*.swift"] # Globs of files to watch for changes to
+      )
+      ```
+
+    - Run `bazel run //:setup_sourcekit_bsp`
+    - Thats it you have now integrated the tool. Users should re-run that command whenever the configuration is changed.
+
+  - Manual
+    - Copy the .bsp/ folder on this repository to the root of the repository you'd like to use this tool for.
+    - Edit the `argv` fields in `.bsp/config.json` to match the details for your app / setup. You can see all available options by running `sourcekit-bazel-bsp serve --help`.
 - On the settings page for the Swift extension, enable `SourceKit-LSP: Background Indexing` at the **workspace level**. It **has** to be workspace settings; this specific setting is not supported at the folder level.
 - Reload your workspace (`Cmd+Shift+P -> Reload Window`)
 
