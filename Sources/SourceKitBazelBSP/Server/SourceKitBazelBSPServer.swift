@@ -98,7 +98,7 @@ package final class SourceKitBazelBSPServer {
 
         // CancelRequestNotification
         let cancelRequestHandler = CancelRequestHandler(
-            observers: [prepareHandler] // `prepare` is the only case of cancelation I'm aware of.
+            observers: [prepareHandler]  // `prepare` is the only case of cancelation I'm aware of.
         )
         registry.register(notificationHandler: cancelRequestHandler.onCancelRequest)
     }
