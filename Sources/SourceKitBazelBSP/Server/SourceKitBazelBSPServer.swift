@@ -57,9 +57,6 @@ package final class SourceKitBazelBSPServer {
         registry.register(notificationHandler: { (_: OnBuildInitializedNotification) in
             // no-op
         })
-        registry.register(notificationHandler: { (_: CancelRequestNotification) in
-            // no-op, no request canceling since the code today is not async
-        })
         registry.register(requestHandler: { (_: WorkspaceWaitForBuildSystemUpdatesRequest, _: RequestID) in
             // FIXME: no-op, no special handling since the code today is not async, but I might be wrong here.
             VoidResponse()
@@ -98,6 +95,12 @@ package final class SourceKitBazelBSPServer {
             connection: connection
         )
         registry.register(notificationHandler: watchedFileChangeHandler.onWatchedFilesDidChange)
+
+        // CancelRequestNotification
+        let cancelRequestHandler = CancelRequestHandler(
+            observers: [prepareHandler] // `prepare` is the only case of cancelation I'm aware of.
+        )
+        registry.register(notificationHandler: cancelRequestHandler.onCancelRequest)
     }
 
     package convenience init(
