@@ -79,7 +79,7 @@ final class PrepareHandler {
         logger.info("Will build \(labelsToBuild.joined(separator: ", "))")
 
         // Build the provided targets, on our special output base and taking into account special index flags.
-        _ = try commandRunner.bazelIndexAction(
+        let _: String = try commandRunner.bazelIndexAction(
             initializedConfig: initializedConfig,
             cmd: "build \(labelsToBuild.joined(separator: " "))"
         )

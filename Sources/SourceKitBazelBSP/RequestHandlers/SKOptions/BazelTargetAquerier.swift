@@ -17,6 +17,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import BazelProtobufBindings
 import Foundation
 
 private let logger = makeFileLevelBSPLogger()
@@ -33,12 +34,10 @@ enum BazelTargetAquerierError: Error, LocalizedError {
 
 /// Small abstraction to handle and cache the results of bazel _action queries_.
 /// FIXME: This is separate from BazelTargetQuerier because of the different output types, but we can unify these.
-///
-/// FIXME: Currently uses text outputs, should use proto instead so that we can organize and test this properly.
 final class BazelTargetAquerier {
 
     private let commandRunner: CommandRunner
-    private var queryCache = [String: String]()
+    private var queryCache = [String: Analysis_ActionGraphContainer]()
 
     init(commandRunner: CommandRunner = ShellCommandRunner()) {
         self.commandRunner = commandRunner
@@ -50,7 +49,7 @@ final class BazelTargetAquerier {
         config: InitializedServerConfig,
         mnemonics: Set<String>,
         additionalFlags: [String]
-    ) throws -> String {
+    ) throws -> Analysis_ActionGraphContainer {
         guard !mnemonics.isEmpty else {
             throw BazelTargetAquerierError.noMnemonics
         }
@@ -58,7 +57,7 @@ final class BazelTargetAquerier {
         let mnemonicsFilter = mnemonics.sorted().joined(separator: "|")
         let depsQuery = BazelTargetQuerier.queryDepsString(forTargets: [target])
 
-        let otherFlags = additionalFlags.joined(separator: " ")
+        let otherFlags = additionalFlags.joined(separator: " ") + " --output proto"
         let cmd = "aquery \"mnemonic('\(mnemonicsFilter)', filter(\(filteringFor), \(depsQuery)))\" \(otherFlags)"
         logger.info("Processing aquery request for \(target), filtering for \(filteringFor)")
 
@@ -68,11 +67,15 @@ final class BazelTargetAquerier {
         }
 
         // Run the aquery on the special index output base since that's where we will build at.
-        let output = try commandRunner.bazelIndexAction(initializedConfig: config, cmd: cmd)
+        let output: Data = try commandRunner.bazelIndexAction(initializedConfig: config, cmd: cmd)
 
-        queryCache[cmd] = output
+        let parsedOutput = try BazelProtobufBindings.parseActionGraph(data: output)
 
-        return output
+        logger.debug("actionGraphContainer count \(parsedOutput.actions.count, privacy: .private)")
+
+        queryCache[cmd] = parsedOutput
+
+        return parsedOutput
     }
 
     func clearCache() {

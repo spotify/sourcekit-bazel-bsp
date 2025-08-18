@@ -17,6 +17,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import BazelProtobufBindings
 import Foundation
 import LanguageServerProtocol
 
@@ -24,107 +25,40 @@ private let logger = makeFileLevelBSPLogger()
 
 enum CompilerArgumentsProcessor {
     // Parses and processes the compilation step for a given target from a larger aquery output.
-    // The parsing step is only necessary because BazelTargetAquerier operates on text. Should become unnecessary once we move to proto.
     static func extractAndProcessCompilerArgs(
-        fromAquery aqueryOutput: String,
+        fromAquery aqueryOutput: Analysis_ActionGraphContainer,
         bazelTarget: String,
         contentToQuery: String,
         language: Language,
         sdkRoot: String,
         initializedConfig: InitializedServerConfig
     ) -> [String]? {
-        var lines: [String] = aqueryOutput.components(separatedBy: "\n")
-        var idx = -1
-        for (i, line) in lines.enumerated() {
-            var actionPrefix = "action 'Compiling "
-            if language == .swift {
-                actionPrefix += "Swift module \(bazelTarget)'"
-            } else {
-                actionPrefix += "\(contentToQuery)'"
-            }
-            if line.hasPrefix(actionPrefix) {
-                if language == .swift {
-                    if lines[i + 1] != "  Mnemonic: SwiftCompile" { continue }
-                } else {
-                    if lines[i + 1] != "  Mnemonic: ObjcCompile" { continue }
-                    if lines[i + 2] != "  Target: \(bazelTarget)" { continue }
-                }
-                idx = i
-                break
-            }
-        }
-        if idx == -1 {
-            logger.error("No module entry found in the aquery for \(contentToQuery)")
+        guard let target = aqueryOutput.targets.first(where: { $0.label == bazelTarget }) else {
+            logger.debug("Target: \(bazelTarget, privacy: .private) not found.")
             return nil
         }
-        // now, get the first index of the line that starts with "Command Line: ("
-        lines = Array(lines.dropFirst(idx + 1))
-        idx = -1
-        for (i, line) in lines.enumerated() {
-            if line.starts(with: "  Command Line: (") {
-                idx = i
-                // Also skip the swiftc line for swift targets
-                if lines[idx + 1].contains("swiftc") { idx += 1 }
-                break
-            }
-        }
-        if idx == -1 {
-            logger.error("No command line entry found")
-            return nil
-        }
-        logger.info("Found command line entry at \(idx)")
-
-        // now, find where the arguments end
-        lines = Array(lines.dropFirst(idx + 1))
-
-        idx = -1
-        for (i, line) in lines.enumerated() {
-            if line.starts(with: "#") {
-                idx = i
-                break
-            }
-        }
-        if idx == -1 {
-            logger.error("Couldn't find where the args end")
+        guard let action = aqueryOutput.actions.first(where: { $0.targetID == target.id }) else {
+            logger.debug("Action for \(bazelTarget, privacy: .private) not found.")
             return nil
         }
 
-        logger.info("Found where the args end at \(idx)")
-        lines = Array(lines.dropLast(lines.count - idx - 1))
-
-        // the spaced lines are the compiler arguments
-        lines = lines.filter { $0.starts(with: "    ") }
-
-        lines = lines.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-        lines = lines.map { $0.hasSuffix(" \\") ? String($0.dropLast(2)) : $0 }
-        // remove the trailing ) from the last line
-        lines[lines.count - 1] = String(lines[lines.count - 1].dropLast())
-
-        // some args are wrapped in single quotes for some reason
-        for i in 0..<lines.count {
-            if lines[i].hasPrefix("'"), lines[i].hasSuffix("'") {
-                lines[i] = String(lines[i].dropFirst().dropLast())
-            }
-        }
+        let rawArguments = action.arguments
 
         let processedArgs = _processCompilerArguments(
-            rawArguments: lines,
+            rawArguments: rawArguments,
             contentToQuery: contentToQuery,
             language: language,
             sdkRoot: sdkRoot,
             initializedConfig: initializedConfig
         )
 
-        lines = processedArgs
-
         logger.info("Finished processing compiler arguments")
         logger.logFullObjectInMultipleLogMessages(
             level: .debug,
             header: "Parsed compiler arguments",
-            lines.joined(separator: "\n"),
+            processedArgs.joined(separator: "\n"),
         )
-
-        return lines
+        return processedArgs
     }
 
     /// Processes compiler arguments for the LSP by removing unnecessary arguments and replacing placeholders.
@@ -152,6 +86,13 @@ enum CompilerArgumentsProcessor {
 
         var index = 0
         let count = rawArguments.count
+
+        // drop clang and swiftc compiler call
+        switch language {
+        case .swift: index = 2
+        case .objective_c: index = 1
+        default: break
+        }
 
         while index < count {
             let arg = rawArguments[index]
