@@ -87,7 +87,8 @@ enum CompilerArgumentsProcessor {
         var index = 0
         let count = rawArguments.count
 
-        // drop clang and swiftc compiler call
+        // For Swift, invocations start with "wrapped swiftc". We can ignore those.
+        // In the case of Obj-C, this is just a single `clang` reference.
         switch language {
         case .swift: index = 2
         case .objective_c: index = 1
