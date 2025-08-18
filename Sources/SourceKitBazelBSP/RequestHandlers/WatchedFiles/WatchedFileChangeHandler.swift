@@ -60,6 +60,11 @@ final class WatchedFileChangeHandler {
             return true
         }
 
+        guard !changes.isEmpty else {
+            logger.info("No (supported) file changes to process.")
+            return
+        }
+
         logger.info("Received \(changes.count) file changes")
 
         // First, calculate deleted targets before we clear them from the targetStore
