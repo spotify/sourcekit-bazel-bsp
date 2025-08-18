@@ -34,11 +34,11 @@ enum CompilerArgumentsProcessor {
         initializedConfig: InitializedServerConfig
     ) -> [String]? {
         guard let target = aqueryOutput.targets.first(where: { $0.label == bazelTarget }) else {
-            logger.debug("Target: \(bazelTarget, privacy: .private) not found.")
+            logger.debug("Target: \(bazelTarget) not found.")
             return nil
         }
         guard let action = aqueryOutput.actions.first(where: { $0.targetID == target.id }) else {
-            logger.debug("Action for \(bazelTarget, privacy: .private) not found.")
+            logger.debug("Action for \(bazelTarget) not found.")
             return nil
         }
 

@@ -71,7 +71,7 @@ final class BazelTargetAquerier {
 
         let parsedOutput = try BazelProtobufBindings.parseActionGraph(data: output)
 
-        logger.debug("actionGraphContainer count \(parsedOutput.actions.count, privacy: .private)")
+        logger.debug("ActionGraphContainer parsed \(parsedOutput.actions.count) actions")
 
         queryCache[cmd] = parsedOutput
 
