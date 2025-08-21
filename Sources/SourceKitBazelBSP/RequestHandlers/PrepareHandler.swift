@@ -99,3 +99,11 @@ extension PrepareHandler: InvalidatedTargetObserver {
         buildCache.removeAll()
     }
 }
+
+// When the user changes targets in the IDE in the middle of a background index request,
+// the LSP asks us to cancel the background one to be able to prioritize the IDE one.
+extension PrepareHandler: CancelRequestObserver {
+    func cancel(request: RequestID) throws {
+        // no-op, to be implemented
+    }
+}
