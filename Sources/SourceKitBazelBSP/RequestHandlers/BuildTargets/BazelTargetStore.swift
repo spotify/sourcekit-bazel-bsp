@@ -208,7 +208,8 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         return targetData.map { $0.0 }
     }
 
-    private func traverseGraph(from target: String, in graph: [String: [String]], ignoring: Set<String>) -> Set<String> {
+    private func traverseGraph(from target: String, in graph: [String: [String]], ignoring: Set<String>) -> Set<String>
+    {
         var visited = Set<String>()
         var result = Set<String>()
         var queue: [String] = graph[target, default: []]
