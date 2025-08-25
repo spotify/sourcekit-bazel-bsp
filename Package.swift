@@ -31,6 +31,9 @@ let package = Package(
                     name: "ArgumentParser",
                     package: "swift-argument-parser"
                 ),
+            ],
+            exclude: [
+                "BUILD",
             ]
         ),
         .target(
@@ -46,6 +49,9 @@ let package = Package(
                     package: "sourcekit-lsp"
                 ),
             ],
+            exclude: [
+                "BUILD",
+            ]
         ),
         .testTarget(
             name: "SourceKitBazelBSPTests",
@@ -62,6 +68,7 @@ let package = Package(
                 .product(name: "SwiftProtobuf", package: "swift-protobuf")
             ],
             exclude: [
+                "BUILD",
                 "README.md",
                 "protos/analysis_v2.proto",
                 "protos/build.proto",

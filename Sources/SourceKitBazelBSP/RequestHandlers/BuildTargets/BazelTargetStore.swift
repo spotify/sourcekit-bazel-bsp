@@ -138,11 +138,15 @@ final class BazelTargetStoreImpl: BazelTargetStore {
             forConfig: initializedConfig.baseConfig,
             rootUri: initializedConfig.rootUri,
         )
+        let topLevelTargets = topLevelTargetData.map { $0.0 }
 
         logger.debug("Queried top-level target data: \(topLevelTargetData)")
 
+        // Parse the target dependencies for the top-level targets.
+        // This doesn't include information about which top-level app a target belongs to,
+        // but we'll fill that in below.
         let targets: [BlazeQuery_Target] = try bazelTargetQuerier.queryTargetDependencies(
-            forTargets: topLevelTargetData.map { $0.0 },
+            forTargets: topLevelTargets,
             forConfig: initializedConfig.baseConfig,
             rootUri: initializedConfig.rootUri,
             kinds: Self.supportedKinds
@@ -174,13 +178,19 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
         // We need to now map which targets belong to which top-level apps,
         // to further support the target / platform combo differentiation mentioned above.
-        for (topLevelTarget, _) in topLevelTargetData {
-            let deps = try bazelTargetQuerier.queryDependencyLabels(
-                ofTarget: topLevelTarget,
-                forConfig: initializedConfig.baseConfig,
-                rootUri: initializedConfig.rootUri,
-                kinds: Self.supportedKinds
-            )
+
+        // We need to include the top-level here data as well to be able to traverse the graph correctly.
+        let depGraphKinds = Self.supportedKinds.union(TopLevelRuleType.allCases.map { $0.rawValue })
+
+        let depGraph = try bazelTargetQuerier.queryDependencyGraph(
+            ofTargets: topLevelTargets,
+            forConfig: initializedConfig.baseConfig,
+            rootUri: initializedConfig.rootUri,
+            kinds: depGraphKinds
+        )
+
+        for topLevelTarget in topLevelTargets {
+            let deps = traverseGraph(from: topLevelTarget, in: depGraph)
             for dep in deps {
                 guard availableBazelLabels.contains(dep) else {
                     // Ignore any labels that we also ignored above
@@ -191,6 +201,22 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         }
 
         return targetData.map { $0.0 }
+    }
+
+    private func traverseGraph(from target: String, in graph: [String: [String]]) -> Set<String> {
+        var visited = Set<String>()
+        var result = Set<String>()
+        var queue: [String] = graph[target, default: []]
+        while let curr = queue.popLast() {
+            result.insert(curr)
+            for dep in graph[curr, default: []] {
+                if !visited.contains(dep) {
+                    visited.insert(dep)
+                    queue.append(dep)
+                }
+            }
+        }
+        return result
     }
 
     func clearCache() {

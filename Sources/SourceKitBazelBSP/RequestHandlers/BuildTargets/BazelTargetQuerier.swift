@@ -46,7 +46,7 @@ final class BazelTargetQuerier {
 
     private var topLevelRuleCache = [String: [(String, TopLevelRuleType)]]()
     private var queryCache = [String: [BlazeQuery_Target]]()
-    private var dependencyLabelsCache = [String: [String]]()
+    private var dependencyGraphCache = [String: [String: [String]]]()
 
     static func queryDepsString(forTargets targets: [String]) -> String {
         var query = ""
@@ -137,38 +137,59 @@ final class BazelTargetQuerier {
         return targets
     }
 
-    func queryDependencyLabels(
-        ofTarget target: String,
+    func queryDependencyGraph(
+        ofTargets targets: [String],
         forConfig config: BaseServerConfig,
         rootUri: String,
         kinds: Set<String>
-    ) throws -> [String] {
+    ) throws -> [String: [String]] {
         guard !kinds.isEmpty else {
             throw BazelTargetQuerierError.noKinds
         }
 
         let kindsFilter = kinds.sorted().joined(separator: "|")
 
-        let cacheKey = "\(kindsFilter)+\(target)"
+        var depsQuery = Self.queryDepsString(forTargets: targets)
+        for target in targets {
+            // Include the top-level target itself so that we can later traverse the graph correctly.
+            depsQuery += " union \(target)"
+        }
 
-        logger.info("Processing dependency labels request for \(cacheKey)")
+        let cacheKey = "\(kindsFilter)+\(depsQuery)"
 
-        if let cached = dependencyLabelsCache[cacheKey] {
+        logger.info("Processing dependency graph request for \(cacheKey)")
+
+        if let cached = dependencyGraphCache[cacheKey] {
             logger.debug("Returning cached results")
             return cached
         }
 
-        let cmd = "query \"kind('\(kindsFilter)', deps(\(target)))\" --output label"
+        let cmd = "query \"kind('\(kindsFilter)', \(depsQuery))\" --output graph"
         let output: String = try commandRunner.run(config.bazelWrapper + " " + cmd, cwd: rootUri)
-        let result = output.components(separatedBy: "\n")
+        let rawGraph = output.components(separatedBy: "\n").filter {
+            $0.hasPrefix("  \"")
+        }
 
-        dependencyLabelsCache[cacheKey] = result
-        return result
+        var graph = [String: [String]]()
+        for line in rawGraph {
+            let parts = line.components(separatedBy: "\"")
+            // Example line:
+            //   "//path/to/target" -> "//path/to/target2\n//path/to/target3"
+            guard parts.count == 5 else {
+                continue
+            }
+            let source = parts[1]
+            let targets = parts[3].components(separatedBy: "\n")
+            graph[source, default: []].append(contentsOf: targets)
+        }
+
+        dependencyGraphCache[cacheKey] = graph
+        return graph
     }
 
     func clearCache() {
         topLevelRuleCache = [:]
         queryCache = [:]
-        dependencyLabelsCache = [:]
+        dependencyGraphCache = [:]
     }
 }
