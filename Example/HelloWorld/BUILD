@@ -155,13 +155,13 @@ ios_application(
 watchos_application(
     name = "HelloWorldWatchApp",
     bundle_id = "com.example.HelloWorld.Watch",
-    extensions = [":HelloWorld-WatchExtension"],
+    extensions = [":HelloWorldWatchExtension"],
     infoplists = ["Resources/WatchApp-Info.plist"],
     minimum_os_version = WATCHOS_MINIMUM_OS_VERSION,
 )
 
 watchos_extension(
-    name = "HelloWorldWatchExt",
+    name = "HelloWorldWatchExtension",
     bundle_id = "com.example.HelloWorld.Watch.extension",
     infoplists = ["Resources/WatchExt-Info.plist"],
     minimum_os_version = WATCHOS_MINIMUM_OS_VERSION,

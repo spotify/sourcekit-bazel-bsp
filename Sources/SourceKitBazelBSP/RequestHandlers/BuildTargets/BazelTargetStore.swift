@@ -179,7 +179,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         // We need to now map which targets belong to which top-level apps,
         // to further support the target / platform combo differentiation mentioned above.
 
-        // We need to include the top-level here data as well to be able to traverse the graph correctly.
+        // We need to include the top-level data here as well to be able to traverse the graph correctly.
         let depGraphKinds = Self.supportedKinds.union(TopLevelRuleType.allCases.map { $0.rawValue })
 
         let depGraph = try bazelTargetQuerier.queryDependencyGraph(
@@ -189,8 +189,13 @@ final class BazelTargetStoreImpl: BazelTargetStore {
             kinds: depGraphKinds
         )
 
+        // We should ignore any app -> app nodes as we don't want to follow things such
+        // as the watchos_application field in ios_application rules. Otherwise some targets
+        // will be misclassified.
+        let targetsToIgnore = Set(topLevelTargets)
+
         for topLevelTarget in topLevelTargets {
-            let deps = traverseGraph(from: topLevelTarget, in: depGraph)
+            let deps = traverseGraph(from: topLevelTarget, in: depGraph, ignoring: targetsToIgnore)
             for dep in deps {
                 guard availableBazelLabels.contains(dep) else {
                     // Ignore any labels that we also ignored above
@@ -203,11 +208,14 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         return targetData.map { $0.0 }
     }
 
-    private func traverseGraph(from target: String, in graph: [String: [String]]) -> Set<String> {
+    private func traverseGraph(from target: String, in graph: [String: [String]], ignoring: Set<String>) -> Set<String> {
         var visited = Set<String>()
         var result = Set<String>()
         var queue: [String] = graph[target, default: []]
         while let curr = queue.popLast() {
+            guard !ignoring.contains(curr) else {
+                continue
+            }
             result.insert(curr)
             for dep in graph[curr, default: []] {
                 if !visited.contains(dep) {
