@@ -92,7 +92,7 @@ final class SKOptionsHandler: InvalidatedTargetObserver {
 
     // MARK: - InvalidatedTargetObserver
 
-    func invalidate(targets: Set<AffectedTarget>) throws {
+    func invalidate(targets: [InvalidatedTarget]) throws {
         // Only clear cache if at least one file was created or deleted
         if targets.contains(where: { $0.kind == .created || $0.kind == .deleted }) {
             extractor.clearCache()
