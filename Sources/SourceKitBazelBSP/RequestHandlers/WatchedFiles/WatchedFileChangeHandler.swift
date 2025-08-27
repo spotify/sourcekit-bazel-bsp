@@ -143,7 +143,7 @@ final class WatchedFileChangeHandler {
             changes: uniqueInvalidatedTargets.map { targetUri in
                 BuildTargetEvent(
                     target: BuildTargetIdentifier(uri: targetUri),
-                    kind: .changed, // FIXME: We should eventually detect here also if the target is new/deleted.
+                    kind: .changed,  // FIXME: We should eventually detect here also if the target is new/deleted.
                     dataKind: nil,
                     data: nil
                 )
