@@ -115,7 +115,10 @@ package final class SourceKitBazelBSPServer {
             outFD: outputHandle
         )
         let handler = Self.makeBSPMessageHandler(baseConfig: baseConfig, connection: connection)
-        self.init(connection: connection, handler: handler)
+        self.init(
+            connection: connection,
+            handler: AsyncMessageHandler(wrapping: handler)
+        )
     }
 
     package init(connection: LSPConnection, handler: MessageHandler) {
