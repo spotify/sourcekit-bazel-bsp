@@ -20,13 +20,17 @@
 import BuildServerProtocol
 import LanguageServerProtocol
 
-/// Represents a target that was affected by a file change
-struct AffectedTarget: Hashable {
-    let uri: URI  // Build target URI, not document URI
+/// Represents a target that was affected by a file change.
+struct InvalidatedTarget: Hashable {
+    /// The URI of the build target that was invalidated.
+    let uri: URI
+    /// The URI of the file that triggered the invalidation.
+    let fileUri: URI
+    /// The kind of file change that triggered the invalidation.
     let kind: FileChangeType
 }
 
 /// Protocol for objects that need to be notified when build targets are invalidated
 protocol InvalidatedTargetObserver: AnyObject {
-    func invalidate(targets: Set<AffectedTarget>) throws
+    func invalidate(targets: [InvalidatedTarget]) throws
 }

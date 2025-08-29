@@ -80,8 +80,12 @@ struct WatchedFileChangeHandlerTests {
         // Check that the observer was notified
         #expect(observer.invalidateCalled)
         #expect(observer.invalidatedTargets.count == 2)
-        #expect(observer.invalidatedTargets.contains(AffectedTarget(uri: targetURI1, kind: .deleted)))
-        #expect(observer.invalidatedTargets.contains(AffectedTarget(uri: targetURI2, kind: .deleted)))
+        #expect(
+            observer.invalidatedTargets.contains(InvalidatedTarget(uri: targetURI1, fileUri: fileURI, kind: .deleted))
+        )
+        #expect(
+            observer.invalidatedTargets.contains(InvalidatedTarget(uri: targetURI2, fileUri: fileURI, kind: .deleted))
+        )
 
         // Check that the LSP connection received the notification
         #expect(connection.sentNotifications.count == 1)
@@ -94,7 +98,7 @@ struct WatchedFileChangeHandlerTests {
                 #expect(actualTargetURIs == expectedTargetURIs)
 
                 for change in changes {
-                    #expect(change.kind == .deleted)
+                    #expect(change.kind == .changed)
                 }
             }
         } else {
@@ -129,14 +133,16 @@ struct WatchedFileChangeHandlerTests {
         // Check that the observer was notified
         #expect(observer.invalidateCalled)
         #expect(observer.invalidatedTargets.count == 1)
-        #expect(observer.invalidatedTargets.contains(AffectedTarget(uri: targetURI, kind: .created)))
+        #expect(
+            observer.invalidatedTargets.contains(InvalidatedTarget(uri: targetURI, fileUri: fileURI, kind: .created))
+        )
 
         // Check that the LSP connection received the notification
         #expect(connection.sentNotifications.count == 1)
         if let sentNotification = connection.sentNotifications.first as? OnBuildTargetDidChangeNotification {
             #expect(sentNotification.changes?.count == 1)
             #expect(sentNotification.changes?[0].target.uri == targetURI)
-            #expect(sentNotification.changes?[0].kind == .created)
+            #expect(sentNotification.changes?[0].kind == .changed)
         } else {
             Issue.record("Expected OnBuildTargetDidChangeNotification")
         }
@@ -169,7 +175,9 @@ struct WatchedFileChangeHandlerTests {
         // Check that the observer was notified
         #expect(observer.invalidateCalled)
         #expect(observer.invalidatedTargets.count == 1)
-        #expect(observer.invalidatedTargets.contains(AffectedTarget(uri: targetURI, kind: .changed)))
+        #expect(
+            observer.invalidatedTargets.contains(InvalidatedTarget(uri: targetURI, fileUri: fileURI, kind: .changed))
+        )
 
         // Check that the LSP connection received the notification
         #expect(connection.sentNotifications.count == 1)
@@ -217,9 +225,21 @@ struct WatchedFileChangeHandlerTests {
         // Check that the observer was notified with all affected targets
         #expect(observer.invalidateCalled)
         #expect(observer.invalidatedTargets.count == 3)
-        #expect(observer.invalidatedTargets.contains(AffectedTarget(uri: deletedTargetURI, kind: .deleted)))
-        #expect(observer.invalidatedTargets.contains(AffectedTarget(uri: createdTargetURI, kind: .created)))
-        #expect(observer.invalidatedTargets.contains(AffectedTarget(uri: changedTargetURI, kind: .changed)))
+        #expect(
+            observer.invalidatedTargets.contains(
+                InvalidatedTarget(uri: deletedTargetURI, fileUri: deletedFileURI, kind: .deleted)
+            )
+        )
+        #expect(
+            observer.invalidatedTargets.contains(
+                InvalidatedTarget(uri: createdTargetURI, fileUri: createdFileURI, kind: .created)
+            )
+        )
+        #expect(
+            observer.invalidatedTargets.contains(
+                InvalidatedTarget(uri: changedTargetURI, fileUri: changedFileURI, kind: .changed)
+            )
+        )
 
         // Check that the LSP connection received the notification with all changes
         #expect(connection.sentNotifications.count == 1)
@@ -228,8 +248,8 @@ struct WatchedFileChangeHandlerTests {
 
             if let notificationChanges = sentNotification.changes {
                 let changes = notificationChanges.map { (uri: $0.target.uri, kind: $0.kind) }
-                #expect(changes.contains { $0.uri == deletedTargetURI && $0.kind == .deleted })
-                #expect(changes.contains { $0.uri == createdTargetURI && $0.kind == .created })
+                #expect(changes.contains { $0.uri == deletedTargetURI && $0.kind == .changed })
+                #expect(changes.contains { $0.uri == createdTargetURI && $0.kind == .changed })
                 #expect(changes.contains { $0.uri == changedTargetURI && $0.kind == .changed })
             }
         } else {

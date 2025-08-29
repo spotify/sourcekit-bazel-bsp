@@ -89,7 +89,7 @@ final class PrepareHandler {
 }
 
 extension PrepareHandler: InvalidatedTargetObserver {
-    func invalidate(targets: Set<AffectedTarget>) throws {
+    func invalidate(targets: [InvalidatedTarget]) throws {
         // Extract just the URIs from the affected targets for the build cache
         let targetURIs = Set(targets.map(\.uri))
         buildCache.subtract(targetURIs)

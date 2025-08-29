@@ -67,12 +67,16 @@ final class WatchedFileChangeHandler {
 
         logger.info("Received \(changes.count) file changes")
 
-        // First, calculate deleted targets before we clear them from the targetStore
-        let deletedTargets = {
+        let deletedFiles = changes.filter { $0.type == .deleted }
+        let createdFiles = changes.filter { $0.type == .created }
+        let changedFiles = changes.filter { $0.type == .changed }
+
+        // First, determine which targets had removed files.
+        let targetsAffectedByDeletions: [InvalidatedTarget] = {
             do {
-                return try changes.filter { $0.type == .deleted }.flatMap { change -> [AffectedTarget] in
+                return try deletedFiles.flatMap { change in
                     try targetStore.bspURIs(containingSrc: change.uri).map {
-                        AffectedTarget(uri: $0, kind: change.type)
+                        InvalidatedTarget(uri: $0, fileUri: change.uri, kind: .deleted)
                     }
                 }
             } catch {
@@ -81,9 +85,10 @@ final class WatchedFileChangeHandler {
             }
         }()
 
-        // If there are any 'created' files, we need to clear the targetStore and fetch targets again
-        // Otherwise, the targetStore won't know about them
-        if changes.contains(where: { $0.type == .created }) {
+        // If there are any 'created' files, we need to clear the targetStore immediately and fetch targets again.
+        // Otherwise, the targetStore won't know about them.
+        // FIXME: This is quite expensive, but the easier thing to do. We can try improving this later.
+        if !createdFiles.isEmpty {
             let taskId = TaskId(id: "watchedFiles-\(UUID().uuidString)")
             connection?.startWorkTask(id: taskId, title: "Indexing: Re-processing build graph")
             targetStore.clearCache()
@@ -96,12 +101,13 @@ final class WatchedFileChangeHandler {
             connection?.finishTask(id: taskId, status: .ok)
         }
 
-        // Now that the targetStore knows about the newly created files, we can calculate the created targets
-        let createdTargets = {
+        // Now that the targetStore knows about the newly created files, we can determine which targets
+        // were affected by those creations.
+        let targetsAffectedByCreations: [InvalidatedTarget] = {
             do {
-                return try changes.filter { $0.type == .created }.flatMap { change -> [AffectedTarget] in
+                return try createdFiles.flatMap { change in
                     try targetStore.bspURIs(containingSrc: change.uri).map {
-                        AffectedTarget(uri: $0, kind: change.type)
+                        InvalidatedTarget(uri: $0, fileUri: change.uri, kind: .created)
                     }
                 }
             } catch {
@@ -110,12 +116,12 @@ final class WatchedFileChangeHandler {
             }
         }()
 
-        // Finally, calculate the changed targets
-        let changedTargets = {
+        // Finally, calculate the targets affected by regular changes.
+        let targetsAffectedByChanges: [InvalidatedTarget] = {
             do {
-                return try changes.filter { $0.type == .changed }.flatMap { change -> [AffectedTarget] in
+                return try changedFiles.flatMap { change in
                     try targetStore.bspURIs(containingSrc: change.uri).map {
-                        AffectedTarget(uri: $0, kind: change.type)
+                        InvalidatedTarget(uri: $0, fileUri: change.uri, kind: .changed)
                     }
                 }
             } catch {
@@ -124,24 +130,20 @@ final class WatchedFileChangeHandler {
             }
         }()
 
-        let affectedTargets: Set<AffectedTarget> = Set(deletedTargets + createdTargets + changedTargets)
+        let invalidatedTargets = targetsAffectedByDeletions + targetsAffectedByCreations + targetsAffectedByChanges
 
-        // Invalidate our observers about the affected targets
+        // Notify our observers about the affected targets
         for observer in observers {
-            do {
-                try observer.invalidate(targets: affectedTargets)
-            } catch {
-                logger.error("Error invalidating observer: \(error)")
-                // Continue with other observers
-            }
+            try? observer.invalidate(targets: invalidatedTargets)
         }
 
         // Notify SK-LSP about the affected targets
+        let uniqueInvalidatedTargets = Set(invalidatedTargets.map { $0.uri })
         let response = OnBuildTargetDidChangeNotification(
-            changes: affectedTargets.map { target in
+            changes: uniqueInvalidatedTargets.map { targetUri in
                 BuildTargetEvent(
-                    target: BuildTargetIdentifier(uri: target.uri),
-                    kind: target.kind.buildTargetEventKind,
+                    target: BuildTargetIdentifier(uri: targetUri),
+                    kind: .changed,  // FIXME: We should eventually detect here also if the target is new/deleted.
                     dataKind: nil,
                     data: nil
                 )
@@ -158,16 +160,5 @@ final class WatchedFileChangeHandler {
             return false
         }
         return supportedFileExtensions.contains(String(result.reversed()))
-    }
-}
-
-extension FileChangeType {
-    fileprivate var buildTargetEventKind: BuildTargetEventKind? {
-        switch self {
-        case .changed: return .changed
-        case .created: return .created
-        case .deleted: return .deleted
-        default: return nil
-        }
     }
 }

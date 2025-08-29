@@ -27,11 +27,11 @@ final class InvalidatedTargetObserverFake: InvalidatedTargetObserver {
         case intentional
     }
 
-    var invalidatedTargets: Set<AffectedTarget> = []
+    var invalidatedTargets: [InvalidatedTarget] = []
     var invalidateCalled = false
     var shouldThrowOnInvalidate = false
 
-    func invalidate(targets: Set<AffectedTarget>) throws {
+    func invalidate(targets: [InvalidatedTarget]) throws {
         invalidateCalled = true
         invalidatedTargets = targets
         if shouldThrowOnInvalidate {
