@@ -20,7 +20,11 @@
 import Foundation
 import LanguageServerProtocol
 
-typealias BSPRequestHandler<Request: RequestType> = ((Request, RequestID) throws -> Request.Response)
+typealias BSPRequestHandlerCompletion<Request: RequestType> = ((Result<Request.Response, Error>) -> Void)
+typealias BSPRequestHandler<Request: RequestType> = (
+    (Request, RequestID, @escaping BSPRequestHandlerCompletion<Request>) -> Void
+)
+typealias BSPSyncRequestHandler<Request: RequestType> = ((Request, RequestID) throws -> Request.Response)
 
 /// A type-erased request handler wrapper to allow for dynamic registration of handlers.
 final class AnyRequestHandler {

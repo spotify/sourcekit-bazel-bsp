@@ -58,7 +58,7 @@ final class InitializeHandler {
 
     func initializeBuild(
         _ request: InitializeBuildRequest,
-        _ id: RequestID
+        _ id: RequestID,
     ) throws -> (InitializeBuildResponse, InitializedServerConfig) {
         let taskId = TaskId(id: "initializeBuild-\(id.description)")
         connection?.startWorkTask(id: taskId, title: "Indexing: Initializing sourcekit-bazel-bsp")

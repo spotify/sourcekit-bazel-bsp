@@ -18,6 +18,7 @@
 // under the License.
 
 import BuildServerProtocol
+import Foundation
 import LanguageServerProtocol
 import LanguageServerProtocolJSONRPC
 import Testing
@@ -50,7 +51,7 @@ struct BSPMessageHandlerTests {
         let mockResponse = BuildTargetSourcesResponse(items: [])
 
         let handler = BSPMessageHandler()
-        handler.register(requestHandler: { (_: BuildTargetSourcesRequest, _) in mockResponse })
+        handler.register(syncRequestHandler: { (_: BuildTargetSourcesRequest, _) in mockResponse })
 
         let request = BuildTargetSourcesRequest(targets: [BuildTargetIdentifier(uri: try URI(string: "file:///test"))],
         )
@@ -69,7 +70,7 @@ struct BSPMessageHandlerTests {
     func failedRequest() throws {
         let mockError = ResponseError.internalError("Test error")
         let handler = BSPMessageHandler()
-        handler.register(requestHandler: { (_: BuildTargetSourcesRequest, _) in throw mockError })
+        handler.register(syncRequestHandler: { (_: BuildTargetSourcesRequest, _) in throw mockError })
 
         let request = BuildTargetSourcesRequest(targets: [BuildTargetIdentifier(uri: try URI(string: "file:///test"))],
         )
@@ -81,6 +82,36 @@ struct BSPMessageHandlerTests {
         switch result {
         case .success: Issue.record("Expected failure but got success!")
         case .failure(let error): #expect(error == mockError)
+        }
+    }
+
+    @Test
+    func asyncRequestHandlerCanReplyAsynchronously() throws {
+        let queue = DispatchQueue(label: "test", qos: .userInteractive)
+        let semaphore = DispatchSemaphore(value: 0)
+        let handler = BSPMessageHandler()
+        handler.register(requestHandler: { (request: BuildTargetSourcesRequest, id, completion) in
+            queue.asyncAfter(deadline: .now() + 1) {
+                completion(.success(BuildTargetSourcesResponse(items: [])))
+            }
+        })
+
+        let request = BuildTargetSourcesRequest(
+            targets: [BuildTargetIdentifier(uri: try URI(string: "file:///test"))]
+        )
+
+        var receivedResponse: LSPResult<BuildTargetSourcesResponse>?
+        handler.handle(request, id: RequestID.number(1)) { result in
+            receivedResponse = result
+            semaphore.signal()
+        }
+
+        semaphore.wait()
+
+        let result = try #require(receivedResponse)
+        switch result {
+        case .success(let response): #expect(response == BuildTargetSourcesResponse(items: []))
+        case .failure(let error): Issue.record("Expected success but got error: \(error)")
         }
     }
 

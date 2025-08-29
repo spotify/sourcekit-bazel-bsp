@@ -47,6 +47,18 @@ final class BSPMessageHandler: MessageHandler {
         state.notificationHandlers[Notification.method] = AnyNotificationHandler(handler: notificationHandler)
     }
 
+    /// Simple abstraction for registering requests that don't need async responses.
+    func register<Request: RequestType>(syncRequestHandler: @escaping BSPSyncRequestHandler<Request>) {
+        register(requestHandler: { (request: Request, id, completion) in
+            do {
+                let response = try syncRequestHandler(request, id)
+                completion(.success(response))
+            } catch {
+                completion(.failure(error))
+            }
+        })
+    }
+
     func handle<Notification: NotificationType>(_ notification: Notification) {
         logger.info("Received notification: \(Notification.method)")
         do {
@@ -63,16 +75,19 @@ final class BSPMessageHandler: MessageHandler {
         logger.info("Received request: \(Request.method)")
         do {
             let handler = try getHandler(for: request, id, reply, state: state)
-            let response = try handler(request, id)
-            logger.info("Replying to \(Request.method)")
-            reply(.success(response))
+            handler(request, id) { [buildLSPError] result in
+                do {
+                    let response = try result.get()
+                    logger.info("Replying to \(Request.method)")
+                    reply(.success(response))
+                } catch {
+                    logger.error("Error while replying to \(Request.method): \(error.localizedDescription)")
+                    reply(.failure(buildLSPError(error)))
+                }
+            }
         } catch {
             logger.error("Error while handling BSP request: \(error.localizedDescription)")
-            if let responseError = error as? ResponseError {
-                reply(.failure(responseError))
-            } else {
-                reply(.failure(ResponseError.internalError(error.localizedDescription)))
-            }
+            reply(.failure(buildLSPError(from: error)))
         }
     }
 
@@ -104,5 +119,12 @@ final class BSPMessageHandler: MessageHandler {
             throw ResponseError.internalError("Found request, but it had the wrong type! (\(Request.method))")
         }
         return handler
+    }
+
+    private func buildLSPError(from error: Error) -> ResponseError {
+        guard let responseError = error as? ResponseError else {
+            return ResponseError.internalError(error.localizedDescription)
+        }
+        return responseError
     }
 }
