@@ -26,10 +26,13 @@ private let logger = makeFileLevelBSPLogger()
 /// Handles the `workspace/buildTargets` request.
 ///
 /// Processes the project's dependency graph and returns it to the LSP.
-final class BuildTargetsHandler {
+final class BuildTargetsHandler: @unchecked Sendable {
 
     private let targetStore: BazelTargetStore
     private weak var connection: LSPConnection?
+
+    // This request is handled on the background because it can take a while to complete.
+    private let queue = DispatchQueue(label: "BuildTargetsHandler", qos: .userInitiated)
 
     init(targetStore: BazelTargetStore, connection: LSPConnection? = nil) {
         self.targetStore = targetStore
@@ -38,23 +41,30 @@ final class BuildTargetsHandler {
 
     func workspaceBuildTargets(
         _ request: WorkspaceBuildTargetsRequest,
-        _ id: RequestID
-    ) throws -> WorkspaceBuildTargetsResponse {
+        _ id: RequestID,
+        _ reply: @escaping (Result<WorkspaceBuildTargetsResponse, Error>) -> Void
+    ) {
         let taskId = TaskId(id: "buildTargets-\(id.description)")
         connection?.startWorkTask(id: taskId, title: "Indexing: Processing build graph")
-        do {
-            let result = try targetStore.fetchTargets()
-            logger.debug("Found \(result.count) targets")
-            logger.logFullObjectInMultipleLogMessages(
-                level: .debug,
-                header: "Target list",
-                result.map { $0.id.uri.stringValue }.joined(separator: ", "),
-            )
-            connection?.finishTask(id: taskId, status: .ok)
-            return WorkspaceBuildTargetsResponse(targets: result)
-        } catch {
-            connection?.finishTask(id: taskId, status: .error)
-            throw error
+        queue.async { [weak self] in
+            guard let self = self else {
+                reply(.failure(ResponseError.cancelled))
+                return
+            }
+            do {
+                let targets = try targetStore.fetchTargets()
+                logger.debug("Found \(targets.count) targets")
+                logger.logFullObjectInMultipleLogMessages(
+                    level: .debug,
+                    header: "Target list",
+                    targets.map { $0.id.uri.stringValue }.joined(separator: ", "),
+                )
+                connection?.finishTask(id: taskId, status: .ok)
+                reply(.success(WorkspaceBuildTargetsResponse(targets: targets)))
+            } catch {
+                connection?.finishTask(id: taskId, status: .error)
+                reply(.failure(error))
+            }
         }
     }
 }

@@ -22,6 +22,8 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
+import struct os.OSAllocatedUnfairLock
+
 private let logger = makeFileLevelBSPLogger()
 
 // Represents a type that can query, processes, and store
@@ -33,6 +35,7 @@ protocol BazelTargetStore: AnyObject {
     func bspURIs(containingSrc src: URI) throws -> [URI]
     func platformBuildLabel(forBSPURI uri: URI) throws -> (String, TopLevelRuleType)
     func clearCache()
+    func waitForUpdates()
 }
 
 enum BazelTargetStoreError: Error, LocalizedError {
@@ -58,12 +61,17 @@ final class BazelTargetStoreImpl: BazelTargetStore {
     private let initializedConfig: InitializedServerConfig
     private let bazelTargetQuerier: BazelTargetQuerier
 
+    // This class needs to be thread-safe because it's state can be pulled / wiped
+    // from several threads at the same time.
+    private let stateLock = OSAllocatedUnfairLock()
+
     private var bspURIsToBazelLabelsMap: [URI: String] = [:]
     private var bspURIsToSrcsMap: [URI: [URI]] = [:]
     private var srcToBspURIsMap: [URI: [URI]] = [:]
     private var availableBazelLabels: Set<String> = []
     private var bazelLabelToParentsMap: [String: [String]] = [:]
     private var topLevelLabelToRuleMap: [String: TopLevelRuleType] = [:]
+    private var cachedTargets: [BuildTarget]? = nil
 
     init(initializedConfig: InitializedServerConfig, bazelTargetQuerier: BazelTargetQuerier = BazelTargetQuerier()) {
         self.initializedConfig = initializedConfig
@@ -72,6 +80,8 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
     /// Converts a BSP BuildTarget URI to its underlying Bazel target label.
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String {
+        stateLock.lock()
+        defer { stateLock.unlock() }
         guard let label = bspURIsToBazelLabelsMap[uri] else {
             throw BazelTargetStoreError.unknownBSPURI(uri)
         }
@@ -80,6 +90,8 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
     /// Retrieves the list of registered source files for a given a BSP BuildTarget URI.
     func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI] {
+        stateLock.lock()
+        defer { stateLock.unlock() }
         guard let srcs = bspURIsToSrcsMap[uri] else {
             throw BazelTargetStoreError.unknownBSPURI(uri)
         }
@@ -88,6 +100,8 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
     /// Retrieves the list of BSP BuildTarget URIs that contain a given source file.
     func bspURIs(containingSrc src: URI) throws -> [URI] {
+        stateLock.lock()
+        defer { stateLock.unlock() }
         guard let bspURIs = srcToBspURIsMap[src] else {
             throw BazelTargetStoreError.unknownBSPURI(src)
         }
@@ -96,6 +110,8 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
     /// Retrieves the list of top-level apps that a given Bazel target label belongs to.
     func bazelLabelToParents(forBazelLabel label: String) throws -> [String] {
+        stateLock.lock()
+        defer { stateLock.unlock() }
         guard let parents = bazelLabelToParentsMap[label] else {
             throw BazelTargetStoreError.unknownBazelLabel(label)
         }
@@ -104,22 +120,38 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
     /// Retrieves the top-level rule type for a given Bazel **top-level** target label.
     func topLevelRuleType(forBazelLabel label: String) throws -> TopLevelRuleType {
+        stateLock.lock()
+        defer { stateLock.unlock() }
         guard let ruleType = topLevelLabelToRuleMap[label] else {
             throw BazelTargetStoreError.unknownBazelLabel(label)
         }
         return ruleType
     }
 
+    func waitForUpdates() {
+        // If we can acquire the lock, it means we're not updating the internal store.
+        stateLock.lock()
+        stateLock.unlock()
+    }
+
     /// Provides the bazel label containing **platform information** for a given BSP URI.
     /// This is used to determine the correct set of compiler flags for the target / platform combo.
     func platformBuildLabel(forBSPURI uri: URI) throws -> (String, TopLevelRuleType) {
-        let bazelLabel = try bazelTargetLabel(forBSPURI: uri)
-        let parents = try bazelLabelToParents(forBazelLabel: bazelLabel)
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        guard let bazelLabel = bspURIsToBazelLabelsMap[uri] else {
+            throw BazelTargetStoreError.unknownBSPURI(uri)
+        }
+        guard let parents = bazelLabelToParentsMap[bazelLabel] else {
+            throw BazelTargetStoreError.unknownBazelLabel(bazelLabel)
+        }
         // FIXME: When a target can compile to multiple platforms, the way Xcode handles it is by selecting
         // the one matching your selected simulator in the IDE. We don't have any sort of special IDE integration
         // at the moment, so for now we just select the first parent.
         let parentToUse = parents[0]
-        let rule = try topLevelRuleType(forBazelLabel: parentToUse)
+        guard let rule = topLevelLabelToRuleMap[parentToUse] else {
+            throw BazelTargetStoreError.unknownBazelLabel(parentToUse)
+        }
         return (
             "\(bazelLabel)_\(rule.platform)\(initializedConfig.baseConfig.buildTestSuffix)",
             rule
@@ -128,6 +160,14 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
     @discardableResult
     func fetchTargets() throws -> [BuildTarget] {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        // This request needs caching because it gets called after file changes,
+        // even if nothing was invalidated.
+        if let cachedTargets = cachedTargets {
+            return cachedTargets
+        }
 
         // Start by determining which platforms each top-level app is for.
         // This will allow us to later determine which sets of flags to provide
@@ -205,7 +245,9 @@ final class BazelTargetStoreImpl: BazelTargetStore {
             }
         }
 
-        return targetData.map { $0.0 }
+        let result = targetData.map { $0.0 }
+        cachedTargets = result
+        return result
     }
 
     private func traverseGraph(from target: String, in graph: [String: [String]], ignoring: Set<String>) -> Set<String>
@@ -229,6 +271,9 @@ final class BazelTargetStoreImpl: BazelTargetStore {
     }
 
     func clearCache() {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
         bspURIsToBazelLabelsMap = [:]
         bspURIsToSrcsMap = [:]
         srcToBspURIsMap = [:]
@@ -236,5 +281,6 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         availableBazelLabels = []
         topLevelLabelToRuleMap = [:]
         bazelTargetQuerier.clearCache()
+        cachedTargets = nil
     }
 }

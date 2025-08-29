@@ -40,7 +40,7 @@ public enum BazelTargetDiscoverer {
 
         let cmd = "\(bazelWrapper) query '\(query)' --output label"
 
-        let output = try commandRunner.run(cmd)
+        let output: String = try commandRunner.run(cmd)
 
         let discoveredTargets =
             output

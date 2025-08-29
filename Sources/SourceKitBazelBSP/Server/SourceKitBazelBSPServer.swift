@@ -57,16 +57,16 @@ package final class SourceKitBazelBSPServer {
         registry.register(notificationHandler: { (_: OnBuildInitializedNotification) in
             // no-op
         })
-        registry.register(syncRequestHandler: { (_: WorkspaceWaitForBuildSystemUpdatesRequest, _: RequestID) in
-            // FIXME: no-op, no special handling since the code today is not async, but I might be wrong here.
-            VoidResponse()
-        })
 
         // Then, register the things we are interested in.
         // workspace/buildTargets
         let targetStore = BazelTargetStoreImpl(initializedConfig: initializedConfig)
         let buildTargetsHandler = BuildTargetsHandler(targetStore: targetStore, connection: connection)
-        registry.register(syncRequestHandler: buildTargetsHandler.workspaceBuildTargets)
+        registry.register(requestHandler: buildTargetsHandler.workspaceBuildTargets)
+
+        // workspace/waitForBuildSystemUpdates
+        let waitUpdatesHandler = WaitUpdatesHandler(targetStore: targetStore)
+        registry.register(requestHandler: waitUpdatesHandler.workspaceWaitForBuildSystemUpdates)
 
         // buildTarget/sources
         let targetSourcesHandler = TargetSourcesHandler(initializedConfig: initializedConfig, targetStore: targetStore)
@@ -78,7 +78,7 @@ package final class SourceKitBazelBSPServer {
             targetStore: targetStore,
             connection: connection
         )
-        registry.register(syncRequestHandler: skOptionsHandler.textDocumentSourceKitOptions)
+        registry.register(requestHandler: skOptionsHandler.textDocumentSourceKitOptions)
 
         // buildTarget/prepare
         let prepareHandler = PrepareHandler(
@@ -86,12 +86,12 @@ package final class SourceKitBazelBSPServer {
             targetStore: targetStore,
             connection: connection
         )
-        registry.register(syncRequestHandler: prepareHandler.prepareTarget)
+        registry.register(requestHandler: prepareHandler.prepareTarget)
 
         // OnWatchedFilesDidChangeNotification
         let watchedFileChangeHandler = WatchedFileChangeHandler(
             targetStore: targetStore,
-            observers: [prepareHandler, skOptionsHandler],
+            observers: [skOptionsHandler],
             connection: connection
         )
         registry.register(notificationHandler: watchedFileChangeHandler.onWatchedFilesDidChange)

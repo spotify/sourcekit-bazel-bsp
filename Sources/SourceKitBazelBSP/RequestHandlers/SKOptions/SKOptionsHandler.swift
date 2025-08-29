@@ -31,8 +31,11 @@ final class SKOptionsHandler: InvalidatedTargetObserver {
     private let initializedConfig: InitializedServerConfig
     private let targetStore: BazelTargetStore
     private let extractor: BazelTargetCompilerArgsExtractor
-
     private weak var connection: LSPConnection?
+
+    // Generally extracting compiler args is quick, but we currently run it on the same output base
+    // as the build, so it can take a while. We should stop doing that somehow.
+    private let queue = DispatchQueue(label: "SKOptionsHandler", qos: .userInteractive)
 
     init(
         initializedConfig: InitializedServerConfig,
@@ -48,17 +51,24 @@ final class SKOptionsHandler: InvalidatedTargetObserver {
 
     func textDocumentSourceKitOptions(
         _ request: TextDocumentSourceKitOptionsRequest,
-        _ id: RequestID
-    ) throws -> TextDocumentSourceKitOptionsResponse? {
+        _ id: RequestID,
+        _ reply: @escaping (Result<TextDocumentSourceKitOptionsResponse?, Error>) -> Void
+    ) {
         let taskId = TaskId(id: "getSKOptions-\(id.description)")
         connection?.startWorkTask(id: taskId, title: "Indexing: Getting compiler arguments")
-        do {
-            let result = try handle(request: request)
-            connection?.finishTask(id: taskId, status: .ok)
-            return result
-        } catch {
-            connection?.finishTask(id: taskId, status: .error)
-            throw error
+        queue.async { [weak self] in
+            guard let self = self else {
+                reply(.failure(ResponseError.cancelled))
+                return
+            }
+            do {
+                let result = try self.handle(request: request)
+                self.connection?.finishTask(id: taskId, status: .ok)
+                reply(.success(result))
+            } catch {
+                self.connection?.finishTask(id: taskId, status: .error)
+                reply(.failure(error))
+            }
         }
     }
 

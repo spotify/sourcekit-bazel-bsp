@@ -19,25 +19,47 @@
 
 import Foundation
 
+private let logger = makeFileLevelBSPLogger()
+
 public protocol CommandRunner {
-    func run<T: DataConvertible>(_ cmd: String, cwd: String?) throws -> T
+    func run(_ cmd: String, cwd: String?, stdout: Pipe, stderr: Pipe) throws -> RunningProcess
 }
 
 extension CommandRunner {
-    func run(_ cmd: String) throws -> String {
-        try run(cmd, cwd: nil)
+    func run(
+        _ cmd: String,
+        cwd: String? = nil,
+        stdout: Pipe = Pipe(),
+        stderr: Pipe = Pipe()
+    ) throws -> RunningProcess {
+        return try run(cmd, cwd: cwd, stdout: stdout, stderr: stderr)
+    }
+
+    func run<T: DataConvertible>(
+        _ cmd: String,
+        cwd: String? = nil,
+        stdout: Pipe = Pipe(),
+        stderr: Pipe = Pipe()
+    ) throws -> T {
+        let process = try run(cmd, cwd: cwd, stdout: stdout, stderr: stderr)
+        return try process.output()
     }
 }
 
 // MARK: Bazel-related helpers
 
 extension CommandRunner {
-    func bazel<T: DataConvertible>(baseConfig: BaseServerConfig, rootUri: String, cmd: String) throws -> T {
+    func bazel(baseConfig: BaseServerConfig, rootUri: String, cmd: String) throws -> RunningProcess {
         try run(baseConfig.bazelWrapper + " " + cmd, cwd: rootUri)
     }
 
+    func bazel<T: DataConvertible>(baseConfig: BaseServerConfig, rootUri: String, cmd: String) throws -> T {
+        let process = try bazel(baseConfig: baseConfig, rootUri: rootUri, cmd: cmd)
+        return try process.output()
+    }
+
     /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.
-    func bazelIndexAction<T: DataConvertible>(initializedConfig: InitializedServerConfig, cmd: String) throws -> T {
+    func bazelIndexAction(initializedConfig: InitializedServerConfig, cmd: String) throws -> RunningProcess {
         return try bazelIndexAction(
             baseConfig: initializedConfig.baseConfig,
             outputBase: initializedConfig.outputBase,
@@ -47,12 +69,21 @@ extension CommandRunner {
     }
 
     /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.
-    func bazelIndexAction<T: DataConvertible>(
+    func bazelIndexAction<T: DataConvertible>(initializedConfig: InitializedServerConfig, cmd: String) throws -> T {
+        let process = try bazelIndexAction(
+            initializedConfig: initializedConfig,
+            cmd: cmd
+        )
+        return try process.output()
+    }
+
+    /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.
+    func bazelIndexAction(
         baseConfig: BaseServerConfig,
         outputBase: String,
         cmd: String,
         rootUri: String,
-    ) throws -> T {
+    ) throws -> RunningProcess {
         let indexFlags = baseConfig.indexFlags
         let additionalFlags: String
         if indexFlags.isEmpty {
@@ -62,6 +93,22 @@ extension CommandRunner {
         }
         let cmd = "--output_base=\(outputBase) \(cmd)\(additionalFlags)"
         return try bazel(baseConfig: baseConfig, rootUri: rootUri, cmd: cmd)
+    }
+
+    /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.
+    func bazelIndexAction<T: DataConvertible>(
+        baseConfig: BaseServerConfig,
+        outputBase: String,
+        cmd: String,
+        rootUri: String,
+    ) throws -> T {
+        let process = try bazelIndexAction(
+            baseConfig: baseConfig,
+            outputBase: outputBase,
+            cmd: cmd,
+            rootUri: rootUri
+        )
+        return try process.output()
     }
 }
 

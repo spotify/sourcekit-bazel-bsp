@@ -26,7 +26,7 @@ private let logger = makeFileLevelBSPLogger()
 /// Handles the file changing notification.
 ///
 /// This is intended to tell the LSP which targets are invalidated by a change.
-final class WatchedFileChangeHandler {
+final class WatchedFileChangeHandler: @unchecked Sendable {
     private let targetStore: BazelTargetStore
     private var observers: [any InvalidatedTargetObserver]
     private weak var connection: LSPConnection?
@@ -36,6 +36,9 @@ final class WatchedFileChangeHandler {
         "h",
         "m",
     ]
+
+    // File changes are handled in the background because we may need to re-query the build graph as part of it.
+    private let queue = DispatchQueue(label: "WatchedFileChangeHandler", qos: .userInitiated)
 
     init(
         targetStore: BazelTargetStore,
@@ -47,8 +50,7 @@ final class WatchedFileChangeHandler {
         self.connection = connection
     }
 
-    func onWatchedFilesDidChange(_ notification: OnWatchedFilesDidChangeNotification) throws {
-
+    func onWatchedFilesDidChange(_ notification: OnWatchedFilesDidChangeNotification) {
         // As of writing, SourceKit-LSP intentionally ignores our fileSystemWatchers
         // and notifies us of everything. This means we need to filter them out on our end.
         // See SourceKitLSPServer.didChangeWatchedFiles in sourcekit-lsp for more details.
@@ -67,6 +69,15 @@ final class WatchedFileChangeHandler {
 
         logger.info("Received \(changes.count) file changes")
 
+        queue.async { [weak self] in
+            guard let self = self else {
+                return
+            }
+            self.process(changes: changes)
+        }
+    }
+
+    func process(changes: [FileEvent]) {
         let deletedFiles = changes.filter { $0.type == .deleted }
         let createdFiles = changes.filter { $0.type == .created }
         let changedFiles = changes.filter { $0.type == .changed }
@@ -96,6 +107,7 @@ final class WatchedFileChangeHandler {
                 _ = try targetStore.fetchTargets()
             } catch {
                 logger.error("Error fetching targets after file creation: \(error)")
+                connection?.finishTask(id: taskId, status: .error)
                 // Continue processing with existing target store data
             }
             connection?.finishTask(id: taskId, status: .ok)
@@ -149,6 +161,8 @@ final class WatchedFileChangeHandler {
                 )
             }
         )
+
+        logger.debug("Notifying SK-LSP about \(uniqueInvalidatedTargets.count) changes")
 
         connection?.send(response)
     }
