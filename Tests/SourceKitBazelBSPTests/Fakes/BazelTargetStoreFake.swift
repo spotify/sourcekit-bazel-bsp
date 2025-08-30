@@ -21,9 +21,12 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
+import struct os.OSAllocatedUnfairLock
+
 @testable import SourceKitBazelBSP
 
 final class BazelTargetStoreFake: BazelTargetStore {
+    let stateLock = OSAllocatedUnfairLock()
     var clearCacheCalled = false
     var fetchTargetsCalled = false
     var fetchTargetsError: Error?
