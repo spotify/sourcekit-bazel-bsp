@@ -24,9 +24,14 @@ import LanguageServerProtocol
 /// Base object that forwards BSP messages to a separate queue.
 /// This exists simply to make sure we can continue to receive messages
 /// as we process them. Otherwise, each request would require its own queue.
+/// Messages can also be processed concurrently.
 final class AsyncMessageHandler: MessageHandler {
 
-    private let queue = DispatchQueue(label: "AsyncMessageHandler", qos: .userInitiated)
+    private let queue = DispatchQueue(
+        label: "AsyncMessageHandler",
+        qos: .userInitiated,
+        attributes: .concurrent
+    )
     private let messageHandler: MessageHandler
 
     init(wrapping handler: MessageHandler) {
