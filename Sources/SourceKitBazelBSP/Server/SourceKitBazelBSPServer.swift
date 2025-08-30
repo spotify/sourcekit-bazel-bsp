@@ -57,16 +57,16 @@ package final class SourceKitBazelBSPServer {
         registry.register(notificationHandler: { (_: OnBuildInitializedNotification) in
             // no-op
         })
-        registry.register(syncRequestHandler: { (_: WorkspaceWaitForBuildSystemUpdatesRequest, _: RequestID) in
-            // FIXME: no-op, no special handling since the code today is not async, but I might be wrong here.
-            VoidResponse()
-        })
 
         // Then, register the things we are interested in.
         // workspace/buildTargets
         let targetStore = BazelTargetStoreImpl(initializedConfig: initializedConfig)
         let buildTargetsHandler = BuildTargetsHandler(targetStore: targetStore, connection: connection)
         registry.register(syncRequestHandler: buildTargetsHandler.workspaceBuildTargets)
+
+        // workspace/waitForBuildSystemUpdates
+        let waitUpdatesHandler = WaitUpdatesHandler(targetStore: targetStore, connection: connection)
+        registry.register(syncRequestHandler: waitUpdatesHandler.workspaceWaitForBuildSystemUpdates)
 
         // buildTarget/sources
         let targetSourcesHandler = TargetSourcesHandler(initializedConfig: initializedConfig, targetStore: targetStore)
