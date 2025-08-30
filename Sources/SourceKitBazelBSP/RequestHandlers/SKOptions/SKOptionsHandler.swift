@@ -63,9 +63,11 @@ final class SKOptionsHandler: InvalidatedTargetObserver {
     }
 
     func handle(request: TextDocumentSourceKitOptionsRequest) throws -> TextDocumentSourceKitOptionsResponse? {
+        targetStore.stateLock.lock()
         let targetUri = request.target.uri
         let (bazelTarget, platform) = try targetStore.platformBuildLabel(forBSPURI: targetUri)
         let underlyingLibrary = try targetStore.bazelTargetLabel(forBSPURI: targetUri)
+        targetStore.stateLock.unlock()
 
         logger.info(
             "Fetching SKOptions for \(targetUri.stringValue), target: \(bazelTarget), language: \(request.language)"

@@ -48,7 +48,6 @@ final class WatchedFileChangeHandler {
     }
 
     func onWatchedFilesDidChange(_ notification: OnWatchedFilesDidChangeNotification) throws {
-
         // As of writing, SourceKit-LSP intentionally ignores our fileSystemWatchers
         // and notifies us of everything. This means we need to filter them out on our end.
         // See SourceKitLSPServer.didChangeWatchedFiles in sourcekit-lsp for more details.
@@ -64,6 +63,11 @@ final class WatchedFileChangeHandler {
             logger.info("No (supported) file changes to process.")
             return
         }
+
+        // In this case, we keep the lock until the very end of the notification to avoid race conditions
+        // with how the LSP follows up with this by calling waitForBuildSystemUpdates and buildTargets again.
+        // Also because we need the targetStore at multiple points of this function.
+        targetStore.stateLock.lock()
 
         logger.info("Received \(changes.count) file changes")
 
@@ -129,6 +133,8 @@ final class WatchedFileChangeHandler {
                 return []
             }
         }()
+
+        targetStore.stateLock.unlock()
 
         let invalidatedTargets = targetsAffectedByDeletions + targetsAffectedByCreations + targetsAffectedByChanges
 

@@ -49,30 +49,27 @@ final class PrepareHandler {
     }
 
     func prepareTarget(_ request: BuildTargetPrepareRequest, _ id: RequestID) throws -> VoidResponse {
-
-        let targetsToBuild = request.targets.map { $0.uri }.filter { !buildCache.contains($0) }
-
+        let targetsToBuild = request.targets
         guard !targetsToBuild.isEmpty else {
-            logger.info("No uncached targets to build, skipping redundant build")
+            logger.info("No targets to build.")
             return VoidResponse()
         }
 
         let taskId = TaskId(id: "buildPrepare-\(id.description)")
         connection?.startWorkTask(id: taskId, title: "Indexing: Building targets")
         do {
-            try prepare(bspURIs: targetsToBuild)
+            targetStore.stateLock.lock()
+            let labels = try targetsToBuild.map {
+                try targetStore.platformBuildLabel(forBSPURI: $0.uri).0
+            }
+            targetStore.stateLock.unlock()
+            try build(bazelLabels: labels)
             connection?.finishTask(id: taskId, status: .ok)
-            buildCache.formUnion(targetsToBuild)
             return VoidResponse()
         } catch {
             connection?.finishTask(id: taskId, status: .error)
             throw error
         }
-    }
-
-    func prepare(bspURIs: [URI]) throws {
-        let labels = try bspURIs.map { try targetStore.platformBuildLabel(forBSPURI: $0).0 }
-        try build(bazelLabels: labels)
     }
 
     func build(bazelLabels labelsToBuild: [String]) throws {
@@ -85,18 +82,6 @@ final class PrepareHandler {
         )
 
         logger.info("Finished building targets!")
-    }
-}
-
-extension PrepareHandler: InvalidatedTargetObserver {
-    func invalidate(targets: [InvalidatedTarget]) throws {
-        // Extract just the URIs from the affected targets for the build cache
-        let targetURIs = Set(targets.map(\.uri))
-        buildCache.subtract(targetURIs)
-    }
-
-    func invalidateBuildCache() {
-        buildCache.removeAll()
     }
 }
 

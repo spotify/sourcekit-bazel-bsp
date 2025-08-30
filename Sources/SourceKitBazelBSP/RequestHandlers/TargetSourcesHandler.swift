@@ -43,12 +43,14 @@ final class TargetSourcesHandler {
         let targets = request.targets
         logger.info("Fetching sources for \(targets.count) targets")
 
+        targetStore.stateLock.lock()
         var srcs: [SourcesItem] = []
         for target in targets {
             let targetSrcs = try targetStore.bazelTargetSrcs(forBSPURI: target.uri)
             let sources = convertToSourceItems(targetSrcs)
             srcs.append(SourcesItem(target: target, sources: sources))
         }
+        targetStore.stateLock.unlock()
 
         let count = srcs.reduce(0) { $0 + $1.sources.count }
 
