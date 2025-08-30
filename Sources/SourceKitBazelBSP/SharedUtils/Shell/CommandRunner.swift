@@ -21,7 +21,7 @@ import Foundation
 
 private let logger = makeFileLevelBSPLogger()
 
-public protocol CommandRunner {
+public protocol CommandRunner: Sendable {
     func run(_ cmd: String, cwd: String?, stdout: Pipe, stderr: Pipe) throws -> RunningProcess
 }
 

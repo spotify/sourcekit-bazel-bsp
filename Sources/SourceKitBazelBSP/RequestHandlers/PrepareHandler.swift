@@ -21,6 +21,8 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
+import struct os.OSAllocatedUnfairLock
+
 private let logger = makeFileLevelBSPLogger()
 
 /// Handles the `buildTarget/prepare` request.
@@ -31,6 +33,9 @@ final class PrepareHandler {
     private let targetStore: BazelTargetStore
     private let commandRunner: CommandRunner
     private weak var connection: LSPConnection?
+
+    // The current Bazel build is always stored so that we can cancel it if requested by the LSP.
+    private var currentTaskLock = OSAllocatedUnfairLock<(RunningProcess,RequestID)?>(initialState: nil)
 
     init(
         initializedConfig: InitializedServerConfig,
@@ -44,11 +49,16 @@ final class PrepareHandler {
         self.connection = connection
     }
 
-    func prepareTarget(_ request: BuildTargetPrepareRequest, _ id: RequestID) throws -> VoidResponse {
+    func prepareTarget(
+        _ request: BuildTargetPrepareRequest,
+        _ id: RequestID,
+        _ reply: @escaping (Result<VoidResponse, Error>) -> Void
+    ) {
         let targetsToBuild = request.targets
         guard !targetsToBuild.isEmpty else {
             logger.info("No targets to build.")
-            return VoidResponse()
+            reply(.success(VoidResponse()))
+            return
         }
 
         let taskId = TaskId(id: "buildPrepare-\(id.description)")
@@ -59,25 +69,42 @@ final class PrepareHandler {
                 try targetStore.platformBuildLabel(forBSPURI: $0.uri).0
             }
             targetStore.stateLock.unlock()
-            try build(bazelLabels: labels)
-            connection?.finishTask(id: taskId, status: .ok)
-            return VoidResponse()
+            try build(bazelLabels: labels, id: id, completion: UncheckedCompletion({ [connection] error in
+                if let error = error {
+                    connection?.finishTask(id: taskId, status: .error)
+                    reply(.failure(error))
+                }
+                connection?.finishTask(id: taskId, status: .ok)
+                reply(.success(VoidResponse()))
+            }))
         } catch {
             connection?.finishTask(id: taskId, status: .error)
-            throw error
+            reply(.failure(error))
         }
     }
 
-    func build(bazelLabels labelsToBuild: [String]) throws {
+    func build(bazelLabels labelsToBuild: [String], id: RequestID, completion: UncheckedCompletion<ResponseError?>) throws {
         logger.info("Will build \(labelsToBuild.joined(separator: ", "))")
 
-        // Build the provided targets, on our special output base and taking into account special index flags.
-        let _: String = try commandRunner.bazelIndexAction(
-            initializedConfig: initializedConfig,
-            cmd: "build \(labelsToBuild.joined(separator: " "))"
-        )
-
-        logger.info("Finished building targets!")
+        try currentTaskLock.withLock { [commandRunner, initializedConfig] currentTask in
+            // Build the provided targets, on our special output base and taking into account special index flags.
+            let process = try commandRunner.bazelIndexAction(
+                initializedConfig: initializedConfig,
+                cmd: "build \(labelsToBuild.joined(separator: " "))"
+            )
+            (process.wrappedProcess as? Process)?.terminationHandler = { process in
+                let code = process.terminationStatus
+                logger.info("Finished building! (Request ID: \(id.description), status code: \(code))")
+                if code == 0 {
+                    completion.block?(nil)
+                } else if code == 8 {
+                    completion.block?(ResponseError.cancelled)
+                } else {
+                    completion.block?(ResponseError(code: .internalError, message: "The bazel build failed."))
+                }
+            }
+            currentTask = (process, id)
+        }
     }
 }
 
@@ -85,6 +112,34 @@ final class PrepareHandler {
 // the LSP asks us to cancel the background one to be able to prioritize the IDE one.
 extension PrepareHandler: CancelRequestObserver {
     func cancel(request: RequestID) throws {
-        // no-op, to be implemented
+        currentTaskLock.withLock { currentTaskData in
+            guard let data = currentTaskData else {
+                return
+            }
+            guard data.1 == request else {
+                return
+            }
+            data.0.terminate()
+            currentTaskData = nil
+        }
+    }
+}
+
+// This shouldn't be necessary in practice.
+// The only reason this exists is because I couldn't find another way to get the compiler
+// to shut up about Sendable stuff.
+struct UncheckedCompletion<T>: @unchecked Sendable {
+    typealias Block = (T) -> Void
+
+    let block: Block?
+
+    init(_ block: Block?) {
+        if let block {
+            self.block = {
+                block($0)
+            }
+        } else {
+            self.block = nil
+        }
     }
 }
