@@ -32,10 +32,6 @@ final class PrepareHandler {
     private let commandRunner: CommandRunner
     private weak var connection: LSPConnection?
 
-    // SourceKit-LSP sometimes re-shuffles tasks mid-execution, so we need to
-    // cache things from our side as well to prevent duplicated builds.
-    private var buildCache: Set<URI> = []
-
     init(
         initializedConfig: InitializedServerConfig,
         targetStore: BazelTargetStore,
