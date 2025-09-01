@@ -1,9 +1,5 @@
 import Foundation
 
-// MARK: - Logger
-
-private let logger = makeFileLevelBSPLogger()
-
 public enum BazelTargetDiscovererError: LocalizedError, Equatable {
     case noTargetsDiscovered
 
@@ -30,8 +26,6 @@ public enum BazelTargetDiscoverer {
         commandRunner: CommandRunner? = nil
     ) throws -> [String] {
         let commandRunner = commandRunner ?? ShellCommandRunner()
-
-        logger.info("Discovering targets for rules: \(rules.map { $0.rawValue }.joined(separator: ", "))")
 
         let query = rules.map {
             "kind(\($0.rawValue), ...)"

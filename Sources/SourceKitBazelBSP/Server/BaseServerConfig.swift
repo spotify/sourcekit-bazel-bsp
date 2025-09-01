@@ -30,18 +30,21 @@ package struct BaseServerConfig: Equatable {
     let indexFlags: [String]
     let buildTestSuffix: String
     let filesToWatch: String?
+    let useSeparateOutputBaseForAquery: Bool
 
     package init(
         bazelWrapper: String,
         targets: [String],
         indexFlags: [String],
         buildTestSuffix: String,
-        filesToWatch: String?
+        filesToWatch: String?,
+        useSeparateOutputBaseForAquery: Bool = false
     ) {
         self.bazelWrapper = bazelWrapper
         self.targets = targets
         self.indexFlags = indexFlags
         self.buildTestSuffix = buildTestSuffix
         self.filesToWatch = filesToWatch
+        self.useSeparateOutputBaseForAquery = useSeparateOutputBaseForAquery
     }
 }

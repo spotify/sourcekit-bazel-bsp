@@ -31,7 +31,7 @@ struct Serve: ParsableCommand {
     @Option(
         parsing: .singleValue,
         help:
-            "The *top level* Bazel application or test targets that this should serve a BSP for. Can be specified multiple times. If not specified, the server will try to discover top-leveltargets automatically."
+            "The *top level* Bazel application or test target that this should serve a BSP for. Can be specified multiple times. It's best to keep this list small if possible for performance reasons. If not specified, the server will try to discover top-level targets automatically."
     )
     var target: [String] = []
 
@@ -44,9 +44,16 @@ struct Serve: ParsableCommand {
 
     @Option(
         help:
-            "The expected suffix for build_test targets. Defaults to '_skbsp'."
+            "The expected suffix for build_test targets."
     )
     var buildTestSuffix: String = "_skbsp"
+
+    // FIXME: This should be enabled by default, but I ran into some weird race condition issues with rules_swift I'm not sure about.
+    @Flag(
+        help:
+            "Whether to use a separate output base for compiler arguments requests. This greatly increases the performance of the server at the cost of more disk usage."
+    )
+    var separateAqueryOutput: Bool = false
 
     @Option(help: "Comma separated list of file globs to watch for changes.")
     var filesToWatch: String?
@@ -60,6 +67,9 @@ struct Serve: ParsableCommand {
             if !target.isEmpty {
                 return target
             }
+            logger.warning(
+                "No targets specified (--target)! Will now try to discover them. This can cause the BSP to perform poorly if we find too many targets. Prefer using --target explicitly if possible."
+            )
             return try BazelTargetDiscoverer.discoverTargets(
                 bazelWrapper: bazelWrapper
             )
@@ -70,7 +80,8 @@ struct Serve: ParsableCommand {
             targets: targets,
             indexFlags: indexFlag.map { "--" + $0 },
             buildTestSuffix: buildTestSuffix,
-            filesToWatch: filesToWatch
+            filesToWatch: filesToWatch,
+            useSeparateOutputBaseForAquery: separateAqueryOutput
         )
         let server = SourceKitBazelBSPServer(baseConfig: config)
         server.run()
