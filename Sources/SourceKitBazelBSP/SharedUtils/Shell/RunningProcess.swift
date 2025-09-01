@@ -22,12 +22,19 @@ import Foundation
 private let logger = makeFileLevelBSPLogger()
 
 public protocol CommandLineProcess: Sendable {
+    var terminationStatus: Int32 { get }
     func waitUntilExit()
     func terminate()
-    var terminationStatus: Int32 { get }
+    func setTerminationHandler(_ handler: @escaping @Sendable (Int32) -> Void)
 }
 
-extension Process: CommandLineProcess {}
+extension Process: CommandLineProcess {
+    public func setTerminationHandler(_ handler: @escaping @Sendable (Int32) -> Void) {
+        self.terminationHandler = { process in
+            handler(process.terminationStatus)
+        }
+    }
+}
 
 public struct RunningProcess: Sendable {
     let cmd: String
@@ -60,5 +67,9 @@ public struct RunningProcess: Sendable {
 
     public func terminate() {
         wrappedProcess.terminate()
+    }
+
+    public func setTerminationHandler(_ handler: @escaping @Sendable (Int32) -> Void) {
+        wrappedProcess.setTerminationHandler(handler)
     }
 }

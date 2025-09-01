@@ -31,7 +31,7 @@ enum CommandRunnerFakeError: Error, LocalizedError {
     }
 }
 
-final class CommandRunnerFake: CommandRunner {
+final class CommandRunnerFake: CommandRunner, @unchecked Sendable {
 
     private(set) var commands: [(command: String, cwd: String?)] = []
     private var responses: [String: Data] = [:]
@@ -80,5 +80,9 @@ final class CommandLineProcessFake: CommandLineProcess {
 
     func terminate() {
         // no-op
+    }
+
+    func setTerminationHandler(_ handler: @escaping @Sendable (Int32) -> Void) {
+        handler(terminationStatus)
     }
 }
