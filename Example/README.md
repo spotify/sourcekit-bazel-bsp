@@ -13,7 +13,7 @@ This is a simple **iOS** app that lets you see sourcekit-bazel-bsp in action. Th
 - Reload your workspace (`Cmd+Shift+P -> Reload Window`)
 - Open a Swift file to load the extension. It has to be a Swift file; as of writing this will not work if you open a Objective-C file (but they will work fine after the extension is loaded).
 
-After performing these steps, you should already be able to see the basic indexing features in action. It may take a minute or two the first time as the tool currently builds the entire project, but you can see the progress at the bottom of the IDE. You should also be able to see a new `SourceKit Language Server` option on the `Output` tab that shows sourcekit-lsp's internal logs, and after modifying a file for the first time an additional `SourceKit-LSP: Indexing` tab will pop up containing more detailed logs from both tools.
+After performing these steps, you should already be able to see the basic indexing features in action. It may take a minute or two the first time, but you can see the progress at the bottom of the IDE. You should also be able to see a new `SourceKit Language Server` option on the `Output` tab that shows sourcekit-lsp's internal logs, and after modifying a file for the first time an additional `SourceKit-LSP: Indexing` tab will pop up containing more detailed logs from both tools.
 
 ## Building and Testing
 
