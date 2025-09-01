@@ -31,7 +31,7 @@ enum CommandRunnerFakeError: Error, LocalizedError {
     }
 }
 
-final class CommandRunnerFake: CommandRunner {
+final class CommandRunnerFake: CommandRunner, @unchecked Sendable {
 
     private(set) var commands: [(command: String, cwd: String?)] = []
     private var responses: [String: Data] = [:]
@@ -47,17 +47,17 @@ final class CommandRunnerFake: CommandRunner {
 
     func setError(for command: String, cwd: String? = nil, error: Error) { errors[key(for: command, cwd: cwd)] = error }
 
-    func run<T: DataConvertible>(_ cmd: String, cwd: String?) throws -> T {
+    func run(_ cmd: String, cwd: String?, stdout: Pipe, stderr: Pipe) throws -> RunningProcess {
         commands.append((command: cmd, cwd: cwd))
-
         let cacheKey = key(for: cmd, cwd: cwd)
         if let error = errors[cacheKey] { throw error }
-
         guard let response = responses[cacheKey] else {
             throw CommandRunnerFakeError.unregisteredCommand(cmd, cwd)
         }
-
-        return T.convert(from: response)
+        stdout.fileHandleForWriting.write(response)
+        stdout.fileHandleForWriting.closeFile()
+        stderr.fileHandleForWriting.closeFile()
+        return RunningProcess(cmd: cmd, stdout: stdout, stderr: stderr, wrappedProcess: CommandLineProcessFake())
     }
 
     private func key(for command: String, cwd: String?) -> String { return command + "|" + (cwd ?? "nil") }
@@ -66,5 +66,23 @@ final class CommandRunnerFake: CommandRunner {
         commands.removeAll()
         responses.removeAll()
         errors.removeAll()
+    }
+}
+
+final class CommandLineProcessFake: CommandLineProcess {
+    var terminationStatus: Int32 {
+        return 0
+    }
+
+    func waitUntilExit() {
+        // no-op
+    }
+
+    func terminate() {
+        // no-op
+    }
+
+    func setTerminationHandler(_ handler: @escaping @Sendable (Int32) -> Void) {
+        handler(terminationStatus)
     }
 }

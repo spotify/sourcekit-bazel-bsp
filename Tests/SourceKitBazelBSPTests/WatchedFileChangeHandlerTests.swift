@@ -71,11 +71,11 @@ struct WatchedFileChangeHandlerTests {
         )
 
         // Act
-        try handler.onWatchedFilesDidChange(notification)
+        handler.onWatchedFilesDidChange(notification)
 
         // Assert
-        #expect(!targetStore.clearCacheCalled, "clearCache should not be called for deleted files")
-        #expect(!targetStore.fetchTargetsCalled, "fetchTargets should not be called for deleted files")
+        #expect(targetStore.clearCacheCalled, "clearCache should be called for deleted files")
+        #expect(targetStore.fetchTargetsCalled, "fetchTargets should be called for deleted files")
 
         // Check that the observer was notified
         #expect(observer.invalidateCalled)
@@ -91,7 +91,6 @@ struct WatchedFileChangeHandlerTests {
         #expect(connection.sentNotifications.count == 1)
         if let sentNotification = connection.sentNotifications.first as? OnBuildTargetDidChangeNotification {
             #expect(sentNotification.changes?.count == 2)
-
             let expectedTargetURIs = Set([targetURI1, targetURI2])
             if let changes = sentNotification.changes {
                 let actualTargetURIs = Set(changes.map { $0.target.uri })
@@ -124,7 +123,7 @@ struct WatchedFileChangeHandlerTests {
         )
 
         // Act
-        try handler.onWatchedFilesDidChange(notification)
+        handler.onWatchedFilesDidChange(notification)
 
         // Assert
         #expect(targetStore.clearCacheCalled, "clearCache should be called for created files")
@@ -166,28 +165,18 @@ struct WatchedFileChangeHandlerTests {
         )
 
         // Act
-        try handler.onWatchedFilesDidChange(notification)
+        handler.onWatchedFilesDidChange(notification)
 
         // Assert
         #expect(!targetStore.clearCacheCalled, "clearCache should not be called for changed files")
         #expect(!targetStore.fetchTargetsCalled, "fetchTargets should not be called for changed files")
 
-        // Check that the observer was notified
-        #expect(observer.invalidateCalled)
-        #expect(observer.invalidatedTargets.count == 1)
-        #expect(
-            observer.invalidatedTargets.contains(InvalidatedTarget(uri: targetURI, fileUri: fileURI, kind: .changed))
-        )
+        // Check that the observer was NOT notified (we currently ignore such cases)
+        #expect(observer.invalidateCalled == false)
+        #expect(observer.invalidatedTargets.count == 0)
 
-        // Check that the LSP connection received the notification
-        #expect(connection.sentNotifications.count == 1)
-        if let sentNotification = connection.sentNotifications.first as? OnBuildTargetDidChangeNotification {
-            #expect(sentNotification.changes?.count == 1)
-            #expect(sentNotification.changes?[0].target.uri == targetURI)
-            #expect(sentNotification.changes?[0].kind == .changed)
-        } else {
-            Issue.record("Expected OnBuildTargetDidChangeNotification")
-        }
+        // Check that the LSP connection did NOT receive a notification
+        #expect(connection.sentNotifications.count == 0)
     }
 
     @Test
@@ -216,15 +205,15 @@ struct WatchedFileChangeHandlerTests {
         )
 
         // Act
-        try handler.onWatchedFilesDidChange(notification)
+        handler.onWatchedFilesDidChange(notification)
 
         // Assert
-        #expect(targetStore.clearCacheCalled, "clearCache should be called when there are created files")
-        #expect(targetStore.fetchTargetsCalled, "fetchTargets should be called when there are created files")
+        #expect(targetStore.clearCacheCalled, "clearCache should be called when there are created or deleted files")
+        #expect(targetStore.fetchTargetsCalled, "fetchTargets should be called when there are created or deleted files")
 
         // Check that the observer was notified with all affected targets
         #expect(observer.invalidateCalled)
-        #expect(observer.invalidatedTargets.count == 3)
+        #expect(observer.invalidatedTargets.count == 2)
         #expect(
             observer.invalidatedTargets.contains(
                 InvalidatedTarget(uri: deletedTargetURI, fileUri: deletedFileURI, kind: .deleted)
@@ -235,22 +224,16 @@ struct WatchedFileChangeHandlerTests {
                 InvalidatedTarget(uri: createdTargetURI, fileUri: createdFileURI, kind: .created)
             )
         )
-        #expect(
-            observer.invalidatedTargets.contains(
-                InvalidatedTarget(uri: changedTargetURI, fileUri: changedFileURI, kind: .changed)
-            )
-        )
 
         // Check that the LSP connection received the notification with all changes
         #expect(connection.sentNotifications.count == 1)
         if let sentNotification = connection.sentNotifications.first as? OnBuildTargetDidChangeNotification {
-            #expect(sentNotification.changes?.count == 3)
+            #expect(sentNotification.changes?.count == 2)
 
             if let notificationChanges = sentNotification.changes {
                 let changes = notificationChanges.map { (uri: $0.target.uri, kind: $0.kind) }
                 #expect(changes.contains { $0.uri == deletedTargetURI && $0.kind == .changed })
                 #expect(changes.contains { $0.uri == createdTargetURI && $0.kind == .changed })
-                #expect(changes.contains { $0.uri == changedTargetURI && $0.kind == .changed })
             }
         } else {
             Issue.record("Expected OnBuildTargetDidChangeNotification")
@@ -267,24 +250,19 @@ struct WatchedFileChangeHandlerTests {
 
         let notification = OnWatchedFilesDidChangeNotification(
             changes: [
-                FileEvent(uri: fileURI, type: .changed)
+                FileEvent(uri: fileURI, type: .created)
             ]
         )
 
         // Act
-        try handler.onWatchedFilesDidChange(notification)
+        handler.onWatchedFilesDidChange(notification)
 
         // Assert - should handle gracefully without targets
         // The observer is still called but with an empty set when files have no targets
-        #expect(observer.invalidateCalled, "Observer should be called even for files with no targets")
+        #expect(observer.invalidateCalled == false, "Observer shouldn't be called if there are no changes")
         #expect(observer.invalidatedTargets.isEmpty, "No targets should be invalidated for orphan files")
 
-        #expect(connection.sentNotifications.count == 1)
-        if let sentNotification = connection.sentNotifications.first as? OnBuildTargetDidChangeNotification {
-            #expect(sentNotification.changes?.isEmpty ?? true)
-        } else {
-            Issue.record("Expected OnBuildTargetDidChangeNotification")
-        }
+        #expect(connection.sentNotifications.count == 0)
     }
 
     @Test
@@ -305,7 +283,7 @@ struct WatchedFileChangeHandlerTests {
         )
 
         // Act
-        try handler.onWatchedFilesDidChange(notification)
+        handler.onWatchedFilesDidChange(notification)
 
         // Assert - the handler should continue processing despite the error
         #expect(targetStore.clearCacheCalled)
@@ -337,16 +315,10 @@ struct WatchedFileChangeHandlerTests {
         )
 
         // Act
-        try handler.onWatchedFilesDidChange(notification)
+        handler.onWatchedFilesDidChange(notification)
 
         // Assert - despite the observer error, the LSP connection should still receive notification
-        #expect(observer.invalidateCalled)
-        #expect(connection.sentNotifications.count == 1)
-        if let sentNotification = connection.sentNotifications.first as? OnBuildTargetDidChangeNotification {
-            #expect(sentNotification.changes?.count == 1)
-            #expect(sentNotification.changes?[0].target.uri == targetURI)
-        } else {
-            Issue.record("Expected OnBuildTargetDidChangeNotification")
-        }
+        #expect(observer.invalidateCalled == false)
+        #expect(connection.sentNotifications.count == 0)
     }
 }

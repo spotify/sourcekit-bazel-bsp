@@ -60,7 +60,13 @@ struct PrepareHandlerTests {
             connection: connection
         )
 
-        try handler.build(bazelLabels: baseConfig.targets)
+        let semaphore = DispatchSemaphore(value: 0)
+        try handler.build(bazelLabels: baseConfig.targets, id: RequestID.number(1)) { error in
+            #expect(error == nil)
+            semaphore.signal()
+        }
+
+        #expect(semaphore.wait(timeout: .now() + 1) == .success)
 
         let ranCommands = commandRunner.commands
         #expect(ranCommands.count == 1)
@@ -99,7 +105,13 @@ struct PrepareHandlerTests {
             connection: connection
         )
 
-        try handler.build(bazelLabels: baseConfig.targets)
+        let semaphore = DispatchSemaphore(value: 0)
+        try handler.build(bazelLabels: baseConfig.targets, id: RequestID.number(1)) { error in
+            #expect(error == nil)
+            semaphore.signal()
+        }
+
+        #expect(semaphore.wait(timeout: .now() + 1) == .success)
 
         let ranCommands = commandRunner.commands
         #expect(ranCommands.count == 1)

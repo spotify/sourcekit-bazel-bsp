@@ -22,11 +22,14 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
+import struct os.OSAllocatedUnfairLock
+
 private let logger = makeFileLevelBSPLogger()
 
 // Represents a type that can query, processes, and store
 // the project's dependency graph and its files.
 protocol BazelTargetStore: AnyObject {
+    var stateLock: OSAllocatedUnfairLock<Void> { get }
     func fetchTargets() throws -> [BuildTarget]
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String
     func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI]
@@ -55,6 +58,11 @@ final class BazelTargetStoreImpl: BazelTargetStore {
     // The list of kinds we currently care about and can query for.
     static let supportedKinds: Set<String> = ["source file", "swift_library", "objc_library"]
 
+    // Users of BazelTargetStore are expected to acquire this lock before reading or writing any of the internal state.
+    // This is to prevent race conditions between concurrent requests. It's easier to have each request handle critical sections
+    // on their own instead of trying to solve it entirely within this class.
+    let stateLock = OSAllocatedUnfairLock()
+
     private let initializedConfig: InitializedServerConfig
     private let bazelTargetQuerier: BazelTargetQuerier
 
@@ -64,6 +72,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
     private var availableBazelLabels: Set<String> = []
     private var bazelLabelToParentsMap: [String: [String]] = [:]
     private var topLevelLabelToRuleMap: [String: TopLevelRuleType] = [:]
+    private var cachedTargets: [BuildTarget]? = nil
 
     init(initializedConfig: InitializedServerConfig, bazelTargetQuerier: BazelTargetQuerier = BazelTargetQuerier()) {
         self.initializedConfig = initializedConfig
@@ -128,6 +137,11 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
     @discardableResult
     func fetchTargets() throws -> [BuildTarget] {
+        // This request needs caching because it gets called after file changes,
+        // even if nothing was invalidated.
+        if let cachedTargets = cachedTargets {
+            return cachedTargets
+        }
 
         // Start by determining which platforms each top-level app is for.
         // This will allow us to later determine which sets of flags to provide
@@ -205,7 +219,9 @@ final class BazelTargetStoreImpl: BazelTargetStore {
             }
         }
 
-        return targetData.map { $0.0 }
+        let result = targetData.map { $0.0 }
+        cachedTargets = result
+        return result
     }
 
     private func traverseGraph(from target: String, in graph: [String: [String]], ignoring: Set<String>) -> Set<String>
@@ -236,5 +252,6 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         availableBazelLabels = []
         topLevelLabelToRuleMap = [:]
         bazelTargetQuerier.clearCache()
+        cachedTargets = nil
     }
 }

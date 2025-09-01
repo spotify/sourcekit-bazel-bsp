@@ -21,6 +21,8 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
+import struct os.OSAllocatedUnfairLock
+
 private let logger = makeFileLevelBSPLogger()
 
 /// Handles the `buildTarget/prepare` request.
@@ -32,9 +34,8 @@ final class PrepareHandler {
     private let commandRunner: CommandRunner
     private weak var connection: LSPConnection?
 
-    // SourceKit-LSP sometimes re-shuffles tasks mid-execution, so we need to
-    // cache things from our side as well to prevent duplicated builds.
-    private var buildCache: Set<URI> = []
+    // The current Bazel build is always stored so that we can cancel it if requested by the LSP.
+    private var currentTaskLock = OSAllocatedUnfairLock<(RunningProcess, RequestID)?>(initialState: nil)
 
     init(
         initializedConfig: InitializedServerConfig,
@@ -48,55 +49,72 @@ final class PrepareHandler {
         self.connection = connection
     }
 
-    func prepareTarget(_ request: BuildTargetPrepareRequest, _ id: RequestID) throws -> VoidResponse {
-
-        let targetsToBuild = request.targets.map { $0.uri }.filter { !buildCache.contains($0) }
-
+    func prepareTarget(
+        _ request: BuildTargetPrepareRequest,
+        _ id: RequestID,
+        _ reply: @escaping (Result<VoidResponse, Error>) -> Void
+    ) {
+        let targetsToBuild = request.targets
         guard !targetsToBuild.isEmpty else {
-            logger.info("No uncached targets to build, skipping redundant build")
-            return VoidResponse()
+            logger.info("No targets to build.")
+            reply(.success(VoidResponse()))
+            return
         }
 
         let taskId = TaskId(id: "buildPrepare-\(id.description)")
-        connection?.startWorkTask(id: taskId, title: "Indexing: Building targets")
+        connection?.startWorkTask(
+            id: taskId,
+            title: "sourcekit-bazel-bsp: Building \(targetsToBuild.count) target(s)..."
+        )
         do {
-            try prepare(bspURIs: targetsToBuild)
-            connection?.finishTask(id: taskId, status: .ok)
-            buildCache.formUnion(targetsToBuild)
-            return VoidResponse()
+            let labels = try targetStore.stateLock.withLockUnchecked {
+                return try targetsToBuild.map {
+                    try targetStore.platformBuildLabel(forBSPURI: $0.uri).0
+                }
+            }
+            nonisolated(unsafe) let reply = reply
+            try build(bazelLabels: labels, id: id) { [connection] error in
+                if let error = error {
+                    connection?.finishTask(id: taskId, status: .error)
+                    reply(.failure(error))
+                }
+                connection?.finishTask(id: taskId, status: .ok)
+                reply(.success(VoidResponse()))
+            }
         } catch {
             connection?.finishTask(id: taskId, status: .error)
-            throw error
+            reply(.failure(error))
         }
     }
 
-    func prepare(bspURIs: [URI]) throws {
-        let labels = try bspURIs.map { try targetStore.platformBuildLabel(forBSPURI: $0).0 }
-        try build(bazelLabels: labels)
-    }
-
-    func build(bazelLabels labelsToBuild: [String]) throws {
+    func build(
+        bazelLabels labelsToBuild: [String],
+        id: RequestID,
+        completion: @escaping ((ResponseError?) -> Void)
+    ) throws {
         logger.info("Will build \(labelsToBuild.joined(separator: ", "))")
 
-        // Build the provided targets, on our special output base and taking into account special index flags.
-        let _: String = try commandRunner.bazelIndexAction(
-            initializedConfig: initializedConfig,
-            cmd: "build \(labelsToBuild.joined(separator: " "))"
-        )
-
-        logger.info("Finished building targets!")
-    }
-}
-
-extension PrepareHandler: InvalidatedTargetObserver {
-    func invalidate(targets: [InvalidatedTarget]) throws {
-        // Extract just the URIs from the affected targets for the build cache
-        let targetURIs = Set(targets.map(\.uri))
-        buildCache.subtract(targetURIs)
-    }
-
-    func invalidateBuildCache() {
-        buildCache.removeAll()
+        nonisolated(unsafe) let completion = completion
+        try currentTaskLock.withLock { [commandRunner, initializedConfig] currentTask in
+            // Build the provided targets, on our special output base and taking into account special index flags.
+            let process = try commandRunner.bazelIndexAction(
+                baseConfig: initializedConfig.baseConfig,
+                outputBase: initializedConfig.outputBase,
+                cmd: "build \(labelsToBuild.joined(separator: " "))",
+                rootUri: initializedConfig.rootUri
+            )
+            process.setTerminationHandler { code in
+                logger.info("Finished building! (Request ID: \(id.description), status code: \(code))")
+                if code == 0 {
+                    completion(nil)
+                } else if code == 8 {
+                    completion(ResponseError.cancelled)
+                } else {
+                    completion(ResponseError(code: .internalError, message: "The bazel build failed."))
+                }
+            }
+            currentTask = (process, id)
+        }
     }
 }
 
@@ -104,6 +122,15 @@ extension PrepareHandler: InvalidatedTargetObserver {
 // the LSP asks us to cancel the background one to be able to prioritize the IDE one.
 extension PrepareHandler: CancelRequestObserver {
     func cancel(request: RequestID) throws {
-        // no-op, to be implemented
+        currentTaskLock.withLock { currentTaskData in
+            guard let data = currentTaskData else {
+                return
+            }
+            guard data.1 == request else {
+                return
+            }
+            data.0.terminate()
+            currentTaskData = nil
+        }
     }
 }

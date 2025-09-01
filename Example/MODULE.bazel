@@ -1,22 +1,15 @@
 bazel_dep(
     name = "rules_swift",
-    version = "3.0.2", # 3.1.0 seems to break lldb breakpoints.
+    version = "3.1.2",
     repo_name = "build_bazel_rules_swift",
 )
 
-# We need a commit that has not yet made into a release, so overriding it for now
 bazel_dep(
     name = "rules_apple",
+    version = "4.1.2",
     repo_name = "build_bazel_rules_apple",
 )
-archive_override(
-    module_name = "rules_apple",
-    sha256 = "0abe1a851d65d64a1692bdc95a0649cba4218f0007d36eda030eb6bdfd6b6937",
-    strip_prefix = "rules_apple-a9fcb1c3ae6382534d773d73c035035e9764eadb",
-    url = "https://github.com/bazelbuild/rules_apple/archive/a9fcb1c3ae6382534d773d73c035035e9764eadb.zip",
-)
 
-
-bazel_dep(name = "apple_support", version = "1.22.1", repo_name = "build_bazel_apple_support")
+bazel_dep(name = "apple_support", version = "1.23.1", repo_name = "build_bazel_apple_support")
 
 bazel_dep(name = "aspect_bazel_lib", version = "2.9.3")

@@ -32,38 +32,30 @@ enum ShellCommandRunnerError: LocalizedError {
 }
 
 struct ShellCommandRunner: CommandRunner {
-    func run<T: DataConvertible>(_ cmd: String, cwd: String?) throws -> T {
-        let task = Process()
-        let stdout = Pipe()
-        let stderr = Pipe()
+    func run(_ cmd: String, cwd: String?, stdout: Pipe, stderr: Pipe) throws -> RunningProcess {
+        let process = Process()
 
-        task.standardOutput = stdout
-        task.standardError = stderr
-        task.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        process.standardOutput = stdout
+        process.standardError = stderr
+
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
         if let cwd {
-            task.currentDirectoryURL = URL(fileURLWithPath: cwd)
+            process.currentDirectoryURL = URL(fileURLWithPath: cwd)
         }
 
-        task.arguments = ["-c", cmd]
-        task.standardInput = nil
+        process.arguments = ["-c", cmd]
+        process.standardInput = nil
 
         logger.info("Running shell: \(cmd)")
-        try task.run()
+        try process.run()
 
-        // Drain stdout/err first to avoid deadlocking when the output is buffered.
-        let data = stdout.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderr.fileHandleForReading.readDataToEndOfFile()
+        let runningProcess = RunningProcess(
+            cmd: cmd,
+            stdout: stdout,
+            stderr: stderr,
+            wrappedProcess: process
+        )
 
-        task.waitUntilExit()
-
-        logger.debug("Finished running shell")
-
-        guard task.terminationStatus == 0 else {
-            logger.debug("Command failed: \(cmd)")
-            let stderrString: String = String(data: stderrData, encoding: .utf8) ?? "(no stderr)"
-            throw ShellCommandRunnerError.failed(cmd, stderrString)
-        }
-
-        return T.convert(from: data)
+        return runningProcess
     }
 }

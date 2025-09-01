@@ -21,6 +21,8 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
+import struct os.OSAllocatedUnfairLock
+
 private let logger = makeFileLevelBSPLogger()
 
 enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
@@ -43,6 +45,10 @@ final class BazelTargetCompilerArgsExtractor {
     private let config: InitializedServerConfig
     private var argsCache = [String: [String]?]()
 
+    // This class needs synchronization because we might be requested to wipe the cache
+    // in the middle of an aquery request.
+    private let stateLock = OSAllocatedUnfairLock()
+
     init(
         commandRunner: CommandRunner = ShellCommandRunner(),
         aquerier: BazelTargetAquerier = BazelTargetAquerier(),
@@ -60,6 +66,9 @@ final class BazelTargetCompilerArgsExtractor {
         language: Language,
         platform: TopLevelRuleType
     ) throws -> [String]? {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
         // Ignore Obj-C header requests, since these don't compile
         guard !textDocument.stringValue.hasSuffix(".h") else {
             return nil
@@ -121,7 +130,9 @@ final class BazelTargetCompilerArgsExtractor {
     }
 
     func clearCache() {
-        argsCache = [:]
-        aquerier.clearCache()
+        stateLock.withLockUnchecked {
+            argsCache = [:]
+            aquerier.clearCache()
+        }
     }
 }

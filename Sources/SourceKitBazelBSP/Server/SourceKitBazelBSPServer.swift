@@ -53,20 +53,18 @@ package final class SourceKitBazelBSPServer {
         initializedConfig: InitializedServerConfig,
         connection: JSONRPCConnection
     ) {
-        // First, deal with the no-op handlers we cannot or do not want to handle directly.
-        registry.register(notificationHandler: { (_: OnBuildInitializedNotification) in
-            // no-op
-        })
-        registry.register(syncRequestHandler: { (_: WorkspaceWaitForBuildSystemUpdatesRequest, _: RequestID) in
-            // FIXME: no-op, no special handling since the code today is not async, but I might be wrong here.
-            VoidResponse()
-        })
+        // build/initialized
+        let didInitializeHandler = DidInitializeHandler(initializedConfig: initializedConfig)
+        registry.register(notificationHandler: didInitializeHandler.onDidInitialize)
 
-        // Then, register the things we are interested in.
         // workspace/buildTargets
         let targetStore = BazelTargetStoreImpl(initializedConfig: initializedConfig)
         let buildTargetsHandler = BuildTargetsHandler(targetStore: targetStore, connection: connection)
         registry.register(syncRequestHandler: buildTargetsHandler.workspaceBuildTargets)
+
+        // workspace/waitForBuildSystemUpdates
+        let waitUpdatesHandler = WaitUpdatesHandler(targetStore: targetStore, connection: connection)
+        registry.register(syncRequestHandler: waitUpdatesHandler.workspaceWaitForBuildSystemUpdates)
 
         // buildTarget/sources
         let targetSourcesHandler = TargetSourcesHandler(initializedConfig: initializedConfig, targetStore: targetStore)
@@ -86,12 +84,12 @@ package final class SourceKitBazelBSPServer {
             targetStore: targetStore,
             connection: connection
         )
-        registry.register(syncRequestHandler: prepareHandler.prepareTarget)
+        registry.register(requestHandler: prepareHandler.prepareTarget)
 
         // OnWatchedFilesDidChangeNotification
         let watchedFileChangeHandler = WatchedFileChangeHandler(
             targetStore: targetStore,
-            observers: [prepareHandler, skOptionsHandler],
+            observers: [skOptionsHandler],
             connection: connection
         )
         registry.register(notificationHandler: watchedFileChangeHandler.onWatchedFilesDidChange)
