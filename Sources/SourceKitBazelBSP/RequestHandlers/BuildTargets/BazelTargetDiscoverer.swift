@@ -44,7 +44,6 @@ public enum BazelTargetDiscoverer {
             .filter { !$0.isEmpty }
 
         if discoveredTargets.isEmpty {
-            logger.error("No targets discovered!")
             throw BazelTargetDiscovererError.noTargetsDiscovered
         }
 
