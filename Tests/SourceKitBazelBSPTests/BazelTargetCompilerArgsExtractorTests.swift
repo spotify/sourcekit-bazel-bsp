@@ -385,5 +385,4 @@ let expectedObjCResult: [String] = [
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/_global_index_store",
     "-working-directory",
     "/Users/user/Documents/demo-ios-project",
-
 ]

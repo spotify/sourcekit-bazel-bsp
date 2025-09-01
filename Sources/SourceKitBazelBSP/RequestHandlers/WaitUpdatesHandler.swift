@@ -42,8 +42,8 @@ final class WaitUpdatesHandler: @unchecked Sendable {
         _ id: RequestID
     ) throws -> VoidResponse {
         // If we can acquire the lock, then no updates are pending.
-        targetStore.stateLock.lock()
-        targetStore.stateLock.unlock()
-        return VoidResponse()
+        return targetStore.stateLock.withLockUnchecked {
+            return VoidResponse()
+        }
     }
 }

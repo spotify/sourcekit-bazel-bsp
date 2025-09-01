@@ -35,7 +35,7 @@ final class PrepareHandler {
     private weak var connection: LSPConnection?
 
     // The current Bazel build is always stored so that we can cancel it if requested by the LSP.
-    private var currentTaskLock = OSAllocatedUnfairLock<(RunningProcess,RequestID)?>(initialState: nil)
+    private var currentTaskLock = OSAllocatedUnfairLock<(RunningProcess, RequestID)?>(initialState: nil)
 
     init(
         initializedConfig: InitializedServerConfig,
@@ -62,45 +62,55 @@ final class PrepareHandler {
         }
 
         let taskId = TaskId(id: "buildPrepare-\(id.description)")
-        connection?.startWorkTask(id: taskId, title: "Indexing: Building targets")
+        connection?.startWorkTask(
+            id: taskId,
+            title: "sourcekit-bazel-bsp: Building \(targetsToBuild.count) target(s)..."
+        )
         do {
-            targetStore.stateLock.lock()
-            let labels = try targetsToBuild.map {
-                try targetStore.platformBuildLabel(forBSPURI: $0.uri).0
+            let labels = try targetStore.stateLock.withLockUnchecked {
+                return try targetsToBuild.map {
+                    try targetStore.platformBuildLabel(forBSPURI: $0.uri).0
+                }
             }
-            targetStore.stateLock.unlock()
-            try build(bazelLabels: labels, id: id, completion: UncheckedCompletion({ [connection] error in
+            nonisolated(unsafe) let reply = reply
+            try build(bazelLabels: labels, id: id) { [connection] error in
                 if let error = error {
                     connection?.finishTask(id: taskId, status: .error)
                     reply(.failure(error))
                 }
                 connection?.finishTask(id: taskId, status: .ok)
                 reply(.success(VoidResponse()))
-            }))
+            }
         } catch {
             connection?.finishTask(id: taskId, status: .error)
             reply(.failure(error))
         }
     }
 
-    func build(bazelLabels labelsToBuild: [String], id: RequestID, completion: UncheckedCompletion<ResponseError?>) throws {
+    func build(
+        bazelLabels labelsToBuild: [String],
+        id: RequestID,
+        completion: @escaping ((ResponseError?) -> Void)
+    ) throws {
         logger.info("Will build \(labelsToBuild.joined(separator: ", "))")
 
+        nonisolated(unsafe) let completion = completion
         try currentTaskLock.withLock { [commandRunner, initializedConfig] currentTask in
             // Build the provided targets, on our special output base and taking into account special index flags.
             let process = try commandRunner.bazelIndexAction(
-                initializedConfig: initializedConfig,
-                cmd: "build \(labelsToBuild.joined(separator: " "))"
+                baseConfig: initializedConfig.baseConfig,
+                outputBase: initializedConfig.outputBase,
+                cmd: "build \(labelsToBuild.joined(separator: " "))",
+                rootUri: initializedConfig.rootUri
             )
-            (process.wrappedProcess as? Process)?.terminationHandler = { process in
-                let code = process.terminationStatus
+            process.setTerminationHandler { code in
                 logger.info("Finished building! (Request ID: \(id.description), status code: \(code))")
                 if code == 0 {
-                    completion.block?(nil)
+                    completion(nil)
                 } else if code == 8 {
-                    completion.block?(ResponseError.cancelled)
+                    completion(ResponseError.cancelled)
                 } else {
-                    completion.block?(ResponseError(code: .internalError, message: "The bazel build failed."))
+                    completion(ResponseError(code: .internalError, message: "The bazel build failed."))
                 }
             }
             currentTask = (process, id)
@@ -121,25 +131,6 @@ extension PrepareHandler: CancelRequestObserver {
             }
             data.0.terminate()
             currentTaskData = nil
-        }
-    }
-}
-
-// This shouldn't be necessary in practice.
-// The only reason this exists is because I couldn't find another way to get the compiler
-// to shut up about Sendable stuff.
-struct UncheckedCompletion<T>: @unchecked Sendable {
-    typealias Block = (T) -> Void
-
-    let block: Block?
-
-    init(_ block: Block?) {
-        if let block {
-            self.block = {
-                block($0)
-            }
-        } else {
-            self.block = nil
         }
     }
 }

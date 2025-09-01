@@ -66,8 +66,13 @@ final class BazelTargetAquerier {
             return cached
         }
 
-        // Run the aquery on the special index output base since that's where we will build at.
-        let output: Data = try commandRunner.bazelIndexAction(initializedConfig: config, cmd: cmd)
+        // Run the aquery with the special index flags since that's what we will build with.
+        let output: Data = try commandRunner.bazelIndexAction(
+            baseConfig: config.baseConfig,
+            outputBase: config.aqueryOutputBase,
+            cmd: cmd,
+            rootUri: config.rootUri
+        )
 
         let parsedOutput = try BazelProtobufBindings.parseActionGraph(data: output)
 
