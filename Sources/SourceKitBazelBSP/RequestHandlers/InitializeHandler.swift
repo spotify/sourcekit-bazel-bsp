@@ -21,7 +21,7 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
-package let sourcekitBazelBSPVersion = "0.0.5"
+package let sourcekitBazelBSPVersion = "0.1.0"
 private let logger = makeFileLevelBSPLogger()
 
 enum InitializeHandlerError: Error, LocalizedError {
@@ -61,7 +61,7 @@ final class InitializeHandler {
         _ id: RequestID,
     ) throws -> (InitializeBuildResponse, InitializedServerConfig) {
         let taskId = TaskId(id: "initializeBuild-\(id.description)")
-        connection?.startWorkTask(id: taskId, title: "Indexing: Initializing sourcekit-bazel-bsp")
+        connection?.startWorkTask(id: taskId, title: "sourcekit-bazel-bsp: Initializing...")
         do {
             let initializedConfig = try makeInitializedConfig(fromRequest: request, baseConfig: baseConfig)
             let result = buildResponse(fromRequest: request, and: initializedConfig)
