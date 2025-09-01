@@ -29,47 +29,54 @@
 
 ### Cursor / VSCode
 
-- Make sure your Bazel project is using compatible versions of all iOS-related Bazel rulesets and is configured to generate Swift/Obj-C indexing data and debug symbols, either by default or under a specific config.
-  - Detailed information on this is currently WIP, but you can currently check out the [example project](./Example) for an example.
-- Make sure all transitive libraries you'd like to use the BSP for have accompanying `(platform)_build_test` rules that directly targets them and have the `(lib_name)_{ios,watchos,tvos,macos,visionos}_skbsp` naming scheme.
-  - This is because Bazel is currently missing a couple of important features we need in order to make this work in a clean way. This requirement can thus be seen as temporary, and you can expect it to be removed in the future as we evolve the tool and those missing features are introduced.
-  - Keep in mind that our current focus are iOS targets, so as of writing your mileage may vary regarding other platforms.
+- Make sure your Bazel project is using compatible versions of all iOS-related Bazel rulesets (available on each release's description) and is configured to generate Swift/Obj-C indexing data and debug symbols, either by default or under a specific config.
+  - Detailed information around configuring Bazel flags is currently WIP, but you can currently check out the [example project](./Example) for an example.
+- Make sure all libraries that you'd like to use the BSP for have accompanying `(platform)_build_test` rules that directly targets them and have the `(lib_name)_{ios,watchos,tvos,macos,visionos}_skbsp` naming scheme.
+  - This is because Bazel is currently missing a couple of important features we need in order to make this work in a clean way. This requirement is thus only temporary and you can expect it to be removed in the future as we evolve the tool and those missing features are introduced.
+  - Keep in mind that our current focus are iOS targets, so as of writing your mileage may vary when it comes to other Apple platforms.
 - Download and install [the official Swift extension](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) for Cursor / VSCode.
 - On Cursor / VSCode, open a workspace containing the repository in question.
-- Integrate BSP Server:
-  - Automated (suggested)
-    - Add the following to your `MODULE.bazel` file:
-
-    ```python
-    bazel_dep(name = "sourcekit_bazel_bsp", version = "0.0.5", repo_name = "sourcekit_bazel_bsp")
-    ```
-
-    - Define a `setup_sourcekit_bsp` in a BUILD.bazel file in the root of your workspace:
-
-      ```python
-      load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl")
-
-      setup_sourcekit_bsp(
-        name = "setup_sourcekit_bsp",
-        targets = YOUR_TARGETS,
-        bazel_wrapper = "/usr/local/bin/bazelisk" # Defaults to bazel
-        index_flags = [], # Optional indexing flags to pass to the build
-        files_to_watch = ["src/MyApp/**/*.swift"] # Globs of files to watch for changes to
-      )
-      ```
-
-    - Run `bazel run //:setup_sourcekit_bsp`
-    - Thats it you have now integrated the tool. Users should re-run that command whenever the configuration is changed.
-
-  - Manual
-    - Copy the .bsp/ folder on this repository to the root of the repository you'd like to use this tool for.
-    - Edit the `argv` fields in `.bsp/config.json` to match the details for your app / setup. You can see all available options by running `sourcekit-bazel-bsp serve --help`.
 - On the settings page for the Swift extension, enable `SourceKit-LSP: Background Indexing` at the **workspace level**. It **has** to be workspace settings; this specific setting is not supported at the folder level.
+- **(Optional)** Configure your workspace to use a custom `sourcekit-lsp` binary by placing the provided binary from the release archive at a place of your choice, running _Cmd+P_ on the IDE, typing `> Preferences: Open Workspace Settings (JSON)`, and adding the following entry to the JSON file: `"swift.sourcekit-lsp.serverPath": "(absolute path to the sourcekit-lsp binary to use)"`
+  - This is not strictly necessary. However, as we currently make use of LSP features that are not yet shipped to Xcode, you may face performance and other usability issues when using the version that is shipped with Xcode. Consider using the version provided alongside sourcekit-bazel-bsp (or compiling your own) for the best experience.
+
+The next step is to integrate sourcekit-bazel-bsp with your project. There are currently two ways you can do it:
+
+#### Integrating via Bzlmod
+
+- Add the following to your `MODULE.bazel` file:
+
+```python
+bazel_dep(name = "sourcekit_bazel_bsp", version = "0.1.0", repo_name = "sourcekit_bazel_bsp")
+```
+
+- Define a `setup_sourcekit_bsp` rule in a BUILD.bazel file in the root of your workspace and [configure it](rules/setup_sourcekit_bsp.bzl#L48) for your desired setup:
+
+```python
+load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl")
+
+setup_sourcekit_bsp(
+  name = "setup_sourcekit_bsp",
+  ...
+)
+```
+
+- Run `bazel run {path to the rule, e.g //:setup_sourcekit_bsp}`.
+
+This will result in a `.bsp/` folder being added to your workspace. Users should then re-run the above command whenever the configuration changes.
+
+#### Integrating Manually
+
+- Copy the `.bsp/` folder on this repository to the root of the repository you'd like to use this tool for.
+- Edit the `argv` fields in `.bsp/config.json` to match the details for your app / setup. You can see all available options by running `sourcekit-bazel-bsp serve --help`.
+
+#### After Integrating
+
 - Reload your workspace (`Cmd+Shift+P -> Reload Window`)
 
 After following these steps, the `SourceKit Language Server` output tab (_Cmd+Shift+U_) should show up when opening Swift or Obj-C files, and indexing-related actions will start popping up at the bottom of the IDE after a while alongside a new `SourceKit-LSP: Indexing` output tab when working with those files.
 
-If you experience any trouble trying to get it to work, check out the [Example/ folder](./Example) for a test project with a pre-configured Bazel and `.bsp` setup. The _Troubleshooting_ section below also contains instructions on how to debug sourcekit-bazel-bsp.
+If you experience any trouble trying to get it to work, check out the [Example/ folder](./Example) for a test project with a pre-configured Bazel and `.bsp/` folder setup. The _Troubleshooting_ section below also contains instructions on how to debug sourcekit-bazel-bsp.
 
 ### Other IDEs
 
