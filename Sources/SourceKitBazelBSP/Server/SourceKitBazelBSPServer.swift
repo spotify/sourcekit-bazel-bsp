@@ -53,12 +53,10 @@ package final class SourceKitBazelBSPServer {
         initializedConfig: InitializedServerConfig,
         connection: JSONRPCConnection
     ) {
-        // First, deal with the no-op handlers we cannot or do not want to handle directly.
-        registry.register(notificationHandler: { (_: OnBuildInitializedNotification) in
-            // no-op
-        })
+        // build/initialized
+        let didInitializeHandler = DidInitializeHandler(initializedConfig: initializedConfig)
+        registry.register(notificationHandler: didInitializeHandler.onDidInitialize)
 
-        // Then, register the things we are interested in.
         // workspace/buildTargets
         let targetStore = BazelTargetStoreImpl(initializedConfig: initializedConfig)
         let buildTargetsHandler = BuildTargetsHandler(targetStore: targetStore, connection: connection)
