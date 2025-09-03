@@ -44,9 +44,9 @@ struct Serve: ParsableCommand {
 
     @Option(
         help:
-            "The expected suffix for build_test targets."
+            "The expected suffix format for build_test targets. Use (PLAT) as a platform placeholder. Example: '_(PLAT)_skbsp'.",
     )
-    var buildTestSuffix: String = "_skbsp"
+    var buildTestSuffix: String
 
     // FIXME: This should be enabled by default, but I ran into some weird race condition issues with rules_swift I'm not sure about.
     @Flag(

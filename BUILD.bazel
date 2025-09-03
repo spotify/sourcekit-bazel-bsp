@@ -5,6 +5,7 @@ load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl", "setup_sourcekit_bsp
 setup_sourcekit_bsp(
     name = "setup_sourcekit_bsp",
     bazel_wrapper = "bazel",
+    build_test_suffix = "_(PLAT)_skbsp",
     files_to_watch = ["Sources/**/*.swift"],
     index_flags = [],
     targets = [

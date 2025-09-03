@@ -32,7 +32,7 @@ struct BazelTargetParserTests {
             bazelWrapper: "bazel",
             targets: ["//HelloWorld:HelloWorld"],
             indexFlags: [],
-            buildTestSuffix: "_skbsp",
+            buildTestSuffix: "_(PLAT)_skbsp",
             filesToWatch: nil
         )
 

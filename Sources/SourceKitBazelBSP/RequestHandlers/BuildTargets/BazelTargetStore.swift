@@ -129,8 +129,10 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         // at the moment, so for now we just select the first parent.
         let parentToUse = parents[0]
         let rule = try topLevelRuleType(forBazelLabel: parentToUse)
+        let baseSuffix = initializedConfig.baseConfig.buildTestSuffix
+        let platformBuildSuffix = baseSuffix.replacingOccurrences(of: "(PLAT)", with: rule.platform)
         return (
-            "\(bazelLabel)_\(rule.platform)\(initializedConfig.baseConfig.buildTestSuffix)",
+            "\(bazelLabel)\(platformBuildSuffix)",
             rule
         )
     }
