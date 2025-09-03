@@ -87,8 +87,8 @@ setup_sourcekit_bsp = rule(
             default = [],
         ),
         "build_test_suffix": attr.string(
-            doc = "The expected suffix for build_test targets.",
-            default = "_skbsp",
+            doc = "The expected suffix format for build_test targets. Use (PLAT) as a platform placeholder. Example: '_(PLAT)_skbsp'.",
+            mandatory = True,
         ),
         "separate_aquery_output": attr.bool(
             doc = "Whether to use a separate output base for compiler arguments requests. This greatly increases the performance of the server at the cost of more disk usage.",

@@ -31,7 +31,7 @@
 
 - Make sure your Bazel project is using compatible versions of all iOS-related Bazel rulesets (available on each release's description) and is configured to generate Swift/Obj-C indexing data and debug symbols, either by default or under a specific config.
   - Detailed information around configuring Bazel flags is currently WIP, but you can currently check out the [example project](./Example) for an example.
-- Make sure all libraries that you'd like to use the BSP for have accompanying `(platform)_build_test` rules that directly targets them and have the `(lib_name)_{ios,watchos,tvos,macos,visionos}_skbsp` naming scheme.
+- Make sure all libraries that you'd like to use the BSP for have accompanying `(platform)_build_test` rules that directly targets them and have a predictable suffix that includes the platform name. Example naming scheme: `(lib_name)_{ios,watchos,tvos,macos,visionos}_skbsp`
   - This is because Bazel is currently missing a couple of important features we need in order to make this work in a clean way. This requirement is thus only temporary and you can expect it to be removed in the future as we evolve the tool and those missing features are introduced.
   - Keep in mind that our current focus are iOS targets, so as of writing your mileage may vary when it comes to other Apple platforms.
 - Download and install [the official Swift extension](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) for Cursor / VSCode.
