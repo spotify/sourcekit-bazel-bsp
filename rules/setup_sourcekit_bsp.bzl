@@ -16,7 +16,7 @@ def _setup_sourcekit_bsp_impl(ctx):
     for index_flag in ctx.attr.index_flags:
         bsp_config_argv.append("--index-flag")
         bsp_config_argv.append(index_flag)
-    files_to_watch = ','.join(ctx.attr.files_to_watch)
+    files_to_watch = ",".join(ctx.attr.files_to_watch)
     if files_to_watch:
         bsp_config_argv.append("--files-to-watch")
         bsp_config_argv.append(files_to_watch)
@@ -48,7 +48,6 @@ def _setup_sourcekit_bsp_impl(ctx):
         files = depset(direct = [executable]),
         runfiles = tools_runfiles,
     )
-
 
 setup_sourcekit_bsp = rule(
     implementation = _setup_sourcekit_bsp_impl,
@@ -90,10 +89,10 @@ setup_sourcekit_bsp = rule(
         "build_test_suffix": attr.string(
             doc = "The expected suffix for build_test targets.",
             default = "_skbsp",
-        )
+        ),
         "separate_aquery_output": attr.bool(
             doc = "Whether to use a separate output base for compiler arguments requests. This greatly increases the performance of the server at the cost of more disk usage.",
             default = False,
-        )
+        ),
     },
 )
