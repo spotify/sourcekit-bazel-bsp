@@ -1,0 +1,15 @@
+""" Sets up the sourcekit-bazel-bsp in the current workspace using the provided configuration. This is needed during integration testing in the BCR """
+
+load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl", "setup_sourcekit_bsp")
+
+setup_sourcekit_bsp(
+    name = "setup_sourcekit_bsp",
+    bazel_wrapper = "bazel",
+    files_to_watch = ["Sources/**/*.swift"],
+    index_flags = [],
+    targets = [
+        "//Sources/sourcekit-bazel-bsp",
+        "//Sources/SourceKitBazelBSP",
+        "//Sources/BazelProtobufBindings",
+    ],
+)
