@@ -63,17 +63,25 @@ struct Serve: ParsableCommand {
 
         // If the user provided no specific targets, try to discover them
         // in the workspace.
-        let targets = try {
-            if !target.isEmpty {
-                return target
-            }
-            logger.warning(
-                "No targets specified (--target)! Will now try to discover them. This can cause the BSP to perform poorly if we find too many targets. Prefer using --target explicitly if possible."
+        let targets: [String]
+        do {
+            targets = try {
+                if !target.isEmpty {
+                    return target
+                }
+                logger.warning(
+                    "No targets specified (--target)! Will now try to discover them. This can cause the BSP to perform poorly if we find too many targets. Prefer using --target explicitly if possible."
+                )
+                return try BazelTargetDiscoverer.discoverTargets(
+                    bazelWrapper: bazelWrapper
+                )
+            }()
+        } catch {
+            logger.error(
+                "Server startup failed due to target discovery error. Please check your Bazel configuration and try specifying targets explicitly with --target. \(error)"
             )
-            return try BazelTargetDiscoverer.discoverTargets(
-                bazelWrapper: bazelWrapper
-            )
-        }()
+            throw error
+        }
 
         let config = BaseServerConfig(
             bazelWrapper: bazelWrapper,
