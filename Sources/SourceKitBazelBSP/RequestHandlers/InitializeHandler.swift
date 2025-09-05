@@ -100,6 +100,15 @@ final class InitializeHandler {
         )
         logger.debug("outputPath: \(outputPath)")
 
+        // Get the execution root based on the above output base.
+        let executionRoot: String = try commandRunner.bazelIndexAction(
+            baseConfig: baseConfig,
+            outputBase: outputBase,
+            cmd: "info execution_root",
+            rootUri: rootUri
+        )
+        logger.debug("executionRoot: \(executionRoot)")
+
         // Collecting the rest of the env's details
         let devDir: String = try commandRunner.run("xcode-select --print-path")
         let toolchain = try getToolchainPath(with: commandRunner)
@@ -113,7 +122,8 @@ final class InitializeHandler {
             outputBase: outputBase,
             outputPath: outputPath,
             devDir: devDir,
-            devToolchainPath: toolchain
+            devToolchainPath: toolchain,
+            executionRoot: executionRoot
         )
     }
 

@@ -91,7 +91,7 @@ final class SKOptionsHandler: InvalidatedTargetObserver {
         }
         return TextDocumentSourceKitOptionsResponse(
             compilerArguments: args,
-            workingDirectory: initializedConfig.rootUri
+            workingDirectory: initializedConfig.executionRoot
         )
     }
 
