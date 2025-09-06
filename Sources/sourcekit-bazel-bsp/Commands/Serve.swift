@@ -56,6 +56,12 @@ struct Serve: ParsableCommand {
     )
     var buildTestPlatformPlaceholder: String = Self.defaultBuildTestPlatformPlaceholder
 
+    @Option(
+        help:
+            "The expected platform placeholder for build_test targets.",
+    )
+    var buildTestPlatformPlaceholder: String = "(PLAT)"
+
     // FIXME: This should be enabled by default, but I ran into some weird race condition issues with rules_swift I'm not sure about.
     @Flag(
         help:
