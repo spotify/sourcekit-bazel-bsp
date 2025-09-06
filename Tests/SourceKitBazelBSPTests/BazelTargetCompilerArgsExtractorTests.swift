@@ -40,7 +40,8 @@ struct BazelTargetCompilerArgsExtractorTests {
                 bazelWrapper: "bazel",
                 targets: ["//HelloWorld"],
                 indexFlags: [],
-                buildTestSuffix: "_skbsp",
+                buildTestSuffix: "_(PLAT)_skbsp",
+                buildTestPlatformPlaceholder: "(PLAT)",
                 filesToWatch: nil
             ),
             rootUri: mockRootUri,

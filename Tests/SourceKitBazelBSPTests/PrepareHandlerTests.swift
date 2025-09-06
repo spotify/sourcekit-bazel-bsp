@@ -38,6 +38,7 @@ struct PrepareHandlerTests {
             targets: ["//HelloWorld"],
             indexFlags: ["--config=index"],
             buildTestSuffix: "_(PLAT)_skbsp",
+            buildTestPlatformPlaceholder: "(PLAT)",
             filesToWatch: nil
         )
 
@@ -84,6 +85,7 @@ struct PrepareHandlerTests {
             targets: ["//HelloWorld", "//HelloWorld2"],
             indexFlags: ["--config=index"],
             buildTestSuffix: "_(PLAT)_skbsp",
+            buildTestPlatformPlaceholder: "(PLAT)",
             filesToWatch: nil
         )
 
