@@ -90,7 +90,7 @@ setup_sourcekit_bsp = rule(
         ),
         "build_test_suffix": attr.string(
             doc = "The expected suffix format for build_test targets. Use the value of `build_test_platform_placeholder` as a platform placeholder.",
-            default = "_(PLAT)_skbsp'
+            default = "_(PLAT)_skbsp",
         ),
         "build_test_platform_placeholder": attr.string(
             doc = "The expected platform placeholder for build_test targets.",
