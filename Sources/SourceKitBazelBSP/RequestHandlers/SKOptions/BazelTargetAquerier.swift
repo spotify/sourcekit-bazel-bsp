@@ -37,29 +37,28 @@ enum BazelTargetAquerierError: Error, LocalizedError {
 final class BazelTargetAquerier {
 
     private let commandRunner: CommandRunner
-    private var queryCache = [String: Analysis_ActionGraphContainer]()
+    private var queryCache = [String: AqueryResult]()
 
     init(commandRunner: CommandRunner = ShellCommandRunner()) {
         self.commandRunner = commandRunner
     }
 
     func aquery(
-        target: String,
-        filteringFor: String,
+        targets: [String],
         config: InitializedServerConfig,
         mnemonics: Set<String>,
         additionalFlags: [String]
-    ) throws -> Analysis_ActionGraphContainer {
+    ) throws -> AqueryResult {
         guard !mnemonics.isEmpty else {
             throw BazelTargetAquerierError.noMnemonics
         }
 
         let mnemonicsFilter = mnemonics.sorted().joined(separator: "|")
-        let depsQuery = BazelTargetQuerier.queryDepsString(forTargets: [target])
+        let depsQuery = BazelTargetQuerier.queryDepsString(forTargets: targets)
 
         let otherFlags = additionalFlags.joined(separator: " ") + " --output proto"
-        let cmd = "aquery \"mnemonic('\(mnemonicsFilter)', filter(\(filteringFor), \(depsQuery)))\" \(otherFlags)"
-        logger.info("Processing aquery request for \(target), filtering for \(filteringFor)")
+        let cmd = "aquery \"mnemonic('\(mnemonicsFilter)', \(depsQuery))\" \(otherFlags)"
+        logger.info("Processing aquery request for \(targets)")
 
         if let cached = queryCache[cmd] {
             logger.debug("Returning cached results")
@@ -75,12 +74,13 @@ final class BazelTargetAquerier {
         )
 
         let parsedOutput = try BazelProtobufBindings.parseActionGraph(data: output)
+        let aqueryResult = AqueryResult(results: parsedOutput)
 
         logger.debug("ActionGraphContainer parsed \(parsedOutput.actions.count) actions")
 
-        queryCache[cmd] = parsedOutput
+        queryCache[cmd] = aqueryResult
 
-        return parsedOutput
+        return aqueryResult
     }
 
     func clearCache() {

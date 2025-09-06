@@ -30,6 +30,7 @@ private let logger = makeFileLevelBSPLogger()
 // the project's dependency graph and its files.
 protocol BazelTargetStore: AnyObject {
     var stateLock: OSAllocatedUnfairLock<Void> { get }
+    var platformsToTopLevelLabelsMap: [String: [String]] { get }
     func fetchTargets() throws -> [BuildTarget]
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String
     func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI]
@@ -78,6 +79,9 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         self.initializedConfig = initializedConfig
         self.bazelTargetQuerier = bazelTargetQuerier
     }
+
+    /// Maps the list of supported platforms to the list of top-level labels of said platform.
+    var platformsToTopLevelLabelsMap: [String: [String]] = [:]
 
     /// Converts a BSP BuildTarget URI to its underlying Bazel target label.
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String {
@@ -191,6 +195,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         }
         for (target, ruleType) in topLevelTargetData {
             topLevelLabelToRuleMap[target] = ruleType
+            platformsToTopLevelLabelsMap[ruleType.platform, default: []].append(target)
         }
 
         // We need to now map which targets belong to which top-level apps,
@@ -254,6 +259,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         bazelLabelToParentsMap = [:]
         availableBazelLabels = []
         topLevelLabelToRuleMap = [:]
+        platformsToTopLevelLabelsMap = [:]
         bazelTargetQuerier.clearCache()
         cachedTargets = nil
     }

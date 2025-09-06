@@ -33,6 +33,7 @@
 		"--build-test-suffix",
 		"_(PLAT)_skbsp",
 		"--build-test-platform-placeholder",
-		"(PLAT)"
+		"(PLAT)",
+        "--separate-aquery-output"
 	]
 }

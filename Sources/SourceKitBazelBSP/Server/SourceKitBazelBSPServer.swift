@@ -53,10 +53,6 @@ package final class SourceKitBazelBSPServer {
         initializedConfig: InitializedServerConfig,
         connection: JSONRPCConnection
     ) {
-        // build/initialized
-        let didInitializeHandler = DidInitializeHandler(initializedConfig: initializedConfig)
-        registry.register(notificationHandler: didInitializeHandler.onDidInitialize)
-
         // workspace/buildTargets
         let targetStore = BazelTargetStoreImpl(initializedConfig: initializedConfig)
         let buildTargetsHandler = BuildTargetsHandler(targetStore: targetStore, connection: connection)
@@ -70,7 +66,7 @@ package final class SourceKitBazelBSPServer {
         let targetSourcesHandler = TargetSourcesHandler(initializedConfig: initializedConfig, targetStore: targetStore)
         registry.register(syncRequestHandler: targetSourcesHandler.buildTargetSources)
 
-        // textDocument/sourceKitOptions
+        // textDocument/sourceKitOptions. Here
         let skOptionsHandler = SKOptionsHandler(
             initializedConfig: initializedConfig,
             targetStore: targetStore,
@@ -99,6 +95,13 @@ package final class SourceKitBazelBSPServer {
             observers: [prepareHandler]  // `prepare` is the only case of cancelation I'm aware of.
         )
         registry.register(notificationHandler: cancelRequestHandler.onCancelRequest)
+
+        // build/initialized
+        let didInitializeHandler = DidInitializeHandler(
+            initializedConfig: initializedConfig,
+            observers: [skOptionsHandler]
+        )
+        registry.register(notificationHandler: didInitializeHandler.onDidInitialize)
     }
 
     package convenience init(
