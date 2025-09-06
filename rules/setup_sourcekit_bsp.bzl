@@ -11,6 +11,8 @@ def _setup_sourcekit_bsp_impl(ctx):
     bsp_config_argv.append(ctx.attr.bazel_wrapper)
     bsp_config_argv.append("--build-test-suffix")
     bsp_config_argv.append(ctx.attr.build_test_suffix)
+    bsp_config_argv.append("--build-test-platform-placeholder")
+    bsp_config_argv.append(ctx.attr.build_test_platform_placeholder)
     bsp_config_argv.append("--separate-aquery-output")
     bsp_config_argv.append(ctx.attr.separate_aquery_output)
     for index_flag in ctx.attr.index_flags:
@@ -87,8 +89,12 @@ setup_sourcekit_bsp = rule(
             default = [],
         ),
         "build_test_suffix": attr.string(
-            doc = "The expected suffix for build_test targets.",
-            default = "_skbsp",
+            doc = "The expected suffix format for build_test targets. Use the value of `build_test_platform_placeholder` as a platform placeholder.",
+            default = "_(PLAT)_skbsp",
+        ),
+        "build_test_platform_placeholder": attr.string(
+            doc = "The expected platform placeholder for build_test targets.",
+            default = "(PLAT)",
         ),
         "separate_aquery_output": attr.bool(
             doc = "Whether to use a separate output base for compiler arguments requests. This greatly increases the performance of the server at the cost of more disk usage.",

@@ -29,6 +29,10 @@
 		"--index-flag",
 		"config=index_build",
 		"--files-to-watch",
-		"HelloWorld/**/*.swift,HelloWorld/**/*.m,HelloWorld/**/*.h"
+		"HelloWorld/**/*.swift,HelloWorld/**/*.m,HelloWorld/**/*.h",
+		"--build-test-suffix",
+		"_(PLAT)_skbsp",
+		"--build-test-platform-placeholder",
+		"(PLAT)"
 	]
 }

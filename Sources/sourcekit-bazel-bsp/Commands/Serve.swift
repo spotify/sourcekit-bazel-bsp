@@ -25,6 +25,8 @@ import SourceKitBazelBSP
 private let logger = makeFileLevelBSPLogger()
 
 struct Serve: ParsableCommand {
+    private static let defaultBuildTestPlatformPlaceholder = "(PLAT)"
+
     @Option(help: "The name of the Bazel CLI to invoke (e.g. 'bazelisk')")
     var bazelWrapper: String = "bazel"
 
@@ -44,9 +46,15 @@ struct Serve: ParsableCommand {
 
     @Option(
         help:
-            "The expected suffix for build_test targets."
+            "The expected suffix format for build_test targets. Use the value of `--build-test-platform-placeholder` as a platform placeholder.",
     )
-    var buildTestSuffix: String = "_skbsp"
+    var buildTestSuffix: String = "_\(Self.defaultBuildTestPlatformPlaceholder)_skbsp"
+
+    @Option(
+        help:
+            "The expected platform placeholder for build_test targets.",
+    )
+    var buildTestPlatformPlaceholder: String = Self.defaultBuildTestPlatformPlaceholder
 
     // FIXME: This should be enabled by default, but I ran into some weird race condition issues with rules_swift I'm not sure about.
     @Flag(
@@ -61,26 +69,25 @@ struct Serve: ParsableCommand {
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
-        // If the user provided no specific targets, try to discover them
-        // in the workspace.
         let targets: [String]
-        do {
-            targets = try {
-                if !target.isEmpty {
-                    return target
-                }
-                logger.warning(
-                    "No targets specified (--target)! Will now try to discover them. This can cause the BSP to perform poorly if we find too many targets. Prefer using --target explicitly if possible."
-                )
-                return try BazelTargetDiscoverer.discoverTargets(
+        if !target.isEmpty {
+            targets = target
+        } else {
+            // If the user provided no specific targets, try to discover them
+            // in the workspace.
+            logger.warning(
+                "No targets specified (--target)! Will now try to discover them. This can cause the BSP to perform poorly if we find too many targets. Prefer using --target explicitly if possible."
+            )
+            do {
+                targets = try BazelTargetDiscoverer.discoverTargets(
                     bazelWrapper: bazelWrapper
                 )
-            }()
-        } catch {
-            logger.error(
-                "Server startup failed due to target discovery error. Please check your Bazel configuration and try specifying targets explicitly with --target. \(error)"
-            )
-            throw error
+            } catch {
+                logger.error(
+                    "Failed to initialize server: Could not discover targets. Please check your Bazel configuration or try specifying targets explicitly with `--target` instead. Failure: \(error)"
+                )
+                throw error
+            }
         }
 
         let config = BaseServerConfig(
@@ -88,6 +95,7 @@ struct Serve: ParsableCommand {
             targets: targets,
             indexFlags: indexFlag.map { "--" + $0 },
             buildTestSuffix: buildTestSuffix,
+            buildTestPlatformPlaceholder: buildTestPlatformPlaceholder,
             filesToWatch: filesToWatch,
             useSeparateOutputBaseForAquery: separateAqueryOutput
         )
