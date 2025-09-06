@@ -95,7 +95,7 @@ setup_sourcekit_bsp = rule(
         "build_test_platform_placeholder": attr.string(
             doc = "The expected platform placeholder for build_test targets.",
             default = "(PLAT)",
-        )
+        ),
         "separate_aquery_output": attr.bool(
             doc = "Whether to use a separate output base for compiler arguments requests. This greatly increases the performance of the server at the cost of more disk usage.",
             default = False,
