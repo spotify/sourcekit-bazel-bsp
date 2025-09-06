@@ -47,7 +47,8 @@ struct PrepareHandlerTests {
             outputBase: "/tmp/output_base",
             outputPath: "/tmp/output_path",
             devDir: "/Applications/Xcode.app/Contents/Developer",
-            devToolchainPath: "/a/b/XcodeDefault.xctoolchain/"
+            devToolchainPath: "/a/b/XcodeDefault.xctoolchain/",
+            executionRoot: "/tmp/output_path/execoot/_main"
         )
 
         let expectedCommand = "bazel --output_base=/tmp/output_base build //HelloWorld --config=index"
@@ -92,7 +93,8 @@ struct PrepareHandlerTests {
             outputBase: "/tmp/output_base",
             outputPath: "/tmp/output_path",
             devDir: "/Applications/Xcode.app/Contents/Developer",
-            devToolchainPath: "/a/b/XcodeDefault.xctoolchain/"
+            devToolchainPath: "/a/b/XcodeDefault.xctoolchain/",
+            executionRoot: "/tmp/output_path/execroot/_main"
         )
 
         let expectedCommand = "bazel --output_base=/tmp/output_base build //HelloWorld //HelloWorld2 --config=index"
