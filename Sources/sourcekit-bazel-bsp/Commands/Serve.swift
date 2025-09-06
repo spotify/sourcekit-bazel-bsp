@@ -25,6 +25,8 @@ import SourceKitBazelBSP
 private let logger = makeFileLevelBSPLogger()
 
 struct Serve: ParsableCommand {
+    private static let defaultBuildTestPlatformPlaceholder = "(PLAT)"
+
     @Option(help: "The name of the Bazel CLI to invoke (e.g. 'bazelisk')")
     var bazelWrapper: String = "bazel"
 
@@ -44,15 +46,15 @@ struct Serve: ParsableCommand {
 
     @Option(
         help:
-            "The expected suffix format for build_test targets. Use the value of `--build-test-platform-placeholder` as a platform placeholder. Example: '_(PLAT)_skbsp'.",
+            "The expected suffix format for build_test targets. Use the value of `--build-test-platform-placeholder` as a platform placeholder.",
     )
-    var buildTestSuffix: String
+    var buildTestSuffix: String = "_\(Self.defaultBuildTestPlatformPlaceholder)_skbsp"
 
     @Option(
         help:
             "The expected platform placeholder for build_test targets.",
     )
-    var buildTestPlatformPlaceholder: String = "(PLAT)"
+    var buildTestPlatformPlaceholder: String = Self.defaultBuildTestPlatformPlaceholder
 
     // FIXME: This should be enabled by default, but I ran into some weird race condition issues with rules_swift I'm not sure about.
     @Flag(
