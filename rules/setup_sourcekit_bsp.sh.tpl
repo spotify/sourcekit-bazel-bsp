@@ -5,10 +5,15 @@ set -euo pipefail
 sourcekit_bazel_bsp_path="%sourcekit_bazel_bsp_path%"
 bsp_config_path="%bsp_config_path%"
 
-mkdir -p "$BUILD_WORKSPACE_DIRECTORY/.bsp"
+bsp_folder_path="$BUILD_WORKSPACE_DIRECTORY/.bsp"
 
-cp "${bsp_config_path}" "$BUILD_WORKSPACE_DIRECTORY/.bsp/config.json"
-cp "${sourcekit_bazel_bsp_path}" "$BUILD_WORKSPACE_DIRECTORY/.bsp/sourcekit-bazel-bsp"
+mkdir -p "$bsp_folder_path"
 
-chmod +w "$BUILD_WORKSPACE_DIRECTORY/.bsp/config.json"
-chmod +w "$BUILD_WORKSPACE_DIRECTORY/.bsp/sourcekit-bazel-bsp"
+target_bsp_config_path="$bsp_folder_path/config.json"
+target_sourcekit_bazel_bsp_path="$bsp_folder_path/sourcekit-bazel-bsp"
+
+cp "$bsp_config_path" "$target_bsp_config_path"
+cp "$sourcekit_bazel_bsp_path" "$target_sourcekit_bazel_bsp_path"
+
+chmod +w "$target_bsp_config_path"
+chmod +w "$target_sourcekit_bazel_bsp_path"
