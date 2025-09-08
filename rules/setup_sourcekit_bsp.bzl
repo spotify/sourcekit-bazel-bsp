@@ -13,8 +13,8 @@ def _setup_sourcekit_bsp_impl(ctx):
     bsp_config_argv.append(ctx.attr.build_test_suffix)
     bsp_config_argv.append("--build-test-platform-placeholder")
     bsp_config_argv.append(ctx.attr.build_test_platform_placeholder)
-    bsp_config_argv.append("--separate-aquery-output")
-    bsp_config_argv.append(ctx.attr.separate_aquery_output)
+    if ctx.attr.separate_aquery_output:
+        bsp_config_argv.append("--separate-aquery-output")
     for index_flag in ctx.attr.index_flags:
         bsp_config_argv.append("--index-flag")
         bsp_config_argv.append(index_flag)
