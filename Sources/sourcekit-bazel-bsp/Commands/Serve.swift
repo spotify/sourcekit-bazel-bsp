@@ -66,6 +66,13 @@ struct Serve: ParsableCommand {
     @Option(help: "Comma separated list of file globs to watch for changes.")
     var filesToWatch: String?
 
+    @Option(
+        parsing: .singleValue,
+        help:
+            "Rule types to query for when discovering targets automatically. Can be specified multiple times. If not specified, all supported rule types will be used."
+    )
+    var ruleType: [String] = []
+
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
@@ -78,8 +85,12 @@ struct Serve: ParsableCommand {
             logger.warning(
                 "No targets specified (--target)! Will now try to discover them. This can cause the BSP to perform poorly if we find too many targets. Prefer using --target explicitly if possible."
             )
+
             do {
+                let rulesToQuery: [TopLevelRuleType] =
+                    ruleType.isEmpty ? TopLevelRuleType.allCases : try ruleType.toTopLevelRuleTypes()
                 targets = try BazelTargetDiscoverer.discoverTargets(
+                    for: rulesToQuery,
                     bazelWrapper: bazelWrapper
                 )
             } catch {

@@ -17,8 +17,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import ArgumentParser
+
 // The list of **top-level rules** we know how to process in the BSP.
-public enum TopLevelRuleType: String, CaseIterable {
+public enum TopLevelRuleType: String, CaseIterable, RawRepresentable {
     case iosApplication = "ios_application"
     case iosUnitTest = "ios_unit_test"
     case iosUiTest = "ios_ui_test"
@@ -78,5 +80,19 @@ public enum TopLevelRuleType: String, CaseIterable {
         case .visionosUnitTest: return "xrsimulator"
         case .visionosUiTest: return "xrsimulator"
         }
+    }
+}
+
+extension [String] {
+
+    /// Attempts to convert the array of strings to an array of top-level rule types.
+    /// Will throw a ValidationError if any of the strings are not valid top-level rule types.
+    public func toTopLevelRuleTypes() throws -> [TopLevelRuleType] {
+        let ruleTypes = self.compactMap { TopLevelRuleType(rawValue: $0) }
+        if ruleTypes.count != self.count {
+            let invalidRules = self.filter { TopLevelRuleType(rawValue: $0) == nil }
+            throw ValidationError("Invalid rule types: \(invalidRules.joined(separator: ", "))")
+        }
+        return ruleTypes
     }
 }
