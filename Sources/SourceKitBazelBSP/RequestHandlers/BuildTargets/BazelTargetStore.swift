@@ -35,8 +35,13 @@ protocol BazelTargetStore: AnyObject {
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String
     func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI]
     func bspURIs(containingSrc src: URI) throws -> [URI]
-    func platformBuildLabel(forBSPURI uri: URI) throws -> (String, TopLevelRuleType)
+    func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo
     func clearCache()
+}
+
+struct BazelTargetPlatformInfo {
+    let buildTestLabel: String
+    let parentRuleType: TopLevelRuleType
 }
 
 enum BazelTargetStoreError: Error, LocalizedError {
@@ -125,7 +130,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
     /// Provides the bazel label containing **platform information** for a given BSP URI.
     /// This is used to determine the correct set of compiler flags for the target / platform combo.
-    func platformBuildLabel(forBSPURI uri: URI) throws -> (String, TopLevelRuleType) {
+    func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo {
         let bazelLabel = try bazelTargetLabel(forBSPURI: uri)
         let parents = try bazelLabelToParents(forBazelLabel: bazelLabel)
         // FIXME: When a target can compile to multiple platforms, the way Xcode handles it is by selecting
@@ -136,9 +141,9 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         let baseSuffix = initializedConfig.baseConfig.buildTestSuffix
         let platformPlaceholder = initializedConfig.baseConfig.buildTestPlatformPlaceholder
         let platformBuildSuffix = baseSuffix.replacingOccurrences(of: platformPlaceholder, with: rule.platform)
-        return (
-            "\(bazelLabel)\(platformBuildSuffix)",
-            rule
+        return BazelTargetPlatformInfo(
+            buildTestLabel: "\(bazelLabel)\(platformBuildSuffix)",
+            parentRuleType: rule,
         )
     }
 

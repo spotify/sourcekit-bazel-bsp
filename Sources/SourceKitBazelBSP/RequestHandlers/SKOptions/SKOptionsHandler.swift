@@ -94,19 +94,18 @@ final class SKOptionsHandler {
     }
 
     func handle(request: TextDocumentSourceKitOptionsRequest) throws -> TextDocumentSourceKitOptionsResponse? {
-        let (targetUri, bazelTarget, topLevelRuleType, underlyingLibrary, targetsToQuery) = try targetStore.stateLock.withLockUnchecked {
-            let targetUri = request.target.uri
-            let (bazelTarget, topLevelRule) = try targetStore.platformBuildLabel(forBSPURI: targetUri)
-            let platform = topLevelRule.platform
-            let underlyingLibrary = try targetStore.bazelTargetLabel(forBSPURI: targetUri)
+        let targetUri = request.target.uri
+        let (bazelTarget, platformInfo, platformTopLevelTargets) = try targetStore.stateLock.withLockUnchecked {
+            let bazelTarget = try targetStore.bazelTargetLabel(forBSPURI: targetUri)
+            let platformInfo = try targetStore.platformBuildLabelInfo(forBSPURI: targetUri)
             // We will request all top-level targets of this platform at once to maximize cache hits.
-            let targetsToQuery = targetStore.platformsToTopLevelLabelsMap[platform] ?? []
-            return (targetUri, bazelTarget, topLevelRule, underlyingLibrary, targetsToQuery)
+            let targetsToQuery = targetStore.platformsToTopLevelLabelsMap[platformInfo.parentRuleType.platform] ?? []
+            return (bazelTarget, platformInfo, targetsToQuery)
         }
 
-        guard !targetsToQuery.isEmpty else {
+        guard !platformTopLevelTargets.isEmpty else {
             // This should in theory never happen, but we should handle it just in case.
-            throw SKOptionsHandlerError.noTargetsToRequest(topLevelRuleType.platform)
+            throw SKOptionsHandlerError.noTargetsToRequest(platformInfo.parentRuleType.platform)
         }
 
         logger.info(
@@ -117,10 +116,9 @@ final class SKOptionsHandler {
             try extractor.compilerArgs(
                 forDoc: request.textDocument.uri,
                 inTarget: bazelTarget,
-                underlyingLibrary: underlyingLibrary,
+                buildingUnder: platformInfo,
+                queryingFor: platformTopLevelTargets,
                 language: request.language,
-                topLevelRuleType: topLevelRuleType,
-                targetsToQuery: targetsToQuery
             ) ?? []
 
         // If no compiler arguments are found, return nil to avoid sourcekit indexing with no input files

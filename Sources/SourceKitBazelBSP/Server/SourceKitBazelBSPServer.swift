@@ -66,7 +66,7 @@ package final class SourceKitBazelBSPServer {
         let targetSourcesHandler = TargetSourcesHandler(initializedConfig: initializedConfig, targetStore: targetStore)
         registry.register(syncRequestHandler: targetSourcesHandler.buildTargetSources)
 
-        // textDocument/sourceKitOptions. Here
+        // textDocument/sourceKitOptions
         let skOptionsHandler = SKOptionsHandler(
             initializedConfig: initializedConfig,
             targetStore: targetStore,

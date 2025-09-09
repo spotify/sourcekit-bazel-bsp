@@ -22,19 +22,35 @@ import Foundation
 
 private let logger = makeFileLevelBSPLogger()
 
+enum AqueryResultError: Error, LocalizedError {
+    case duplicateTarget(label: String)
+    case duplicateAction(targetID: UInt32)
+
+    var errorDescription: String? {
+        switch self {
+        case .duplicateTarget(let label): return "Duplicate target found in the aquery! (\(label)) This can happen if a target gets different arguments depending on which top-level target builds it (on the same platform). Currently, the BSP expects the target to be stable in that sense."
+        case .duplicateAction(let targetID): return "Duplicate action ID found in the aquery! (\(targetID)) This is unexpected. Failing pre-emptively."
+        }
+    }
+}
+
 /// Small abstraction on top of Analysis_ActionGraphContainer to pre-aggregate the proto results.
 final class AqueryResult {
     let targets: [String: Analysis_Target]
     let actions: [UInt32: Analysis_Action]
 
-    init(results: Analysis_ActionGraphContainer) {
-        var targets = [String: Analysis_Target]()
-        var actions = [UInt32: Analysis_Action]()
-        results.targets.forEach {
-            targets[$0.label] = $0
+    init(results: Analysis_ActionGraphContainer) throws {
+        let targets: [String: Analysis_Target] = try results.targets.reduce(into: [:]) { result, target in
+            if result.keys.contains(target.label) {
+                throw AqueryResultError.duplicateTarget(label: target.label)
+            }
+            result[target.label] = target
         }
-        results.actions.forEach {
-            actions[$0.targetID] = $0
+        let actions: [UInt32: Analysis_Action] = try results.actions.reduce(into: [:]) { result, action in
+            if result.keys.contains(action.targetID) {
+                throw AqueryResultError.duplicateAction(targetID: action.targetID)
+            }
+            result[action.targetID] = action
         }
         self.targets = targets
         self.actions = actions
