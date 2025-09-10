@@ -106,7 +106,7 @@ final class BazelTargetCompilerArgsExtractor {
             filteringFor: underlyingLibrary,
             config: config,
             mnemonics: ["SwiftCompile", "ObjcCompile"],
-            additionalFlags: ["--noinclude_artifacts", "--noinclude_aspects"]
+            additionalFlags: ["--noinclude_artifacts", "--noinclude_aspects", "--features=-compiler_param_file"]
         )
 
         // Then, determine the SDK root based on the platform the target is built for
