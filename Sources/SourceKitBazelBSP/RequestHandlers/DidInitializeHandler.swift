@@ -23,6 +23,10 @@ import LanguageServerProtocol
 
 private let logger = makeFileLevelBSPLogger()
 
+protocol DidInitializeObserver: AnyObject {
+    func didInitializeHandlerFinishedPreparations()
+}
+
 /// Handles the `build/initialized` notification.
 ///
 /// This is called right after returning from the `initialize` request.
@@ -31,12 +35,15 @@ final class DidInitializeHandler: @unchecked Sendable {
 
     private let initializedConfig: InitializedServerConfig
     private let commandRunner: CommandRunner
+    private let observers: [DidInitializeObserver]
 
     init(
         initializedConfig: InitializedServerConfig,
+        observers: [DidInitializeObserver],
         commandRunner: CommandRunner = ShellCommandRunner(),
     ) {
         self.initializedConfig = initializedConfig
+        self.observers = observers
         self.commandRunner = commandRunner
     }
 
@@ -58,6 +65,7 @@ final class DidInitializeHandler: @unchecked Sendable {
                 return
             }
             guard initializedConfig.aqueryOutputBase != initializedConfig.outputBase else {
+                self.notifyObservers()
                 return
             }
             // FIXME: We have to warm up the aqueries *after* the build, otherwise we can run
@@ -70,7 +78,12 @@ final class DidInitializeHandler: @unchecked Sendable {
             )
             aquery?.setTerminationHandler { code in
                 logger.info("Finished warming up the aquery output base! (status code: \(code))")
+                self.notifyObservers()
             }
         }
+    }
+
+    func notifyObservers() {
+        observers.forEach { $0.didInitializeHandlerFinishedPreparations() }
     }
 }
