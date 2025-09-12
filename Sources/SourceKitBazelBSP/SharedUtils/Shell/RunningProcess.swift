@@ -50,19 +50,46 @@ public struct RunningProcess: Sendable {
     }
 
     public func output<T: DataConvertible>() throws -> T {
-        // Drain stdout/err first to avoid deadlocking when the output is buffered.
-        let data = stdout.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderr.fileHandleForReading.readDataToEndOfFile()
+        let dataQueue = DispatchQueue(label: cmd)
+        var stdoutData: Data = Data()
+        var stderrData = Data()
+
+        stdout.fileHandleForReading.readabilityHandler = { stdoutFileHandle in
+            let outData = stdoutFileHandle.availableData
+            if outData.count > 0 {
+                dataQueue.async {
+                    stdoutData.append(outData)
+                }
+            }
+        }
+
+        stderr.fileHandleForReading.readabilityHandler = { stderrFileHandle in
+            let outData = stderrFileHandle.availableData
+            if outData.count > 0 {
+                dataQueue.async {
+                    stderrData.append(outData)
+                }
+            }
+        }
 
         wrappedProcess.waitUntilExit()
 
+        stdout.fileHandleForReading.readabilityHandler = nil
+        stderr.fileHandleForReading.readabilityHandler = nil
+        dataQueue.async {
+            stdout.fileHandleForReading.closeFile()
+            stderr.fileHandleForReading.closeFile()
+        }
+
         guard wrappedProcess.terminationStatus == 0 else {
             logger.debug("Command failed: \(cmd)")
-            let stderrString: String = String(data: stderrData, encoding: .utf8) ?? "(no stderr)"
+            let stderrString: String = dataQueue.sync {
+                String(data: stderrData, encoding: .utf8) ?? "(no stderr)"
+            }
             throw ShellCommandRunnerError.failed(cmd, stderrString)
         }
 
-        return T.convert(from: data)
+        return dataQueue.sync { T.convert(from: stdoutData) }
     }
 
     public func terminate() {
