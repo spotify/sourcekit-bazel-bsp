@@ -50,22 +50,31 @@ public struct RunningProcess: Sendable {
     }
 
     public func output<T: DataConvertible>() throws -> T {
-        let dataQueue = DispatchQueue(label: cmd)
         var stdoutData: Data = Data()
-        var stderrData = Data()
+        var stderrData: Data = Data()
+        let dataQueue = DispatchQueue(label: "\(cmd)")
+        let dispatchGroup = DispatchGroup()
 
+        dispatchGroup.enter()
         stdout.fileHandleForReading.readabilityHandler = { stdoutFileHandle in
             let outData = stdoutFileHandle.availableData
-            if outData.count > 0 {
+            if outData.isEmpty {
+                stdoutFileHandle.readabilityHandler = nil
+                dispatchGroup.leave()
+            } else {
                 dataQueue.async {
                     stdoutData.append(outData)
                 }
             }
         }
 
+        dispatchGroup.enter()
         stderr.fileHandleForReading.readabilityHandler = { stderrFileHandle in
             let outData = stderrFileHandle.availableData
-            if outData.count > 0 {
+            if outData.isEmpty {
+                stderrFileHandle.readabilityHandler = nil
+                dispatchGroup.leave()
+            } else {
                 dataQueue.async {
                     stderrData.append(outData)
                 }
@@ -73,23 +82,15 @@ public struct RunningProcess: Sendable {
         }
 
         wrappedProcess.waitUntilExit()
-
-        stdout.fileHandleForReading.readabilityHandler = nil
-        stderr.fileHandleForReading.readabilityHandler = nil
-        dataQueue.async {
-            stdout.fileHandleForReading.closeFile()
-            stderr.fileHandleForReading.closeFile()
-        }
-
+        dispatchGroup.wait()
+        
         guard wrappedProcess.terminationStatus == 0 else {
             logger.debug("Command failed: \(cmd)")
-            let stderrString: String = dataQueue.sync {
-                String(data: stderrData, encoding: .utf8) ?? "(no stderr)"
-            }
+            let stderrString: String = String(data: stderrData, encoding: .utf8) ?? "(no stderr)"
             throw ShellCommandRunnerError.failed(cmd, stderrString)
         }
 
-        return dataQueue.sync { T.convert(from: stdoutData) }
+        return T.convert(from: stdoutData)
     }
 
     public func terminate() {
