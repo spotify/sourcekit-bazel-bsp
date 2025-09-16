@@ -52,38 +52,33 @@ public struct RunningProcess: Sendable {
     public func output<T: DataConvertible>() throws -> T {
         var stdoutData: Data = Data()
         var stderrData: Data = Data()
-        let dataQueue = DispatchQueue(label: "\(cmd)")
+        let stdoutDataQueue = DispatchQueue(label: "Stdout: \(cmd)")
+        let stderrDataQueue = DispatchQueue(label: "Stderr: \(cmd)")
         let group = DispatchGroup()
 
         group.enter()
         stdout.fileHandleForReading.readabilityHandler = { stdoutFileHandle in
             let tmpstdoutData = stdoutFileHandle.availableData
-            if !tmpstdoutData.isEmpty {
-                // Ensure we always wait for all reads
-                group.enter()
-                dataQueue.async {
-                    stdoutData.append(tmpstdoutData)
-                    group.leave()
-                }
-            } else {  // EOF
+            if tmpstdoutData.isEmpty {  // EOF
                 stdout.fileHandleForReading.readabilityHandler = nil
                 group.leave()
+            } else {
+                stdoutDataQueue.sync {
+                    stdoutData.append(tmpstdoutData)
+                }
             }
         }
 
         group.enter()
         stderr.fileHandleForReading.readabilityHandler = { stderrFileHandle in
             let tmpstderrData = stderrFileHandle.availableData
-            if !tmpstderrData.isEmpty {
-                // Ensure we always wait for all reads
-                group.enter()
-                dataQueue.async {
-                    stderrData.append(tmpstderrData)
-                    group.leave()
-                }
-            } else {  // EOF
+            if tmpstderrData.isEmpty {  // EOF
                 stderr.fileHandleForReading.readabilityHandler = nil
                 group.leave()
+            } else {
+                stderrDataQueue.sync {
+                    stderrData.append(tmpstderrData)
+                }
             }
         }
 
