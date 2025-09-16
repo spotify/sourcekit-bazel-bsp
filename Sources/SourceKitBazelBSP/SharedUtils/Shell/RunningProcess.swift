@@ -53,37 +53,43 @@ public struct RunningProcess: Sendable {
         var stdoutData: Data = Data()
         var stderrData: Data = Data()
         let dataQueue = DispatchQueue(label: "\(cmd)")
-        let dispatchGroup = DispatchGroup()
+        let group = DispatchGroup()
 
-        dispatchGroup.enter()
+        group.enter()
         stdout.fileHandleForReading.readabilityHandler = { stdoutFileHandle in
-            let outData = stdoutFileHandle.availableData
-            if outData.isEmpty {
-                stdoutFileHandle.readabilityHandler = nil
-                dispatchGroup.leave()
-            } else {
+            let tmpstdoutData = stdoutFileHandle.availableData
+            if !tmpstdoutData.isEmpty {
+                // Ensure we always wait for all reads
+                group.enter()
                 dataQueue.async {
-                    stdoutData.append(outData)
+                    stdoutData.append(tmpstdoutData)
+                    group.leave()
                 }
+            } else {  // EOF
+                stdout.fileHandleForReading.readabilityHandler = nil
+                group.leave()
             }
         }
 
-        dispatchGroup.enter()
+        group.enter()
         stderr.fileHandleForReading.readabilityHandler = { stderrFileHandle in
-            let outData = stderrFileHandle.availableData
-            if outData.isEmpty {
-                stderrFileHandle.readabilityHandler = nil
-                dispatchGroup.leave()
-            } else {
+            let tmpstderrData = stderrFileHandle.availableData
+            if !tmpstderrData.isEmpty {
+                // Ensure we always wait for all reads
+                group.enter()
                 dataQueue.async {
-                    stderrData.append(outData)
+                    stderrData.append(tmpstderrData)
+                    group.leave()
                 }
+            } else {  // EOF
+                stderr.fileHandleForReading.readabilityHandler = nil
+                group.leave()
             }
         }
 
         wrappedProcess.waitUntilExit()
-        dispatchGroup.wait()
-        
+        group.wait()
+
         guard wrappedProcess.terminationStatus == 0 else {
             logger.debug("Command failed: \(cmd)")
             let stderrString: String = String(data: stderrData, encoding: .utf8) ?? "(no stderr)"
