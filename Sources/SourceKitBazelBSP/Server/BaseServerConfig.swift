@@ -32,7 +32,7 @@ package struct BaseServerConfig: Equatable, Sendable {
     let buildTestPlatformPlaceholder: String
     let filesToWatch: String?
     let useSeparateOutputBaseForAquery: Bool
-    let topLevelRules: [TopLevelRuleType]?
+    let topLevelRulesToDiscover: [TopLevelRuleType]?
 
     package init(
         bazelWrapper: String,
@@ -42,7 +42,7 @@ package struct BaseServerConfig: Equatable, Sendable {
         buildTestPlatformPlaceholder: String,
         filesToWatch: String?,
         useSeparateOutputBaseForAquery: Bool = false,
-        topLevelRules: [TopLevelRuleType]? = nil
+        topLevelRulesToDiscover: [TopLevelRuleType]? = nil
     ) {
         self.bazelWrapper = bazelWrapper
         self.targets = targets
@@ -51,6 +51,6 @@ package struct BaseServerConfig: Equatable, Sendable {
         self.buildTestPlatformPlaceholder = buildTestPlatformPlaceholder
         self.filesToWatch = filesToWatch
         self.useSeparateOutputBaseForAquery = useSeparateOutputBaseForAquery
-        self.topLevelRules = topLevelRules
+        self.topLevelRulesToDiscover = topLevelRulesToDiscover
     }
 }

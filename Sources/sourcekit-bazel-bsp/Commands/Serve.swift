@@ -69,18 +69,18 @@ struct Serve: ParsableCommand {
     @Option(
         parsing: .singleValue,
         help:
-            "A top-level rule type to discover targets for (e.g. 'ios_application', 'ios_unit_test'). Can be specified multiple times. If not specified, all supported top-level rule types will be used for target discovery."
+            "A top-level rule type to discover targets for (e.g. 'ios_application', 'ios_unit_test'). Can be specified multiple times. Only applicable when not passing --target directly. If not specified, all supported top-level rule types will be used for target discovery."
     )
-    var topLevelRule: [String] = []
+    var topLevelRuleToDiscover: [String] = []
 
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
         // Parse top-level rules if specified
         let parsedTopLevelRules: [TopLevelRuleType]?
-        if !topLevelRule.isEmpty {
+        if !topLevelRuleToDiscover.isEmpty {
             do {
-                parsedTopLevelRules = try topLevelRule.map { ruleString in
+                parsedTopLevelRules = try topLevelRuleToDiscover.map { ruleString in
                     guard let ruleType = TopLevelRuleType(rawValue: ruleString) else {
                         throw ValidationError(
                             "Invalid top-level rule type: '\(ruleString)'. Supported types: \(TopLevelRuleType.allCases.map(\.rawValue).joined(separator: ", "))"
@@ -127,7 +127,7 @@ struct Serve: ParsableCommand {
             buildTestPlatformPlaceholder: buildTestPlatformPlaceholder,
             filesToWatch: filesToWatch,
             useSeparateOutputBaseForAquery: separateAqueryOutput,
-            topLevelRules: parsedTopLevelRules
+            topLevelRulesToDiscover: parsedTopLevelRules
         )
         let server = SourceKitBazelBSPServer(baseConfig: config)
         server.run()

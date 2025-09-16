@@ -18,8 +18,8 @@ def _setup_sourcekit_bsp_impl(ctx):
     for index_flag in ctx.attr.index_flags:
         bsp_config_argv.append("--index-flag")
         bsp_config_argv.append(index_flag)
-    for top_level_rule in ctx.attr.top_level_rules:
-        bsp_config_argv.append("--top-level-rule")
+    for top_level_rule in ctx.attr.top_level_rules_to_discover:
+        bsp_config_argv.append("--top-level-rule-to-discover")
         bsp_config_argv.append(top_level_rule)
     files_to_watch = ",".join(ctx.attr.files_to_watch)
     if files_to_watch:
@@ -91,8 +91,8 @@ setup_sourcekit_bsp = rule(
             doc = "A list of file globs to watch for changes.",
             default = [],
         ),
-        "top_level_rules": attr.string_list(
-            doc = "A list of top-level rule types to discover targets for (e.g. 'ios_application', 'ios_unit_test'). If not specified, all supported top-level rule types will be used for target discovery.",
+        "top_level_rules_to_discover": attr.string_list(
+            doc = "A list of top-level rule types to discover targets for (e.g. 'ios_application', 'ios_unit_test'). Only applicable when not specifying targets directly. If not specified, all supported top-level rule types will be used for target discovery.",
             default = [],
         ),
         "build_test_suffix": attr.string(
