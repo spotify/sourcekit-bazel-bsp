@@ -21,7 +21,7 @@ import Foundation
 
 /// The full configuration of the server, including all information needed to operate the BSP.
 /// Created by the BSP based on the initial `BaseServerConfig`` when the LSP sends us the `initialize` request.
-struct InitializedServerConfig: Equatable, Sendable {
+struct InitializedServerConfig: Equatable {
     let baseConfig: BaseServerConfig
     let rootUri: String
     let outputBase: String

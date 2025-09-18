@@ -24,7 +24,7 @@ import Foundation
 /// Used to bootstrap the connection to sourcekit-lsp, so that later we can create the
 /// more complete `InitializedServerConfig` struct containing all information
 /// needed to operate the server.
-package struct BaseServerConfig: Equatable, Sendable {
+package struct BaseServerConfig: Equatable {
     let bazelWrapper: String
     let targets: [String]
     let indexFlags: [String]
@@ -32,7 +32,6 @@ package struct BaseServerConfig: Equatable, Sendable {
     let buildTestPlatformPlaceholder: String
     let filesToWatch: String?
     let useSeparateOutputBaseForAquery: Bool
-    let topLevelRulesToDiscover: [TopLevelRuleType]?
 
     package init(
         bazelWrapper: String,
@@ -41,8 +40,7 @@ package struct BaseServerConfig: Equatable, Sendable {
         buildTestSuffix: String,
         buildTestPlatformPlaceholder: String,
         filesToWatch: String?,
-        useSeparateOutputBaseForAquery: Bool = false,
-        topLevelRulesToDiscover: [TopLevelRuleType]? = nil
+        useSeparateOutputBaseForAquery: Bool = false
     ) {
         self.bazelWrapper = bazelWrapper
         self.targets = targets
@@ -51,6 +49,5 @@ package struct BaseServerConfig: Equatable, Sendable {
         self.buildTestPlatformPlaceholder = buildTestPlatformPlaceholder
         self.filesToWatch = filesToWatch
         self.useSeparateOutputBaseForAquery = useSeparateOutputBaseForAquery
-        self.topLevelRulesToDiscover = topLevelRulesToDiscover
     }
 }

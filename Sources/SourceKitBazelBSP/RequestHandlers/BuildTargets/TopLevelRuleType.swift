@@ -17,8 +17,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import ArgumentParser
+
 // The list of **top-level rules** we know how to process in the BSP.
-public enum TopLevelRuleType: String, CaseIterable, Sendable {
+public enum TopLevelRuleType: String, CaseIterable, ExpressibleByArgument {
     case iosApplication = "ios_application"
     case iosUnitTest = "ios_unit_test"
     case iosUiTest = "ios_ui_test"
