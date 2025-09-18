@@ -66,8 +66,35 @@ struct Serve: ParsableCommand {
     @Option(help: "Comma separated list of file globs to watch for changes.")
     var filesToWatch: String?
 
+    @Option(
+        parsing: .singleValue,
+        help:
+            "A top-level rule type to discover targets for (e.g. 'ios_application', 'ios_unit_test'). Can be specified multiple times. Only applicable when not passing --target directly. If not specified, all supported top-level rule types will be used for target discovery."
+    )
+    var topLevelRuleToDiscover: [String] = []
+
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
+
+        // Parse top-level rules if specified
+        let parsedTopLevelRules: [TopLevelRuleType]?
+        if !topLevelRuleToDiscover.isEmpty {
+            do {
+                parsedTopLevelRules = try topLevelRuleToDiscover.map { ruleString in
+                    guard let ruleType = TopLevelRuleType(rawValue: ruleString) else {
+                        throw ValidationError(
+                            "Invalid top-level rule type: '\(ruleString)'. Supported types: \(TopLevelRuleType.allCases.map(\.rawValue).joined(separator: ", "))"
+                        )
+                    }
+                    return ruleType
+                }
+            } catch {
+                logger.error("Failed to parse top-level rules: \(error)")
+                throw error
+            }
+        } else {
+            parsedTopLevelRules = nil
+        }
 
         let targets: [String]
         if !target.isEmpty {
@@ -79,7 +106,9 @@ struct Serve: ParsableCommand {
                 "No targets specified (--target)! Will now try to discover them. This can cause the BSP to perform poorly if we find too many targets. Prefer using --target explicitly if possible."
             )
             do {
+                let rulesToUse = parsedTopLevelRules ?? TopLevelRuleType.allCases
                 targets = try BazelTargetDiscoverer.discoverTargets(
+                    for: rulesToUse,
                     bazelWrapper: bazelWrapper
                 )
             } catch {
@@ -97,7 +126,8 @@ struct Serve: ParsableCommand {
             buildTestSuffix: buildTestSuffix,
             buildTestPlatformPlaceholder: buildTestPlatformPlaceholder,
             filesToWatch: filesToWatch,
-            useSeparateOutputBaseForAquery: separateAqueryOutput
+            useSeparateOutputBaseForAquery: separateAqueryOutput,
+            topLevelRulesToDiscover: parsedTopLevelRules
         )
         let server = SourceKitBazelBSPServer(baseConfig: config)
         server.run()

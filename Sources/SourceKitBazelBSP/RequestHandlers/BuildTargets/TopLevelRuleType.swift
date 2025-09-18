@@ -18,7 +18,7 @@
 // under the License.
 
 // The list of **top-level rules** we know how to process in the BSP.
-public enum TopLevelRuleType: String, CaseIterable {
+public enum TopLevelRuleType: String, CaseIterable, Sendable {
     case iosApplication = "ios_application"
     case iosUnitTest = "ios_unit_test"
     case iosUiTest = "ios_ui_test"
