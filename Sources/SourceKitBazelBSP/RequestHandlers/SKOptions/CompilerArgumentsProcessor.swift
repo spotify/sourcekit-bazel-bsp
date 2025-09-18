@@ -23,22 +23,35 @@ import LanguageServerProtocol
 
 private let logger = makeFileLevelBSPLogger()
 
+enum CompilerArgumentsProcessorError: Error, LocalizedError {
+    case targetNotFound(String)
+    case actionNotFound(String, UInt32)
+
+    var errorDescription: String? {
+        switch self {
+        case .targetNotFound(let target): return "Target \(target) not found in the aquery output."
+        case .actionNotFound(let target, let id):
+            return "Action \(id) for target \(target) not found in the aquery output."
+        }
+    }
+}
+
 enum CompilerArgumentsProcessor {
     // Parses and processes the compilation step for a given target from a larger aquery output.
     static func extractAndProcessCompilerArgs(
-        fromAquery aqueryOutput: Analysis_ActionGraphContainer,
+        fromAquery aqueryOutput: AqueryResult,
         bazelTarget: String,
         contentToQuery: String,
         language: Language,
         sdkRoot: String,
         initializedConfig: InitializedServerConfig
     ) -> [String]? {
-        guard let target = aqueryOutput.targets.first(where: { $0.label == bazelTarget }) else {
-            logger.debug("Target: \(bazelTarget) not found.")
+        guard let target = aqueryOutput.targets[bazelTarget] else {
+            logger.warning("Target \(bazelTarget) not found in the aquery output.")
             return nil
         }
-        guard let action = aqueryOutput.actions.first(where: { $0.targetID == target.id }) else {
-            logger.debug("Action for \(bazelTarget) not found.")
+        guard let action = aqueryOutput.actions[target.id] else {
+            logger.warning("Action \(target.id) for \(bazelTarget) not found in the aquery output.")
             return nil
         }
 
