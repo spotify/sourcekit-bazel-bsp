@@ -50,11 +50,40 @@ public struct RunningProcess: Sendable {
     }
 
     public func output<T: DataConvertible>() throws -> T {
-        // Drain stdout/err first to avoid deadlocking when the output is buffered.
-        let data = stdout.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderr.fileHandleForReading.readDataToEndOfFile()
+        var stdoutData: Data = Data()
+        var stderrData: Data = Data()
+        let stdoutDataQueue = DispatchQueue(label: "Stdout: \(cmd)")
+        let stderrDataQueue = DispatchQueue(label: "Stderr: \(cmd)")
+        let group = DispatchGroup()
+
+        group.enter()
+        stdout.fileHandleForReading.readabilityHandler = { stdoutFileHandle in
+            let tmpstdoutData = stdoutFileHandle.availableData
+            if tmpstdoutData.isEmpty {  // EOF
+                stdout.fileHandleForReading.readabilityHandler = nil
+                group.leave()
+            } else {
+                stdoutDataQueue.sync {
+                    stdoutData.append(tmpstdoutData)
+                }
+            }
+        }
+
+        group.enter()
+        stderr.fileHandleForReading.readabilityHandler = { stderrFileHandle in
+            let tmpstderrData = stderrFileHandle.availableData
+            if tmpstderrData.isEmpty {  // EOF
+                stderr.fileHandleForReading.readabilityHandler = nil
+                group.leave()
+            } else {
+                stderrDataQueue.sync {
+                    stderrData.append(tmpstderrData)
+                }
+            }
+        }
 
         wrappedProcess.waitUntilExit()
+        group.wait()
 
         guard wrappedProcess.terminationStatus == 0 else {
             logger.debug("Command failed: \(cmd)")
@@ -62,7 +91,7 @@ public struct RunningProcess: Sendable {
             throw ShellCommandRunnerError.failed(cmd, stderrString)
         }
 
-        return T.convert(from: data)
+        return T.convert(from: stdoutData)
     }
 
     public func terminate() {

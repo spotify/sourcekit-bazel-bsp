@@ -30,7 +30,7 @@ extension CommandRunner {
         _ cmd: String,
         cwd: String? = nil,
         stdout: Pipe = Pipe(),
-        stderr: Pipe = Pipe()
+        stderr: Pipe = Pipe(),
     ) throws -> RunningProcess {
         return try run(cmd, cwd: cwd, stdout: stdout, stderr: stderr)
     }
@@ -39,7 +39,7 @@ extension CommandRunner {
         _ cmd: String,
         cwd: String? = nil,
         stdout: Pipe = Pipe(),
-        stderr: Pipe = Pipe()
+        stderr: Pipe = Pipe(),
     ) throws -> T {
         let process = try run(cmd, cwd: cwd, stdout: stdout, stderr: stderr)
         return try process.output()
