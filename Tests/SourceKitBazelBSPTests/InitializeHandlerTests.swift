@@ -60,6 +60,7 @@ struct InitializeHandlerTests {
         )
         commandRunner.setResponse(for: "xcode-select --print-path", response: devDir)
         commandRunner.setResponse(for: "xcrun --find swift", response: toolchain + "usr/bin/swift")
+        commandRunner.setResponse(for: "xcrun --sdk iphonesimulator --show-sdk-path", response: "sdkiossim")
 
         let handler = InitializeHandler(baseConfig: baseConfig, commandRunner: commandRunner)
 
@@ -76,7 +77,8 @@ struct InitializeHandlerTests {
                     outputPath: outputPath,
                     devDir: devDir,
                     devToolchainPath: toolchain,
-                    executionRoot: executionRoot
+                    executionRoot: executionRoot,
+                    sdkRootPaths: ["iphonesimulator": "sdkiossim"]
                 )
         )
     }

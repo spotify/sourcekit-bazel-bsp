@@ -28,11 +28,13 @@ private let logger = makeFileLevelBSPLogger()
 enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
     case invalidObjCUri(String)
     case invalidTarget(String)
+    case sdkRootNotFound(String)
 
     var errorDescription: String? {
         switch self {
         case .invalidObjCUri(let uri): return "Unexpected non-Swift URI missing root URI prefix: \(uri)"
         case .invalidTarget(let target): return "Expected to receive a build_test target, but got: \(target)"
+        case .sdkRootNotFound(let sdk): return "sdkRootPath not found for \(sdk). Is it installed?"
         }
     }
 }
@@ -99,7 +101,13 @@ final class BazelTargetCompilerArgsExtractor {
             return cached
         }
 
-        // First, run an aquery against the build_test target in question,
+        // First, determine the SDK root based on the platform the target is built for.
+        let platformSdk = platform.sdkName
+        guard let sdkRoot: String = config.sdkRootPaths[platformSdk] else {
+            throw BazelTargetCompilerArgsExtractorError.sdkRootNotFound(platformSdk)
+        }
+
+        // Then, run an aquery against the build_test target in question,
         // filtering for the "real" underlying library.
         let resultAquery = try aquerier.aquery(
             target: bazelTarget,
@@ -107,13 +115,6 @@ final class BazelTargetCompilerArgsExtractor {
             config: config,
             mnemonics: ["SwiftCompile", "ObjcCompile"],
             additionalFlags: ["--noinclude_artifacts", "--noinclude_aspects", "--features=-compiler_param_file"]
-        )
-
-        // Then, determine the SDK root based on the platform the target is built for
-        let platformSdk = platform.sdkName
-        let sdkRoot: String = try commandRunner.run(
-            "xcrun --sdk \(platformSdk) --show-sdk-path",
-            cwd: config.rootUri
         )
 
         // Then, extract the compiler arguments for the target file from the resulting aquery.

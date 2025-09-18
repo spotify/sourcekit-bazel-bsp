@@ -112,9 +112,11 @@ final class InitializeHandler {
         // Collecting the rest of the env's details
         let devDir: String = try commandRunner.run("xcode-select --print-path")
         let toolchain = try getToolchainPath(with: commandRunner)
+        let sdkRootPaths: [String: String] = getSDKRootPaths(with: commandRunner)
 
         logger.debug("devDir: \(devDir)")
         logger.debug("toolchain: \(toolchain)")
+        logger.debug("sdkRootPaths: \(sdkRootPaths)")
 
         return InitializedServerConfig(
             baseConfig: baseConfig,
@@ -123,7 +125,8 @@ final class InitializeHandler {
             outputPath: outputPath,
             devDir: devDir,
             devToolchainPath: toolchain,
-            executionRoot: executionRoot
+            executionRoot: executionRoot,
+            sdkRootPaths: sdkRootPaths
         )
     }
 
@@ -138,6 +141,18 @@ final class InitializeHandler {
         }
         let toolchain = swiftPath.dropLast(expectedSwiftPathSuffix.count)
         return String(toolchain)
+    }
+
+    func getSDKRootPaths(with commandRunner: CommandRunner) -> [String: String] {
+        let supportedSDKTypes = Set(TopLevelRuleType.allCases.map { $0.sdkName }).sorted()
+        let sdkRootPaths: [String: String] = supportedSDKTypes.reduce(into: [:]) { result, sdkType in
+            // This will fail if the user doesn't have the SDK installed, which is fine.
+            guard let sdkRootPath: String? = try? commandRunner.run("xcrun --sdk \(sdkType) --show-sdk-path") else {
+                return
+            }
+            result[sdkType] = sdkRootPath
+        }
+        return sdkRootPaths
     }
 
     func buildResponse(
