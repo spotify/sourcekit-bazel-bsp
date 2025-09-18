@@ -32,6 +32,9 @@ final class DidInitializeHandler: @unchecked Sendable {
     private let initializedConfig: InitializedServerConfig
     private let commandRunner: CommandRunner
 
+    private var buildWarmupJob: RunningProcess?
+    private var aqueryWarmupJob: RunningProcess?
+
     init(
         initializedConfig: InitializedServerConfig,
         commandRunner: CommandRunner = ShellCommandRunner(),
@@ -46,30 +49,45 @@ final class DidInitializeHandler: @unchecked Sendable {
             return
         }
         logger.info("Warming up output bases with \(targetToUse)")
-        let build: RunningProcess? = try? commandRunner.bazelIndexAction(
+        buildWarmupJob = try? commandRunner.bazelIndexAction(
             baseConfig: initializedConfig.baseConfig,
             outputBase: initializedConfig.outputBase,
             cmd: "query \(targetToUse)",
             rootUri: initializedConfig.rootUri
         )
-        build?.setTerminationHandler { [weak self] code in
-            logger.info("Finished warming up the build output base! (status code: \(code))")
-            guard let self = self else {
-                return
+        buildWarmupJob?.setTerminationHandler { [weak self, initializedConfig] code, stderr in
+            if code == 0 {
+                logger.info("Finished warming up the build output base!")
+            } else {
+                logger.logFullObjectInMultipleLogMessages(
+                    level: .error,
+                    header: "Failed to warm up the build output base.",
+                    stderr
+                )
             }
+            self?.buildWarmupJob = nil
             guard initializedConfig.aqueryOutputBase != initializedConfig.outputBase else {
                 return
             }
             // FIXME: We have to warm up the aqueries *after* the build, otherwise we can run
             // into some weird race condition with rules_swift I'm not sure about.
-            let aquery: RunningProcess? = try? commandRunner.bazelIndexAction(
+            self?.aqueryWarmupJob = try? self?.commandRunner.bazelIndexAction(
                 baseConfig: initializedConfig.baseConfig,
                 outputBase: initializedConfig.aqueryOutputBase,
                 cmd: "query \(targetToUse)",
                 rootUri: initializedConfig.rootUri
             )
-            aquery?.setTerminationHandler { code in
-                logger.info("Finished warming up the aquery output base! (status code: \(code))")
+            self?.aqueryWarmupJob?.setTerminationHandler { [weak self] code, stderr in
+                if code == 0 {
+                    logger.info("Finished warming up the aquery output base!")
+                } else {
+                    logger.logFullObjectInMultipleLogMessages(
+                        level: .error,
+                        header: "Failed to warm up the aquery output base.",
+                        stderr
+                    )
+                }
+                self?.aqueryWarmupJob = nil
             }
         }
     }
