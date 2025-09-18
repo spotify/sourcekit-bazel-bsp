@@ -103,14 +103,21 @@ final class PrepareHandler {
                 cmd: "build \(labelsToBuild.joined(separator: " "))",
                 rootUri: initializedConfig.rootUri
             )
-            process.setTerminationHandler { code in
-                logger.info("Finished building! (Request ID: \(id.description), status code: \(code))")
+            process.setTerminationHandler { code, stderr in
                 if code == 0 {
+                    logger.info("Finished building! (Request ID: \(id.description))")
                     completion(nil)
-                } else if code == 8 {
-                    completion(ResponseError.cancelled)
                 } else {
-                    completion(ResponseError(code: .internalError, message: "The bazel build failed."))
+                    logger.logFullObjectInMultipleLogMessages(
+                        level: .error,
+                        header: "Failed to build targets.",
+                        stderr
+                    )
+                    if code == 8 {
+                        completion(ResponseError.cancelled)
+                    } else {
+                        completion(ResponseError(code: .internalError, message: "The bazel build failed."))
+                    }
                 }
             }
             currentTask = (process, id)

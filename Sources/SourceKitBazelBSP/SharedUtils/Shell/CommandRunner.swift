@@ -42,7 +42,7 @@ extension CommandRunner {
         stderr: Pipe = Pipe(),
     ) throws -> T {
         let process = try run(cmd, cwd: cwd, stdout: stdout, stderr: stderr)
-        return try process.output()
+        return try process.result()
     }
 }
 
@@ -55,7 +55,7 @@ extension CommandRunner {
 
     func bazel<T: DataConvertible>(baseConfig: BaseServerConfig, rootUri: String, cmd: String) throws -> T {
         let process = try bazel(baseConfig: baseConfig, rootUri: rootUri, cmd: cmd)
-        return try process.output()
+        return try process.result()
     }
 
     /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.
@@ -89,7 +89,7 @@ extension CommandRunner {
             cmd: cmd,
             rootUri: rootUri
         )
-        return try process.output()
+        return try process.result()
     }
 }
 

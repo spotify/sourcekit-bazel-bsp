@@ -49,7 +49,18 @@ public struct RunningProcess: Sendable {
         self.wrappedProcess = wrappedProcess
     }
 
-    public func output<T: DataConvertible>() throws -> T {
+    public func result<T: DataConvertible>() throws -> T {
+        let (stdoutData, stderrString): (T, String) = self.outputs()
+
+        guard wrappedProcess.terminationStatus == 0 else {
+            logger.debug("Command failed: \(cmd)")
+            throw ShellCommandRunnerError.failed(cmd, stderrString)
+        }
+
+        return stdoutData
+    }
+
+    public func outputs<T: DataConvertible>() -> (T, String) {
         nonisolated(unsafe) var stdoutData: Data = Data()
         nonisolated(unsafe) var stderrData: Data = Data()
         let group = DispatchGroup()
@@ -81,20 +92,20 @@ public struct RunningProcess: Sendable {
         wrappedProcess.waitUntilExit()
         group.wait()
 
-        guard wrappedProcess.terminationStatus == 0 else {
-            logger.debug("Command failed: \(cmd)")
-            let stderrString: String = String(data: stderrData, encoding: .utf8) ?? "(no stderr)"
-            throw ShellCommandRunnerError.failed(cmd, stderrString)
-        }
+        let stdoutResult = T.convert(from: stdoutData)
+        let stderrResult = String(data: stderrData, encoding: .utf8) ?? "(no stderr)"
 
-        return T.convert(from: stdoutData)
+        return (stdoutResult, stderrResult)
     }
 
     public func terminate() {
         wrappedProcess.terminate()
     }
 
-    public func setTerminationHandler(_ handler: @escaping @Sendable (Int32) -> Void) {
-        wrappedProcess.setTerminationHandler(handler)
+    public func setTerminationHandler(_ handler: @escaping @Sendable (Int32, String) -> Void) {
+        wrappedProcess.setTerminationHandler { code in
+            let resultData: (String, String) = self.outputs()
+            handler(code, resultData.1)
+        }
     }
 }
