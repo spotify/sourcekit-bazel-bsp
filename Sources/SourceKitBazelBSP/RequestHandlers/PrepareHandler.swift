@@ -69,7 +69,7 @@ final class PrepareHandler {
         do {
             let labels = try targetStore.stateLock.withLockUnchecked {
                 return try targetsToBuild.map {
-                    try targetStore.platformBuildLabel(forBSPURI: $0.uri).0
+                    try targetStore.platformBuildLabelInfo(forBSPURI: $0.uri).buildTestLabel
                 }
             }
             nonisolated(unsafe) let reply = reply

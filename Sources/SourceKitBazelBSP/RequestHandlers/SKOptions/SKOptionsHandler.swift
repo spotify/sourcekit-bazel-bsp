@@ -67,7 +67,9 @@ final class SKOptionsHandler: InvalidatedTargetObserver {
     func handle(request: TextDocumentSourceKitOptionsRequest) throws -> TextDocumentSourceKitOptionsResponse? {
         let (targetUri, bazelTarget, platform, underlyingLibrary) = try targetStore.stateLock.withLockUnchecked {
             let targetUri = request.target.uri
-            let (bazelTarget, platform) = try targetStore.platformBuildLabel(forBSPURI: targetUri)
+            let buildInfo = try targetStore.platformBuildLabelInfo(forBSPURI: targetUri)
+            let bazelTarget = buildInfo.buildTestLabel
+            let platform = buildInfo.parentRuleType
             let underlyingLibrary = try targetStore.bazelTargetLabel(forBSPURI: targetUri)
             return (targetUri, bazelTarget, platform, underlyingLibrary)
         }

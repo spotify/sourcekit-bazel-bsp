@@ -30,12 +30,18 @@ private let logger = makeFileLevelBSPLogger()
 // the project's dependency graph and its files.
 protocol BazelTargetStore: AnyObject {
     var stateLock: OSAllocatedUnfairLock<Void> { get }
+    var platformsToTopLevelLabelsMap: [String: [String]] { get }
     func fetchTargets() throws -> [BuildTarget]
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String
     func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI]
     func bspURIs(containingSrc src: URI) throws -> [URI]
-    func platformBuildLabel(forBSPURI uri: URI) throws -> (String, TopLevelRuleType)
+    func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo
     func clearCache()
+}
+
+struct BazelTargetPlatformInfo {
+    let buildTestLabel: String
+    let parentRuleType: TopLevelRuleType
 }
 
 enum BazelTargetStoreError: Error, LocalizedError {
@@ -79,6 +85,9 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         self.bazelTargetQuerier = bazelTargetQuerier
     }
 
+    /// Maps the list of supported platforms to the list of top-level labels of said platform.
+    var platformsToTopLevelLabelsMap: [String: [String]] = [:]
+
     /// Converts a BSP BuildTarget URI to its underlying Bazel target label.
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String {
         guard let label = bspURIsToBazelLabelsMap[uri] else {
@@ -121,7 +130,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
     /// Provides the bazel label containing **platform information** for a given BSP URI.
     /// This is used to determine the correct set of compiler flags for the target / platform combo.
-    func platformBuildLabel(forBSPURI uri: URI) throws -> (String, TopLevelRuleType) {
+    func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo {
         let bazelLabel = try bazelTargetLabel(forBSPURI: uri)
         let parents = try bazelLabelToParents(forBazelLabel: bazelLabel)
         // FIXME: When a target can compile to multiple platforms, the way Xcode handles it is by selecting
@@ -132,9 +141,9 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         let baseSuffix = initializedConfig.baseConfig.buildTestSuffix
         let platformPlaceholder = initializedConfig.baseConfig.buildTestPlatformPlaceholder
         let platformBuildSuffix = baseSuffix.replacingOccurrences(of: platformPlaceholder, with: rule.platform)
-        return (
-            "\(bazelLabel)\(platformBuildSuffix)",
-            rule
+        return BazelTargetPlatformInfo(
+            buildTestLabel: "\(bazelLabel)\(platformBuildSuffix)",
+            parentRuleType: rule,
         )
     }
 
@@ -191,6 +200,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         }
         for (target, ruleType) in topLevelTargetData {
             topLevelLabelToRuleMap[target] = ruleType
+            platformsToTopLevelLabelsMap[ruleType.platform, default: []].append(target)
         }
 
         // We need to now map which targets belong to which top-level apps,
@@ -254,6 +264,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         bazelLabelToParentsMap = [:]
         availableBazelLabels = []
         topLevelLabelToRuleMap = [:]
+        platformsToTopLevelLabelsMap = [:]
         bazelTargetQuerier.clearCache()
         cachedTargets = nil
     }
