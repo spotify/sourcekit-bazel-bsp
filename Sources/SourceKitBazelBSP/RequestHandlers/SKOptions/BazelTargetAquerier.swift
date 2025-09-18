@@ -37,7 +37,7 @@ enum BazelTargetAquerierError: Error, LocalizedError {
 final class BazelTargetAquerier {
 
     private let commandRunner: CommandRunner
-    private var queryCache = [String: Analysis_ActionGraphContainer]()
+    private var queryCache = [String: AqueryResult]()
 
     init(commandRunner: CommandRunner = ShellCommandRunner()) {
         self.commandRunner = commandRunner
@@ -49,7 +49,7 @@ final class BazelTargetAquerier {
         config: InitializedServerConfig,
         mnemonics: Set<String>,
         additionalFlags: [String]
-    ) throws -> Analysis_ActionGraphContainer {
+    ) throws -> AqueryResult {
         guard !mnemonics.isEmpty else {
             throw BazelTargetAquerierError.noMnemonics
         }
@@ -75,12 +75,13 @@ final class BazelTargetAquerier {
         )
 
         let parsedOutput = try BazelProtobufBindings.parseActionGraph(data: output)
+        let aqueryResult = AqueryResult(results: parsedOutput)
 
         logger.debug("ActionGraphContainer parsed \(parsedOutput.actions.count) actions")
 
-        queryCache[cmd] = parsedOutput
+        queryCache[cmd] = aqueryResult
 
-        return parsedOutput
+        return aqueryResult
     }
 
     func clearCache() {
