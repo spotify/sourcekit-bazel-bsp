@@ -50,12 +50,12 @@ public struct RunningProcess: Sendable {
     }
 
     public func output<T: DataConvertible>() throws -> T {
-        var stdoutData: Data = Data()
-        var stderrData: Data = Data()
-        let stdoutDataQueue = DispatchQueue(label: "Stdout: \(cmd)")
-        let stderrDataQueue = DispatchQueue(label: "Stderr: \(cmd)")
+        nonisolated(unsafe) var stdoutData: Data = Data()
+        nonisolated(unsafe) var stderrData: Data = Data()
         let group = DispatchGroup()
 
+        // We need to read the pipes continuously to avoid hitting buffer limits.
+        // See https://github.com/spotify/sourcekit-bazel-bsp/pull/65
         group.enter()
         stdout.fileHandleForReading.readabilityHandler = { stdoutFileHandle in
             let tmpstdoutData = stdoutFileHandle.availableData
@@ -63,9 +63,7 @@ public struct RunningProcess: Sendable {
                 stdout.fileHandleForReading.readabilityHandler = nil
                 group.leave()
             } else {
-                stdoutDataQueue.sync {
-                    stdoutData.append(tmpstdoutData)
-                }
+                stdoutData.append(tmpstdoutData)
             }
         }
 
@@ -76,9 +74,7 @@ public struct RunningProcess: Sendable {
                 stderr.fileHandleForReading.readabilityHandler = nil
                 group.leave()
             } else {
-                stderrDataQueue.sync {
-                    stderrData.append(tmpstderrData)
-                }
+                stderrData.append(tmpstderrData)
             }
         }
 
