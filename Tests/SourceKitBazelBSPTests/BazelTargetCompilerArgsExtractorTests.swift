@@ -35,6 +35,11 @@ struct BazelTargetCompilerArgsExtractorTests {
         let mockExecRoot = "/private/var/tmp/_bazel_user/hash123/execroot/__main__"
         let mockOutputBase = "/private/var/tmp/_bazel_user/hash123"
         let mockDevToolchainPath = "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain"
+        let iosSimSdk =
+            "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
+        let mockSdkRootPaths = [
+            "iphonesimulator": iosSimSdk
+        ]
         let config = InitializedServerConfig(
             baseConfig: BaseServerConfig(
                 bazelWrapper: "bazel",
@@ -49,7 +54,8 @@ struct BazelTargetCompilerArgsExtractorTests {
             outputPath: mockOutputPath,
             devDir: mockDevDir,
             devToolchainPath: mockDevToolchainPath,
-            executionRoot: mockExecRoot
+            executionRoot: mockExecRoot,
+            sdkRootPaths: mockSdkRootPaths
         )
         let extractor = BazelTargetCompilerArgsExtractor(
             commandRunner: mockRunner,
