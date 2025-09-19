@@ -9,6 +9,7 @@ swift_library(
         "//Sources/BazelProtobufBindings",
         "@swiftpkg_sourcekit_lsp//:BuildServerProtocol",
         "@swiftpkg_sourcekit_lsp//:LSPBindings",
+        "@swiftpkg_swift_argument_parser//:ArgumentParser",
     ],
     package_name = "sourcekit-bazel-bsp",
 )

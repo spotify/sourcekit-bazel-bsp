@@ -48,6 +48,10 @@ let package = Package(
                     name: "LSPBindings",
                     package: "sourcekit-lsp"
                 ),
+                .product(
+                    name: "ArgumentParser",
+                    package: "swift-argument-parser"
+                )
             ],
             exclude: [
                 "BUILD",
@@ -55,7 +59,9 @@ let package = Package(
         ),
         .testTarget(
             name: "SourceKitBazelBSPTests",
-            dependencies: ["SourceKitBazelBSP"],
+            dependencies: [
+                "SourceKitBazelBSP",
+            ],
             resources: [
                 .copy("Resources/aquery.pb"),
                 .copy("Resources/aquery_objc.pb"),
