@@ -113,6 +113,7 @@ final class BazelTargetCompilerArgsExtractor {
             contentToQuery: contentToQuery,
             language: language,
             sdkRoot: sdkRoot,
+            platformSdk: platformSdk,
             initializedConfig: config
         )
         argsCache[cacheKey] = processedArgs

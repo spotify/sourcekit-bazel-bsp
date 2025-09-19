@@ -44,16 +44,27 @@ enum CompilerArgumentsProcessor {
         contentToQuery: String,
         language: Language,
         sdkRoot: String,
+        platformSdk: String,
         initializedConfig: InitializedServerConfig
     ) -> [String]? {
         guard let target = aqueryOutput.targets[bazelTarget] else {
-            logger.warning("Target \(bazelTarget) not found in the aquery output.")
+            logger.error("Target \(bazelTarget) not found in the aquery output.")
             return nil
         }
-        guard let action = aqueryOutput.actions[target.id] else {
-            logger.warning("Action \(target.id) for \(bazelTarget) not found in the aquery output.")
+        guard let actions = aqueryOutput.actions[target.id] else {
+            logger.error("Action \(target.id) for \(bazelTarget) not found in the aquery output.")
             return nil
         }
+
+        let relevantActions = _findRelevantActions(in: actions, for: platformSdk)
+        if relevantActions.count > 1 {
+            logger.error("Found multiple compilation actions for \(bazelTarget) under \(platformSdk). This is unexpected.")
+            return nil
+        } else if relevantActions.count == 0 {
+            logger.error("No compilation actions found for \(bazelTarget) under \(platformSdk). This is unexpected.")
+            return nil
+        }
+        let action = relevantActions[0]
 
         let rawArguments = action.arguments
 
@@ -72,6 +83,20 @@ enum CompilerArgumentsProcessor {
             processedArgs.joined(separator: "\n"),
         )
         return processedArgs
+    }
+
+    private static func _findRelevantActions(
+        in actions: [Analysis_Action],
+        for platformSdk: String
+    ) -> [Analysis_Action] {
+        // See the same comment in AqueryResult.swift.
+        // We have seen cases where an action can show up twice with different platforms.
+        // Not sure yet how this can happen (maybe xcframeworks?), so we need to find the correct one here.
+        return actions.filter {
+            return $0.environmentVariables.contains {
+                $0.key == "APPLE_SDK_PLATFORM" && $0.value.lowercased() == platformSdk
+            }
+        }
     }
 
     /// Processes compiler arguments for the LSP by removing unnecessary arguments and replacing placeholders.
