@@ -25,16 +25,31 @@ import struct os.OSAllocatedUnfairLock
 
 private let logger = makeFileLevelBSPLogger()
 
+enum SKOptionsHandlerError: Error, LocalizedError {
+    case noTargetsToRequest(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .noTargetsToRequest(let platform):
+            return "Request to query \(platform), but no targets of that platform are available!"
+        }
+    }
+}
+
 /// Handles the `textDocument/sourceKitOptions` request.
 ///
 /// Returns the compiler arguments for the provided target based on previously gathered information.
-final class SKOptionsHandler: InvalidatedTargetObserver {
+final class SKOptionsHandler {
 
     private let initializedConfig: InitializedServerConfig
     private let targetStore: BazelTargetStore
     private let extractor: BazelTargetCompilerArgsExtractor
 
     private weak var connection: LSPConnection?
+
+    // This request needs synchronization because we might be requested to wipe the cache
+    // in the middle of the request.
+    private let stateLock = OSAllocatedUnfairLock()
 
     init(
         initializedConfig: InitializedServerConfig,
@@ -48,6 +63,22 @@ final class SKOptionsHandler: InvalidatedTargetObserver {
         self.connection = connection
     }
 
+    func preloadAllCompilerArgs() {
+        logger.info("Will preload compiler arguments")
+        let taskId = TaskId(id: "getSKOptions-preload")
+        connection?.startWorkTask(id: taskId, title: "sourcekit-bazel-bsp: Preloading compiler arguments...")
+        let platformsToTargets = targetStore.stateLock.withLockUnchecked {
+            return targetStore.platformsToTopLevelLabelsMap
+        }
+        // Run one query per platform+targets combo.
+        // We need the queries to be separated by platform to account for
+        // libraries shared across platforms.
+        for (_, targets) in platformsToTargets {
+            _ = try? extractor.runAqueryForArgsExtraction(withTargets: targets)
+        }
+        connection?.finishTask(id: taskId, status: .ok)
+    }
+
     func textDocumentSourceKitOptions(
         _ request: TextDocumentSourceKitOptionsRequest,
         _ id: RequestID
@@ -55,8 +86,11 @@ final class SKOptionsHandler: InvalidatedTargetObserver {
         let taskId = TaskId(id: "getSKOptions-\(id.description)")
         connection?.startWorkTask(id: taskId, title: "sourcekit-bazel-bsp: Fetching compiler arguments...")
         do {
-            let result = try handle(request: request)
-            connection?.finishTask(id: taskId, status: .ok)
+            let result = try stateLock.withLockUnchecked {
+                let result = try handle(request: request)
+                connection?.finishTask(id: taskId, status: .ok)
+                return result
+            }
             return result
         } catch {
             connection?.finishTask(id: taskId, status: .error)
@@ -65,13 +99,18 @@ final class SKOptionsHandler: InvalidatedTargetObserver {
     }
 
     func handle(request: TextDocumentSourceKitOptionsRequest) throws -> TextDocumentSourceKitOptionsResponse? {
-        let (targetUri, bazelTarget, platform, underlyingLibrary) = try targetStore.stateLock.withLockUnchecked {
-            let targetUri = request.target.uri
-            let buildInfo = try targetStore.platformBuildLabelInfo(forBSPURI: targetUri)
-            let bazelTarget = buildInfo.buildTestLabel
-            let platform = buildInfo.parentRuleType
-            let underlyingLibrary = try targetStore.bazelTargetLabel(forBSPURI: targetUri)
-            return (targetUri, bazelTarget, platform, underlyingLibrary)
+        let targetUri = request.target.uri
+        let (bazelTarget, platformInfo, platformTopLevelTargets) = try targetStore.stateLock.withLockUnchecked {
+            let bazelTarget = try targetStore.bazelTargetLabel(forBSPURI: targetUri)
+            let platformInfo = try targetStore.platformBuildLabelInfo(forBSPURI: targetUri)
+            // We will request all top-level targets of this platform at once to maximize cache hits.
+            let targetsToQuery = targetStore.platformsToTopLevelLabelsMap[platformInfo.parentRuleType.platform] ?? []
+            return (bazelTarget, platformInfo, targetsToQuery)
+        }
+
+        guard !platformTopLevelTargets.isEmpty else {
+            // This should in theory never happen, but we should handle it just in case.
+            throw SKOptionsHandlerError.noTargetsToRequest(platformInfo.parentRuleType.platform)
         }
 
         logger.info(
@@ -82,9 +121,9 @@ final class SKOptionsHandler: InvalidatedTargetObserver {
             try extractor.compilerArgs(
                 forDoc: request.textDocument.uri,
                 inTarget: bazelTarget,
-                underlyingLibrary: underlyingLibrary,
+                buildingUnder: platformInfo,
+                queryingFor: platformTopLevelTargets,
                 language: request.language,
-                platform: platform
             ) ?? []
 
         // If no compiler arguments are found, return nil to avoid sourcekit indexing with no input files
@@ -96,15 +135,27 @@ final class SKOptionsHandler: InvalidatedTargetObserver {
             workingDirectory: initializedConfig.executionRoot
         )
     }
+}
 
-    // MARK: - InvalidatedTargetObserver
-
+extension SKOptionsHandler: InvalidatedTargetObserver {
     func invalidate(targets: [InvalidatedTarget]) throws {
         // Only clear the cache if at least one file was created or deleted.
         // Otherwise, the compiler args are bound to be the same.
         guard targets.contains(where: { $0.kind == .created || $0.kind == .deleted }) else {
             return
         }
-        extractor.clearCache()
+        stateLock.withLockUnchecked {
+            extractor.clearCache()
+            preloadAllCompilerArgs()
+        }
+    }
+}
+
+extension SKOptionsHandler: DidInitializeObserver {
+    func didInitializeHandlerFinishedPreparations() {
+        // Get a headstart by immediately running all the aqueries we need.
+        stateLock.withLockUnchecked {
+            preloadAllCompilerArgs()
+        }
     }
 }

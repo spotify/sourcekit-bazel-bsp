@@ -44,8 +44,7 @@ final class BazelTargetAquerier {
     }
 
     func aquery(
-        target: String,
-        filteringFor: String,
+        targets: [String],
         config: InitializedServerConfig,
         mnemonics: Set<String>,
         additionalFlags: [String]
@@ -55,11 +54,11 @@ final class BazelTargetAquerier {
         }
 
         let mnemonicsFilter = mnemonics.sorted().joined(separator: "|")
-        let depsQuery = BazelTargetQuerier.queryDepsString(forTargets: [target])
+        let depsQuery = BazelTargetQuerier.queryDepsString(forTargets: targets)
 
         let otherFlags = additionalFlags.joined(separator: " ") + " --output proto"
-        let cmd = "aquery \"mnemonic('\(mnemonicsFilter)', filter(\(filteringFor), \(depsQuery)))\" \(otherFlags)"
-        logger.info("Processing aquery request for \(target), filtering for \(filteringFor)")
+        let cmd = "aquery \"mnemonic('\(mnemonicsFilter)', \(depsQuery))\" \(otherFlags)"
+        logger.info("Processing aquery request for \(targets)")
 
         if let cached = queryCache[cmd] {
             logger.debug("Returning cached results")

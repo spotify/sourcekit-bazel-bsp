@@ -23,6 +23,10 @@ import LanguageServerProtocol
 
 private let logger = makeFileLevelBSPLogger()
 
+protocol DidInitializeObserver: AnyObject {
+    func didInitializeHandlerFinishedPreparations()
+}
+
 /// Handles the `build/initialized` notification.
 ///
 /// This is called right after returning from the `initialize` request.
@@ -31,15 +35,24 @@ final class DidInitializeHandler: @unchecked Sendable {
 
     private let initializedConfig: InitializedServerConfig
     private let commandRunner: CommandRunner
+    private let observers: [DidInitializeObserver]
 
     private var buildWarmupJob: RunningProcess?
     private var aqueryWarmupJob: RunningProcess?
 
+    private let notificationDispatchGroup = DispatchGroup()
+    private let notificationQueue = DispatchQueue(
+        label: "DidInitializeObserverQueue",
+        qos: .userInteractive
+    )
+
     init(
         initializedConfig: InitializedServerConfig,
+        observers: [DidInitializeObserver],
         commandRunner: CommandRunner = ShellCommandRunner(),
     ) {
         self.initializedConfig = initializedConfig
+        self.observers = observers
         self.commandRunner = commandRunner
     }
 
@@ -55,7 +68,17 @@ final class DidInitializeHandler: @unchecked Sendable {
             cmd: "query \(targetToUse)",
             rootUri: initializedConfig.rootUri
         )
-        buildWarmupJob?.setTerminationHandler { [weak self, initializedConfig] code, stderr in
+        let separateAqueryOutputBase = initializedConfig.aqueryOutputBase != initializedConfig.outputBase
+        notificationDispatchGroup.enter()
+        // If we're warming up two output bases, prepare the dispatch group to prevent it from being triggered
+        // too quickly if the first output base finishes faster than expected.
+        if separateAqueryOutputBase {
+            notificationDispatchGroup.enter()
+        }
+        notificationDispatchGroup.notify(queue: notificationQueue) { [weak self] in
+            self?.notifyObservers()
+        }
+        buildWarmupJob?.setTerminationHandler { [weak self] code, stderr in
             if code == 0 {
                 logger.info("Finished warming up the build output base!")
             } else {
@@ -66,29 +89,36 @@ final class DidInitializeHandler: @unchecked Sendable {
                 )
             }
             self?.buildWarmupJob = nil
-            guard initializedConfig.aqueryOutputBase != initializedConfig.outputBase else {
-                return
+            self?.notificationDispatchGroup.leave()
+        }
+        guard separateAqueryOutputBase else {
+            return
+        }
+        aqueryWarmupJob = try? commandRunner.bazelIndexAction(
+            baseConfig: initializedConfig.baseConfig,
+            outputBase: initializedConfig.aqueryOutputBase,
+            cmd: "query \(targetToUse)",
+            rootUri: initializedConfig.rootUri
+        )
+        aqueryWarmupJob?.setTerminationHandler { [weak self] code, stderr in
+            if code == 0 {
+                logger.info("Finished warming up the aquery output base!")
+            } else {
+                logger.logFullObjectInMultipleLogMessages(
+                    level: .error,
+                    header: "Failed to warm up the aquery output base.",
+                    stderr
+                )
             }
-            // FIXME: We have to warm up the aqueries *after* the build, otherwise we can run
-            // into some weird race condition with rules_swift I'm not sure about.
-            self?.aqueryWarmupJob = try? self?.commandRunner.bazelIndexAction(
-                baseConfig: initializedConfig.baseConfig,
-                outputBase: initializedConfig.aqueryOutputBase,
-                cmd: "query \(targetToUse)",
-                rootUri: initializedConfig.rootUri
-            )
-            self?.aqueryWarmupJob?.setTerminationHandler { [weak self] code, stderr in
-                if code == 0 {
-                    logger.info("Finished warming up the aquery output base!")
-                } else {
-                    logger.logFullObjectInMultipleLogMessages(
-                        level: .error,
-                        header: "Failed to warm up the aquery output base.",
-                        stderr
-                    )
-                }
-                self?.aqueryWarmupJob = nil
-            }
+            self?.aqueryWarmupJob = nil
+            self?.notificationDispatchGroup.leave()
+        }
+    }
+
+    func notifyObservers() {
+        logger.info("DidInitializeHandler: Notifying observers")
+        for observer in observers {
+            observer.didInitializeHandlerFinishedPreparations()
         }
     }
 }

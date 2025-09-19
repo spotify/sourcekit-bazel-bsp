@@ -69,7 +69,7 @@ struct BazelTargetCompilerArgsExtractorTests {
     func extractsAndProcessesCompilerArguments_complexRealWorldSwiftExample() throws {
         let (extractor, mockRunner, mockRootUri) = Self.makeMockExtractor()
         let expectedAQuery =
-            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:HelloWorldLib, deps(//HelloWorld:HelloWorldLib_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto"
+            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', deps(//HelloWorld:HelloWorldLib) union deps(fooTarget))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto"
         mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
         let expectedSdkRoot =
             "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
@@ -82,10 +82,13 @@ struct BazelTargetCompilerArgsExtractorTests {
         let result = try #require(
             try extractor.compilerArgs(
                 forDoc: URI(filePath: "not relevant for Swift", isDirectory: false),
-                inTarget: "//HelloWorld:HelloWorldLib_ios_skbsp",
-                underlyingLibrary: "//HelloWorld:HelloWorldLib",
+                inTarget: "//HelloWorld:HelloWorldLib",
+                buildingUnder: BazelTargetPlatformInfo(
+                    buildTestLabel: "//HelloWorld:HelloWorldLib_ios_skbsp",
+                    parentRuleType: .iosApplication
+                ),
+                queryingFor: ["//HelloWorld:HelloWorldLib", "fooTarget"],
                 language: .swift,
-                platform: .iosApplication,
             )
         )
         #expect(result == expectedSwiftResult)
@@ -95,7 +98,7 @@ struct BazelTargetCompilerArgsExtractorTests {
     func extractsAndProcessesCompilerArguments_complexRealWorldObjCExample() throws {
         let (extractor, mockRunner, mockRootUri) = Self.makeMockExtractor()
         let expectedAQuery =
-            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:TodoObjCSupport, deps(//HelloWorld:TodoObjCSupport_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto"
+            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', deps(//HelloWorld:TodoObjCSupport) union deps(fooTarget))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto"
         mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryObjcOutput)
         let expectedSdkRoot =
             "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
@@ -112,10 +115,13 @@ struct BazelTargetCompilerArgsExtractorTests {
                         "/Users/user/Documents/demo-ios-project/HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.m",
                     isDirectory: false
                 ),
-                inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
-                underlyingLibrary: "//HelloWorld:TodoObjCSupport",
+                inTarget: "//HelloWorld:TodoObjCSupport",
+                buildingUnder: BazelTargetPlatformInfo(
+                    buildTestLabel: "//HelloWorld:TodoObjCSupport_ios_skbsp",
+                    parentRuleType: .iosApplication
+                ),
+                queryingFor: ["//HelloWorld:TodoObjCSupport", "fooTarget"],
                 language: .objective_c,
-                platform: .iosApplication,
             )
         )
         #expect(result == expectedObjCResult)
@@ -131,10 +137,13 @@ struct BazelTargetCompilerArgsExtractorTests {
                     "/Users/user/Documents/demo-ios-project/HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.h",
                 isDirectory: false
             ),
-            inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
-            underlyingLibrary: "//HelloWorld:TodoObjCSupport",
+            inTarget: "//HelloWorld:TodoObjCSupport",
+            buildingUnder: BazelTargetPlatformInfo(
+                buildTestLabel: "//HelloWorld:TodoObjCSupport_ios_skbsp",
+                parentRuleType: .iosApplication
+            ),
+            queryingFor: ["//HelloWorld:TodoObjCSupport", "fooTarget"],
             language: .objective_c,
-            platform: .iosApplication,
         )
         #expect(result == nil)
     }
@@ -143,7 +152,7 @@ struct BazelTargetCompilerArgsExtractorTests {
     func missingObjCFileReturnsNil() throws {
         let (extractor, mockRunner, mockRootUri) = Self.makeMockExtractor()
         let expectedAQuery =
-            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:TodoObjCSupport, deps(//HelloWorld:TodoObjCSupport_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto"
+            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', deps(//HelloWorld:TodoObjCSupport) union deps(fooTarget))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto"
         mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
         let expectedSdkRoot =
             "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
@@ -158,10 +167,13 @@ struct BazelTargetCompilerArgsExtractorTests {
                 filePath: "/Users/user/Documents/demo-ios-project/HelloWorld/TodoObjCSupport/Sources/SomethingElse.m",
                 isDirectory: false
             ),
-            inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
-            underlyingLibrary: "//HelloWorld:TodoObjCSupport",
+            inTarget: "//HelloWorld:TodoObjCSupport",
+            buildingUnder: BazelTargetPlatformInfo(
+                buildTestLabel: "//HelloWorld:TodoObjCSupport_ios_skbsp",
+                parentRuleType: .iosApplication
+            ),
+            queryingFor: ["//HelloWorld:TodoObjCSupport", "fooTarget"],
             language: .objective_c,
-            platform: .iosApplication,
         )
         #expect(result == nil)
     }
@@ -176,10 +188,13 @@ struct BazelTargetCompilerArgsExtractorTests {
                     filePath: "/random/wrong/prefix/HelloWorld/TodoObjCSupport/Sources/SomethingElse.m",
                     isDirectory: false
                 ),
-                inTarget: "//HelloWorld:TodoObjCSupport_ios_skbsp",
-                underlyingLibrary: "//HelloWorld:TodoObjCSupport",
+                inTarget: "//HelloWorld:TodoObjCSupport",
+                buildingUnder: BazelTargetPlatformInfo(
+                    buildTestLabel: "//HelloWorld:TodoObjCSupport_ios_skbsp",
+                    parentRuleType: .iosApplication
+                ),
+                queryingFor: ["//HelloWorld:TodoObjCSupport", "fooTarget"],
                 language: .objective_c,
-                platform: .iosApplication,
             )
         }
         #expect(
@@ -192,7 +207,7 @@ struct BazelTargetCompilerArgsExtractorTests {
     func missingSwiftModuleReturnsNil() throws {
         let (extractor, mockRunner, mockRootUri) = Self.makeMockExtractor()
         let expectedAQuery =
-            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:SomethingElseLib, deps(//HelloWorld:SomethingElseLib_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto"
+            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', deps(//HelloWorld:SomethingElseLib) union deps(fooTarget))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto"
         mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
         let expectedSdkRoot =
             "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
@@ -204,10 +219,13 @@ struct BazelTargetCompilerArgsExtractorTests {
 
         let result = try extractor.compilerArgs(
             forDoc: URI(filePath: "not relevant for Swift", isDirectory: false),
-            inTarget: "//HelloWorld:SomethingElseLib_ios_skbsp",
-            underlyingLibrary: "//HelloWorld:SomethingElseLib",
+            inTarget: "//HelloWorld:SomethingElseLib",
+            buildingUnder: BazelTargetPlatformInfo(
+                buildTestLabel: "//HelloWorld:SomethingElseLib_ios_skbsp",
+                parentRuleType: .iosApplication
+            ),
+            queryingFor: ["//HelloWorld:SomethingElseLib", "fooTarget"],
             language: .swift,
-            platform: .iosApplication,
         )
         #expect(result == nil)
     }
@@ -216,7 +234,7 @@ struct BazelTargetCompilerArgsExtractorTests {
     func cachesCompilerArgs() throws {
         let (extractor, mockRunner, mockRootUri) = Self.makeMockExtractor()
         let expectedAQuery =
-            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', filter(//HelloWorld:HelloWorldLib, deps(//HelloWorld:HelloWorldLib_ios_skbsp)))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto"
+            "bazel --output_base=/private/var/tmp/_bazel_user/hash123 aquery \"mnemonic('ObjcCompile|SwiftCompile', deps(//HelloWorld:HelloWorldLib) union deps(fooTarget))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto"
         mockRunner.setResponse(for: expectedAQuery, cwd: mockRootUri, response: exampleAqueryOutput)
         let expectedSdkRoot =
             "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
@@ -229,10 +247,10 @@ struct BazelTargetCompilerArgsExtractorTests {
         func run(_ lib: String, _ underlyingLibrary: String) -> [String]? {
             return try? extractor.compilerArgs(
                 forDoc: URI(filePath: "not relevant for Swift", isDirectory: false),
-                inTarget: lib,
-                underlyingLibrary: underlyingLibrary,
+                inTarget: underlyingLibrary,
+                buildingUnder: BazelTargetPlatformInfo(buildTestLabel: lib, parentRuleType: .iosApplication),
+                queryingFor: [underlyingLibrary, "fooTarget"],
                 language: .swift,
-                platform: .iosApplication,
             )
         }
 
