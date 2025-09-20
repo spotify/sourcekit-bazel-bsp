@@ -73,12 +73,13 @@ final class SKOptionsHandler {
 
     func handle(request: TextDocumentSourceKitOptionsRequest) throws -> TextDocumentSourceKitOptionsResponse? {
         let targetUri = request.target.uri
-        let (bazelTarget, platformInfo, aqueryResult) = try targetStore.stateLock.withLockUnchecked {
-            let bazelTarget = try targetStore.bazelTargetLabel(forBSPURI: targetUri)
+        let (platformInfo, aqueryResult) = try targetStore.stateLock.withLockUnchecked {
             let platformInfo = try targetStore.platformBuildLabelInfo(forBSPURI: targetUri)
             let aqueryResult = try targetStore.targetsAqueryForArgsExtraction()
-            return (bazelTarget, platformInfo, aqueryResult)
+            return (platformInfo, aqueryResult)
         }
+
+        let bazelTarget = platformInfo.label
 
         logger.info(
             "Fetching SKOptions for \(targetUri.stringValue), target: \(bazelTarget), language: \(request.language)"

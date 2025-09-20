@@ -42,6 +42,7 @@ protocol BazelTargetStore: AnyObject {
 // Provides the full information about a target's build label platform,
 // including the top-level parent that provides it.
 struct BazelTargetPlatformInfo {
+    let label: String
     let buildTestLabel: String
     let topLevelParentLabel: String
     let topLevelParentRuleType: TopLevelRuleType
@@ -159,6 +160,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         let platformPlaceholder = initializedConfig.baseConfig.buildTestPlatformPlaceholder
         let platformBuildSuffix = baseSuffix.replacingOccurrences(of: platformPlaceholder, with: rule.platform)
         return BazelTargetPlatformInfo(
+            label: bazelLabel,
             buildTestLabel: "\(bazelLabel)\(platformBuildSuffix)",
             topLevelParentLabel: parentToUse,
             topLevelParentRuleType: rule,

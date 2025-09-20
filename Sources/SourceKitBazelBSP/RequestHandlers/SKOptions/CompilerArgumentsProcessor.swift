@@ -40,15 +40,17 @@ enum CompilerArgumentsProcessor {
     // Parses and processes the compilation step for a given target from a larger aquery output.
     static func extractAndProcessCompilerArgs(
         fromAquery aqueryOutput: AqueryResult,
-        bazelTarget: String,
-        parentBazelTarget: String,
-        parentRuleType: TopLevelRuleType,
-        contentToQuery: String,
-        language: Language,
+        targetInfo: BazelTargetPlatformInfo,
+        objCImplToExtract: String?,
         sdkRoot: String,
-        platformSdk: String,
+        language: Language,
         initializedConfig: InitializedServerConfig
     ) -> [String]? {
+        let bazelTarget = targetInfo.label
+        let parentBazelTarget = targetInfo.topLevelParentLabel
+        let parentRuleType = targetInfo.topLevelParentRuleType
+        let platformSdk = parentRuleType.sdkName
+
         logger.info("Extracting compiler arguments for \(bazelTarget) under \(platformSdk) (parent: \(parentBazelTarget))")
 
         // If the parent is a test target, we need to append __internal__.__test_bundle to the label to find it in the output.
@@ -90,8 +92,7 @@ enum CompilerArgumentsProcessor {
             in: actions,
             for: platformSdk,
             id: parentConfigurationId,
-            language: language,
-            contentToQuery: contentToQuery
+            objCImplToExtract: objCImplToExtract,
         )
         if relevantActions.count > 1 {
             logger.error("Found multiple compilation actions for \(bazelTarget) under \(platformSdk). This is unexpected.")
@@ -106,9 +107,9 @@ enum CompilerArgumentsProcessor {
 
         let processedArgs = _processCompilerArguments(
             rawArguments: rawArguments,
-            contentToQuery: contentToQuery,
-            language: language,
+            objCImplToExtract: objCImplToExtract,
             sdkRoot: sdkRoot,
+            language: language,
             initializedConfig: initializedConfig
         )
 
@@ -125,8 +126,7 @@ enum CompilerArgumentsProcessor {
         in actions: [Analysis_Action],
         for platformSdk: String,
         id: UInt32,
-        language: Language,
-        contentToQuery: String
+        objCImplToExtract: String?
     ) -> [Analysis_Action] {
         // See the comment in AqueryResult.swift.
         // First filter by actions under the platform we're interested in,
@@ -141,12 +141,12 @@ enum CompilerArgumentsProcessor {
         let underConfiguration = platformActions.filter {
             return $0.configurationID == id
         }
-        if language == .objective_c {
+        if let objCImpl = objCImplToExtract {
             // For Obj-C, we need to find the action for the specific file we're looking at.
             for action in underConfiguration {
                 let arguments = action.arguments
                 for i in (0..<arguments.count).reversed() {
-                    if arguments[i] == "-c" && arguments[i + 1] == contentToQuery {
+                    if arguments[i] == "-c" && arguments[i + 1] == objCImpl {
                         return [action]
                     }
                 }
@@ -160,9 +160,9 @@ enum CompilerArgumentsProcessor {
     /// Processes compiler arguments for the LSP by removing unnecessary arguments and replacing placeholders.
     private static func _processCompilerArguments(
         rawArguments: [String],
-        contentToQuery: String,
-        language: Language,
+        objCImplToExtract: String?,
         sdkRoot: String,
+        language: Language,
         initializedConfig: InitializedServerConfig
     ) -> [String] {
 
@@ -194,7 +194,7 @@ enum CompilerArgumentsProcessor {
 
         var compilerArguments: [String] = []
 
-        let isObjCImpl = language == .objective_c && contentToQuery.hasSuffix(".m")
+        let isObjCImpl = objCImplToExtract != nil
         // For Obj-C, start by adding some necessary args that wouldn't show up in the aquery
         if isObjCImpl {
             compilerArguments.append("-x")

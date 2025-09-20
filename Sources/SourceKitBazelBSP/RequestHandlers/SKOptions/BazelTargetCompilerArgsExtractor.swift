@@ -66,10 +66,10 @@ final class BazelTargetCompilerArgsExtractor {
 
         // For Swift, compilation is done at the target-level. But for ObjC, it's file-based instead.
         let cacheKey: String
-        let contentToQuery: String
+        let objCImplToExtract: String?
         if language == .swift {
             cacheKey = bazelTarget
-            contentToQuery = bazelTarget
+            objCImplToExtract = nil
         } else {
             // Make the path relative, as this is what aquery will return
             let fullUri = textDocument.stringValue
@@ -79,7 +79,7 @@ final class BazelTargetCompilerArgsExtractor {
             }
             let parsedFile = String(fullUri.dropFirst(prefixToCut.count))
             cacheKey = bazelTarget + "|" + parsedFile
-            contentToQuery = parsedFile
+            objCImplToExtract = parsedFile
         }
 
         logger.info("Fetching compiler args for \(cacheKey)")
@@ -98,13 +98,10 @@ final class BazelTargetCompilerArgsExtractor {
         // Then, extract the compiler arguments for the target file from the resulting aquery.
         let processedArgs = CompilerArgumentsProcessor.extractAndProcessCompilerArgs(
             fromAquery: aqueryResult,
-            bazelTarget: bazelTarget,
-            parentBazelTarget: platformInfo.topLevelParentLabel,
-            parentRuleType: platformInfo.topLevelParentRuleType,
-            contentToQuery: contentToQuery,
-            language: language,
+            targetInfo: platformInfo,
+            objCImplToExtract: objCImplToExtract,
             sdkRoot: sdkRoot,
-            platformSdk: platformSdk,
+            language: language,
             initializedConfig: config
         )
         argsCache[cacheKey] = processedArgs
