@@ -108,14 +108,15 @@ final class PrepareHandler {
                     logger.info("Finished building! (Request ID: \(id.description))")
                     completion(nil)
                 } else {
-                    logger.logFullObjectInMultipleLogMessages(
-                        level: .error,
-                        header: "Failed to build targets.",
-                        stderr
-                    )
                     if code == 8 {
+                        logger.info("Build (Request ID: \(id.description)) was cancelled.")
                         completion(ResponseError.cancelled)
                     } else {
+                        logger.logFullObjectInMultipleLogMessages(
+                            level: .error,
+                            header: "Failed to build targets.",
+                            stderr
+                        )
                         completion(ResponseError(code: .internalError, message: "The bazel build failed."))
                     }
                 }

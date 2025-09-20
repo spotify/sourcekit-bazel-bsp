@@ -40,28 +40,76 @@ enum CompilerArgumentsProcessor {
     // Parses and processes the compilation step for a given target from a larger aquery output.
     static func extractAndProcessCompilerArgs(
         fromAquery aqueryOutput: AqueryResult,
-        bazelTarget: String,
-        contentToQuery: String,
-        language: Language,
+        targetInfo: BazelTargetPlatformInfo,
+        objCImplToExtract: String?,
         sdkRoot: String,
+        language: Language,
         initializedConfig: InitializedServerConfig
     ) -> [String]? {
+        let bazelTarget = targetInfo.label
+        let parentBazelTarget = targetInfo.topLevelParentLabel
+        let parentRuleType = targetInfo.topLevelParentRuleType
+        let platformSdk = parentRuleType.sdkName
+
+        logger.info("Extracting compiler arguments for \(bazelTarget) under \(platformSdk) (parent: \(parentBazelTarget))")
+
+        // If the parent is a test target, we need to append __internal__.__test_bundle to the label to find it in the output.
+        let effectiveParentLabel: String
+        if parentRuleType.isTestRule {
+            effectiveParentLabel = parentBazelTarget + ".__internal__.__test_bundle"
+        } else {
+            effectiveParentLabel = parentBazelTarget
+        }
+
+        // First, fetch the configuration id of the target's parent.
+        guard let parentTarget = aqueryOutput.targets[effectiveParentLabel] else {
+            logger.error("Target \(effectiveParentLabel) of \(bazelTarget) not found in the aquery output.")
+            return nil
+        }
+        guard let parentActions = aqueryOutput.actions[parentTarget.id] else {
+            logger.error("Action \(parentTarget.id) for parent \(effectiveParentLabel) not found in the aquery output.")
+            return nil
+        }
+        guard parentActions.count == 1 else {
+            logger.error("Found multiple actions for parent \(effectiveParentLabel) of \(bazelTarget). This is unexpected.")
+            return nil
+        }
+        let parentAction = parentActions[0]
+        let parentConfigurationId = parentAction.configurationID
+        logger.debug("Parent configuration id: \(parentConfigurationId)")
+
+        // Now, fetch the target's actual compilation step under that same id.
         guard let target = aqueryOutput.targets[bazelTarget] else {
-            logger.warning("Target \(bazelTarget) not found in the aquery output.")
+            logger.error("Target \(bazelTarget) not found in the aquery output.")
             return nil
         }
-        guard let action = aqueryOutput.actions[target.id] else {
-            logger.warning("Action \(target.id) for \(bazelTarget) not found in the aquery output.")
+        guard let actions = aqueryOutput.actions[target.id] else {
+            logger.error("Action \(target.id) for \(bazelTarget) not found in the aquery output.")
             return nil
         }
+
+        let relevantActions = _findRelevantActions(
+            in: actions,
+            for: platformSdk,
+            id: parentConfigurationId,
+            objCImplToExtract: objCImplToExtract,
+        )
+        if relevantActions.count > 1 {
+            logger.error("Found multiple compilation actions for \(bazelTarget) under \(platformSdk). This is unexpected.")
+            return nil
+        } else if relevantActions.count == 0 {
+            logger.error("No compilation actions found for \(bazelTarget) under \(platformSdk). This is unexpected.")
+            return nil
+        }
+        let action = relevantActions[0]
 
         let rawArguments = action.arguments
 
         let processedArgs = _processCompilerArguments(
             rawArguments: rawArguments,
-            contentToQuery: contentToQuery,
-            language: language,
+            objCImplToExtract: objCImplToExtract,
             sdkRoot: sdkRoot,
+            language: language,
             initializedConfig: initializedConfig
         )
 
@@ -74,12 +122,47 @@ enum CompilerArgumentsProcessor {
         return processedArgs
     }
 
+    private static func _findRelevantActions(
+        in actions: [Analysis_Action],
+        for platformSdk: String,
+        id: UInt32,
+        objCImplToExtract: String?
+    ) -> [Analysis_Action] {
+        // See the comment in AqueryResult.swift.
+        // First filter by actions under the platform we're interested in,
+        // and then pick the one matching the configuration of the top-level parent we're using
+        // as a reference.
+        let platformActions = actions.filter {
+            return $0.environmentVariables.contains {
+                $0.key == "APPLE_SDK_PLATFORM" && $0.value.lowercased() == platformSdk
+            }
+        }
+        logger.debug("Found \(platformActions.count) actions for \(platformSdk)")
+        let underConfiguration = platformActions.filter {
+            return $0.configurationID == id
+        }
+        if let objCImpl = objCImplToExtract {
+            // For Obj-C, we need to find the action for the specific file we're looking at.
+            for action in underConfiguration {
+                let arguments = action.arguments
+                for i in (0..<arguments.count).reversed() {
+                    if arguments[i] == "-c" && arguments[i + 1] == objCImpl {
+                        return [action]
+                    }
+                }
+            }
+            return []
+        } else {
+            return underConfiguration
+        }
+    }
+
     /// Processes compiler arguments for the LSP by removing unnecessary arguments and replacing placeholders.
     private static func _processCompilerArguments(
         rawArguments: [String],
-        contentToQuery: String,
-        language: Language,
+        objCImplToExtract: String?,
         sdkRoot: String,
+        language: Language,
         initializedConfig: InitializedServerConfig
     ) -> [String] {
 
@@ -111,7 +194,7 @@ enum CompilerArgumentsProcessor {
 
         var compilerArguments: [String] = []
 
-        let isObjCImpl = language == .objective_c && contentToQuery.hasSuffix(".m")
+        let isObjCImpl = objCImplToExtract != nil
         // For Obj-C, start by adding some necessary args that wouldn't show up in the aquery
         if isObjCImpl {
             compilerArguments.append("-x")

@@ -39,38 +39,26 @@ enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
     }
 }
 
-/// Abstraction that handles running action queries and extracting the compiler args for a given target file.
+/// Abstraction that handles extracting the compiler args for a given target file.
 final class BazelTargetCompilerArgsExtractor {
 
-    private let commandRunner: CommandRunner
-    private let aquerier: BazelTargetAquerier
     private let config: InitializedServerConfig
+
     private var argsCache = [String: [String]?]()
 
-    // This class needs synchronization because we might be requested to wipe the cache
-    // in the middle of an aquery request.
-    private let stateLock = OSAllocatedUnfairLock()
-
     init(
-        commandRunner: CommandRunner = ShellCommandRunner(),
-        aquerier: BazelTargetAquerier = BazelTargetAquerier(),
         config: InitializedServerConfig
     ) {
-        self.commandRunner = commandRunner
-        self.aquerier = aquerier
         self.config = config
     }
 
     func compilerArgs(
         forDoc textDocument: URI,
         inTarget bazelTarget: String,
-        underlyingLibrary: String,
+        buildingUnder platformInfo: BazelTargetPlatformInfo,
         language: Language,
-        platform: TopLevelRuleType
+        aqueryResult: AqueryResult
     ) throws -> [String]? {
-        stateLock.lock()
-        defer { stateLock.unlock() }
-
         // Ignore Obj-C header requests, since these don't compile
         guard !textDocument.stringValue.hasSuffix(".h") else {
             return nil
@@ -78,10 +66,10 @@ final class BazelTargetCompilerArgsExtractor {
 
         // For Swift, compilation is done at the target-level. But for ObjC, it's file-based instead.
         let cacheKey: String
-        let contentToQuery: String
+        let objCImplToExtract: String?
         if language == .swift {
             cacheKey = bazelTarget
-            contentToQuery = bazelTarget
+            objCImplToExtract = nil
         } else {
             // Make the path relative, as this is what aquery will return
             let fullUri = textDocument.stringValue
@@ -91,7 +79,7 @@ final class BazelTargetCompilerArgsExtractor {
             }
             let parsedFile = String(fullUri.dropFirst(prefixToCut.count))
             cacheKey = bazelTarget + "|" + parsedFile
-            contentToQuery = parsedFile
+            objCImplToExtract = parsedFile
         }
 
         logger.info("Fetching compiler args for \(cacheKey)")
@@ -102,28 +90,18 @@ final class BazelTargetCompilerArgsExtractor {
         }
 
         // First, determine the SDK root based on the platform the target is built for.
-        let platformSdk = platform.sdkName
+        let platformSdk = platformInfo.platformSdkName
         guard let sdkRoot: String = config.sdkRootPaths[platformSdk] else {
             throw BazelTargetCompilerArgsExtractorError.sdkRootNotFound(platformSdk)
         }
 
-        // Then, run an aquery against the build_test target in question,
-        // filtering for the "real" underlying library.
-        let resultAquery = try aquerier.aquery(
-            target: bazelTarget,
-            filteringFor: underlyingLibrary,
-            config: config,
-            mnemonics: ["SwiftCompile", "ObjcCompile"],
-            additionalFlags: ["--noinclude_artifacts", "--noinclude_aspects", "--features=-compiler_param_file"]
-        )
-
         // Then, extract the compiler arguments for the target file from the resulting aquery.
         let processedArgs = CompilerArgumentsProcessor.extractAndProcessCompilerArgs(
-            fromAquery: resultAquery,
-            bazelTarget: underlyingLibrary,
-            contentToQuery: contentToQuery,
-            language: language,
+            fromAquery: aqueryResult,
+            targetInfo: platformInfo,
+            objCImplToExtract: objCImplToExtract,
             sdkRoot: sdkRoot,
+            language: language,
             initializedConfig: config
         )
         argsCache[cacheKey] = processedArgs
@@ -131,9 +109,6 @@ final class BazelTargetCompilerArgsExtractor {
     }
 
     func clearCache() {
-        stateLock.withLockUnchecked {
-            argsCache = [:]
-            aquerier.clearCache()
-        }
+        argsCache = [:]
     }
 }

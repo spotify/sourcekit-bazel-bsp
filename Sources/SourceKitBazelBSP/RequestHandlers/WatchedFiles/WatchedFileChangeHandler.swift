@@ -64,6 +64,10 @@ final class WatchedFileChangeHandler {
             return
         }
 
+        for change in changes {
+            logger.debug("File change: \(change.uri.stringValue) \(change.type.rawValue)")
+        }
+
         // In this case, we keep the lock until the very end of the notification to avoid race conditions
         // with how the LSP follows up with this by calling waitForBuildSystemUpdates and buildTargets again.
         // Also because we need the targetStore at multiple points of this function.
@@ -144,6 +148,10 @@ final class WatchedFileChangeHandler {
 
         // Notify SK-LSP about the affected targets
         let uniqueInvalidatedTargets = Set(invalidatedTargets.map { $0.uri })
+
+        logger.debug(
+            "Notifying SK-LSP about invalidated targets: \(uniqueInvalidatedTargets.map { $0.stringValue }.joined(separator: ", "))"
+        )
 
         let response = OnBuildTargetDidChangeNotification(
             changes: uniqueInvalidatedTargets.map { targetUri in
