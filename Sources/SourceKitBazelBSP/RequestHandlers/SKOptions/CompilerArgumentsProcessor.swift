@@ -124,9 +124,10 @@ enum CompilerArgumentsProcessor {
         for platformSdk: String,
         id: UInt32
     ) -> [Analysis_Action] {
-        // See the same comment in AqueryResult.swift.
-        // We have seen cases where an action can show up twice with different platforms.
-        // Not sure yet how this can happen (maybe xcframeworks?), so we need to find the correct one here.
+        // See the comment in AqueryResult.swift.
+        // First filter by actions under the platform we're interested in,
+        // and then pick the one matching the configuration of the top-level parent we're using
+        // as a reference.
         let platformActions = actions.filter {
             return $0.environmentVariables.contains {
                 $0.key == "APPLE_SDK_PLATFORM" && $0.value.lowercased() == platformSdk
@@ -134,7 +135,6 @@ enum CompilerArgumentsProcessor {
         }
         logger.debug("Found \(platformActions.count) actions for \(platformSdk)")
         return platformActions.filter {
-            logger.debug("Action configuration id: \($0.configurationID)")
             return $0.configurationID == id
         }
     }

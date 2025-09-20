@@ -97,10 +97,7 @@ package final class SourceKitBazelBSPServer {
         registry.register(notificationHandler: cancelRequestHandler.onCancelRequest)
 
         // build/initialized
-        let didInitializeHandler = DidInitializeHandler(
-            initializedConfig: initializedConfig,
-            observers: [skOptionsHandler]
-        )
+        let didInitializeHandler = DidInitializeHandler()
         registry.register(notificationHandler: didInitializeHandler.onDidInitialize)
     }
 

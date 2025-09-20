@@ -52,9 +52,9 @@ final class AqueryResult {
             result[target.label] = target
         }
         let actions: [UInt32: [Analysis_Action]] = results.actions.reduce(into: [:]) { result, action in
-            // We have seen cases where an action can show up twice with different platforms.
-            // Not sure yet how this can happen (maybe xcframeworks?), but we can store all info
-            // and find the correct variant later.
+            // If the aquery contains data of multiple platforms,
+            // then we will see multiple entries for the same targetID.
+            // We need to store all of them and find the correct variant later.
             result[action.targetID, default: []].append(action)
         }
         self.targets = targets

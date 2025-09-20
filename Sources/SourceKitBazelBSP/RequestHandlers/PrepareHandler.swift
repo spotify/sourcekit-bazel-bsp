@@ -99,7 +99,7 @@ final class PrepareHandler {
             // Build the provided targets, on our special output base and taking into account special index flags.
             let process = try commandRunner.bazelIndexAction(
                 baseConfig: initializedConfig.baseConfig,
-                outputBase: initializedConfig.outputBase + " --preemptible",
+                outputBase: initializedConfig.outputBase,
                 cmd: "build \(labelsToBuild.joined(separator: " "))",
                 rootUri: initializedConfig.rootUri
             )
@@ -109,7 +109,7 @@ final class PrepareHandler {
                     completion(nil)
                 } else {
                     if code == 8 {
-                        logger.info("Build was cancelled.")
+                        logger.info("Build (Request ID: \(id.description)) was cancelled.")
                         completion(ResponseError.cancelled)
                     } else {
                         logger.logFullObjectInMultipleLogMessages(

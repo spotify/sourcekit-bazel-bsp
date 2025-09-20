@@ -25,17 +25,6 @@ import struct os.OSAllocatedUnfairLock
 
 private let logger = makeFileLevelBSPLogger()
 
-enum SKOptionsHandlerError: Error, LocalizedError {
-    case noTargetsToRequest
-
-    var errorDescription: String? {
-        switch self {
-        case .noTargetsToRequest:
-            return "Request to query compiler arguments, but no top level labels are available!"
-        }
-    }
-}
-
 /// Handles the `textDocument/sourceKitOptions` request.
 ///
 /// Returns the compiler arguments for the provided target based on previously gathered information.
@@ -50,7 +39,6 @@ final class SKOptionsHandler {
     // This request needs synchronization because we might be requested to wipe the cache
     // in the middle of the request.
     private let stateLock = OSAllocatedUnfairLock()
-    private var didPreloadAllCompilerArgs = false
 
     init(
         initializedConfig: InitializedServerConfig,
@@ -62,21 +50,6 @@ final class SKOptionsHandler {
         self.targetStore = targetStore
         self.extractor = extractor ?? BazelTargetCompilerArgsExtractor(config: initializedConfig)
         self.connection = connection
-    }
-
-    func preloadAllCompilerArgs() {
-        guard !didPreloadAllCompilerArgs else {
-            return
-        }
-        logger.info("Will preload compiler arguments")
-        let taskId = TaskId(id: "getSKOptions-preload")
-        connection?.startWorkTask(id: taskId, title: "sourcekit-bazel-bsp: Preloading compiler arguments...")
-        let allTopLevelLabels = targetStore.stateLock.withLockUnchecked {
-            return targetStore.topLevelLabelsData()
-        }.map { $0.0 }
-        extractor.runAqueryForArgsExtraction(withTargets: allTopLevelLabels)
-        connection?.finishTask(id: taskId, status: .ok)
-        didPreloadAllCompilerArgs = true
     }
 
     func textDocumentSourceKitOptions(
@@ -99,13 +72,12 @@ final class SKOptionsHandler {
     }
 
     func handle(request: TextDocumentSourceKitOptionsRequest) throws -> TextDocumentSourceKitOptionsResponse? {
-        preloadAllCompilerArgs()
-
         let targetUri = request.target.uri
-        let (bazelTarget, platformInfo) = try targetStore.stateLock.withLockUnchecked {
+        let (bazelTarget, platformInfo, aqueryResult) = try targetStore.stateLock.withLockUnchecked {
             let bazelTarget = try targetStore.bazelTargetLabel(forBSPURI: targetUri)
             let platformInfo = try targetStore.platformBuildLabelInfo(forBSPURI: targetUri)
-            return (bazelTarget, platformInfo)
+            let aqueryResult = try targetStore.targetsAqueryForArgsExtraction()
+            return (bazelTarget, platformInfo, aqueryResult)
         }
 
         logger.info(
@@ -118,12 +90,14 @@ final class SKOptionsHandler {
                 inTarget: bazelTarget,
                 buildingUnder: platformInfo,
                 language: request.language,
+                aqueryResult: aqueryResult
             ) ?? []
 
         // If no compiler arguments are found, return nil to avoid sourcekit indexing with no input files
         guard !args.isEmpty else {
             return nil
         }
+
         return TextDocumentSourceKitOptionsResponse(
             compilerArguments: args,
             workingDirectory: initializedConfig.executionRoot
@@ -139,18 +113,7 @@ extension SKOptionsHandler: InvalidatedTargetObserver {
             return
         }
         stateLock.withLockUnchecked {
-            didPreloadAllCompilerArgs = false
             extractor.clearCache()
-            preloadAllCompilerArgs()
-        }
-    }
-}
-
-extension SKOptionsHandler: DidInitializeObserver {
-    func didInitializeHandlerFinishedPreparations() {
-        // Get a headstart by immediately running all the aqueries we need.
-        stateLock.withLockUnchecked {
-            preloadAllCompilerArgs()
         }
     }
 }
