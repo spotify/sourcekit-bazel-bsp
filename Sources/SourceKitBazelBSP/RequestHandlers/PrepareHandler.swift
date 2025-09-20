@@ -99,7 +99,7 @@ final class PrepareHandler {
             // Build the provided targets, on our special output base and taking into account special index flags.
             let process = try commandRunner.bazelIndexAction(
                 baseConfig: initializedConfig.baseConfig,
-                outputBase: initializedConfig.outputBase,
+                outputBase: initializedConfig.outputBase + " --preemptible",
                 cmd: "build \(labelsToBuild.joined(separator: " "))",
                 rootUri: initializedConfig.rootUri
             )
@@ -108,14 +108,15 @@ final class PrepareHandler {
                     logger.info("Finished building! (Request ID: \(id.description))")
                     completion(nil)
                 } else {
-                    logger.logFullObjectInMultipleLogMessages(
-                        level: .error,
-                        header: "Failed to build targets.",
-                        stderr
-                    )
                     if code == 8 {
+                        logger.info("Build was cancelled.")
                         completion(ResponseError.cancelled)
                     } else {
+                        logger.logFullObjectInMultipleLogMessages(
+                            level: .error,
+                            header: "Failed to build targets.",
+                            stderr
+                        )
                         completion(ResponseError(code: .internalError, message: "The bazel build failed."))
                     }
                 }

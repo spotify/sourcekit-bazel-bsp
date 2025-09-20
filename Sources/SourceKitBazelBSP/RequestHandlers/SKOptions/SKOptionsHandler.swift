@@ -139,6 +139,7 @@ extension SKOptionsHandler: InvalidatedTargetObserver {
             return
         }
         stateLock.withLockUnchecked {
+            didPreloadAllCompilerArgs = false
             extractor.clearCache()
             preloadAllCompilerArgs()
         }
