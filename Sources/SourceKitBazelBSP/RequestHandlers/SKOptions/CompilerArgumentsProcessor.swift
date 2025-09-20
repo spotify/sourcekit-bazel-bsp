@@ -41,12 +41,42 @@ enum CompilerArgumentsProcessor {
     static func extractAndProcessCompilerArgs(
         fromAquery aqueryOutput: AqueryResult,
         bazelTarget: String,
+        parentBazelTarget: String,
+        parentRuleType: TopLevelRuleType,
         contentToQuery: String,
         language: Language,
         sdkRoot: String,
         platformSdk: String,
         initializedConfig: InitializedServerConfig
     ) -> [String]? {
+        logger.info("Extracting compiler arguments for \(bazelTarget) under \(platformSdk) (parent: \(parentBazelTarget))")
+
+        // If the parent is a test target, we need to append __internal__.__test_bundle to the label to find it in the output.
+        let effectiveParentLabel: String
+        if parentRuleType.isTestRule {
+            effectiveParentLabel = parentBazelTarget + ".__internal__.__test_bundle"
+        } else {
+            effectiveParentLabel = parentBazelTarget
+        }
+
+        // First, fetch the configuration id of the target's parent.
+        guard let parentTarget = aqueryOutput.targets[effectiveParentLabel] else {
+            logger.error("Target \(effectiveParentLabel) of \(bazelTarget) not found in the aquery output.")
+            return nil
+        }
+        guard let parentActions = aqueryOutput.actions[parentTarget.id] else {
+            logger.error("Action \(parentTarget.id) for parent \(effectiveParentLabel) not found in the aquery output.")
+            return nil
+        }
+        guard parentActions.count == 1 else {
+            logger.error("Found multiple actions for parent \(effectiveParentLabel) of \(bazelTarget). This is unexpected.")
+            return nil
+        }
+        let parentAction = parentActions[0]
+        let parentConfigurationId = parentAction.configurationID
+        logger.debug("Parent configuration id: \(parentConfigurationId)")
+
+        // Now, fetch the target's actual compilation step under that same id.
         guard let target = aqueryOutput.targets[bazelTarget] else {
             logger.error("Target \(bazelTarget) not found in the aquery output.")
             return nil
@@ -56,7 +86,11 @@ enum CompilerArgumentsProcessor {
             return nil
         }
 
-        let relevantActions = _findRelevantActions(in: actions, for: platformSdk)
+        let relevantActions = _findRelevantActions(
+            in: actions,
+            for: platformSdk,
+            id: parentConfigurationId
+        )
         if relevantActions.count > 1 {
             logger.error("Found multiple compilation actions for \(bazelTarget) under \(platformSdk). This is unexpected.")
             return nil
@@ -87,15 +121,21 @@ enum CompilerArgumentsProcessor {
 
     private static func _findRelevantActions(
         in actions: [Analysis_Action],
-        for platformSdk: String
+        for platformSdk: String,
+        id: UInt32
     ) -> [Analysis_Action] {
         // See the same comment in AqueryResult.swift.
         // We have seen cases where an action can show up twice with different platforms.
         // Not sure yet how this can happen (maybe xcframeworks?), so we need to find the correct one here.
-        return actions.filter {
+        let platformActions = actions.filter {
             return $0.environmentVariables.contains {
                 $0.key == "APPLE_SDK_PLATFORM" && $0.value.lowercased() == platformSdk
             }
+        }
+        logger.debug("Found \(platformActions.count) actions for \(platformSdk)")
+        return platformActions.filter {
+            logger.debug("Action configuration id: \($0.configurationID)")
+            return $0.configurationID == id
         }
     }
 

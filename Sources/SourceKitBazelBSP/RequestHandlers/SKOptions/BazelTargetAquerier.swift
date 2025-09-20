@@ -33,7 +33,6 @@ enum BazelTargetAquerierError: Error, LocalizedError {
 }
 
 /// Small abstraction to handle and cache the results of bazel _action queries_.
-/// FIXME: This is separate from BazelTargetQuerier because of the different output types, but we can unify these.
 final class BazelTargetAquerier {
 
     private let commandRunner: CommandRunner

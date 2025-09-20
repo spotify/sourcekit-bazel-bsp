@@ -26,12 +26,12 @@ import struct os.OSAllocatedUnfairLock
 private let logger = makeFileLevelBSPLogger()
 
 enum SKOptionsHandlerError: Error, LocalizedError {
-    case noTargetsToRequest(String)
+    case noTargetsToRequest
 
     var errorDescription: String? {
         switch self {
-        case .noTargetsToRequest(let platform):
-            return "Request to query \(platform), but no targets of that platform are available!"
+        case .noTargetsToRequest:
+            return "Request to query compiler arguments, but no top level labels are available!"
         }
     }
 }
@@ -50,6 +50,7 @@ final class SKOptionsHandler {
     // This request needs synchronization because we might be requested to wipe the cache
     // in the middle of the request.
     private let stateLock = OSAllocatedUnfairLock()
+    private var didPreloadAllCompilerArgs = false
 
     init(
         initializedConfig: InitializedServerConfig,
@@ -64,19 +65,18 @@ final class SKOptionsHandler {
     }
 
     func preloadAllCompilerArgs() {
+        guard !didPreloadAllCompilerArgs else {
+            return
+        }
         logger.info("Will preload compiler arguments")
         let taskId = TaskId(id: "getSKOptions-preload")
         connection?.startWorkTask(id: taskId, title: "sourcekit-bazel-bsp: Preloading compiler arguments...")
-        let platformsToTargets = targetStore.stateLock.withLockUnchecked {
-            return targetStore.platformsToTopLevelLabelsMap
-        }
-        // Run one query per platform+targets combo.
-        // We need the queries to be separated by platform to account for
-        // libraries shared across platforms.
-        for (_, targets) in platformsToTargets {
-            _ = try? extractor.runAqueryForArgsExtraction(withTargets: targets)
-        }
+        let allTopLevelLabels = targetStore.stateLock.withLockUnchecked {
+            return targetStore.topLevelLabelsData()
+        }.map { $0.0 }
+        extractor.runAqueryForArgsExtraction(withTargets: allTopLevelLabels)
         connection?.finishTask(id: taskId, status: .ok)
+        didPreloadAllCompilerArgs = true
     }
 
     func textDocumentSourceKitOptions(
@@ -99,18 +99,13 @@ final class SKOptionsHandler {
     }
 
     func handle(request: TextDocumentSourceKitOptionsRequest) throws -> TextDocumentSourceKitOptionsResponse? {
+        preloadAllCompilerArgs()
+
         let targetUri = request.target.uri
-        let (bazelTarget, platformInfo, platformTopLevelTargets) = try targetStore.stateLock.withLockUnchecked {
+        let (bazelTarget, platformInfo) = try targetStore.stateLock.withLockUnchecked {
             let bazelTarget = try targetStore.bazelTargetLabel(forBSPURI: targetUri)
             let platformInfo = try targetStore.platformBuildLabelInfo(forBSPURI: targetUri)
-            // We will request all top-level targets of this platform at once to maximize cache hits.
-            let targetsToQuery = targetStore.platformsToTopLevelLabelsMap[platformInfo.parentRuleType.platform] ?? []
-            return (bazelTarget, platformInfo, targetsToQuery)
-        }
-
-        guard !platformTopLevelTargets.isEmpty else {
-            // This should in theory never happen, but we should handle it just in case.
-            throw SKOptionsHandlerError.noTargetsToRequest(platformInfo.parentRuleType.platform)
+            return (bazelTarget, platformInfo)
         }
 
         logger.info(
@@ -122,7 +117,6 @@ final class SKOptionsHandler {
                 forDoc: request.textDocument.uri,
                 inTarget: bazelTarget,
                 buildingUnder: platformInfo,
-                queryingFor: platformTopLevelTargets,
                 language: request.language,
             ) ?? []
 

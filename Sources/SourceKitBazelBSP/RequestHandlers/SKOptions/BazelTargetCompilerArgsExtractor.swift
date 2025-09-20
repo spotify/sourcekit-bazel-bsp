@@ -29,12 +29,14 @@ enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
     case invalidObjCUri(String)
     case invalidTarget(String)
     case sdkRootNotFound(String)
+    case noCachedAquery
 
     var errorDescription: String? {
         switch self {
         case .invalidObjCUri(let uri): return "Unexpected non-Swift URI missing root URI prefix: \(uri)"
         case .invalidTarget(let target): return "Expected to receive a build_test target, but got: \(target)"
         case .sdkRootNotFound(let sdk): return "sdkRootPath not found for \(sdk). Is it installed?"
+        case .noCachedAquery: return "runAqueryForArgsExtraction must be ran before calling compilerArgs."
         }
     }
 }
@@ -47,6 +49,9 @@ final class BazelTargetCompilerArgsExtractor {
     private let config: InitializedServerConfig
 
     private var argsCache = [String: [String]?]()
+    // BazelTargetAquerier has a cache of its own,
+    // but we replicate it here to avoid having to store data about how to perform the query.
+    private var aqueryCache: AqueryResult? = nil
 
     init(
         commandRunner: CommandRunner = ShellCommandRunner(),
@@ -62,7 +67,6 @@ final class BazelTargetCompilerArgsExtractor {
         forDoc textDocument: URI,
         inTarget bazelTarget: String,
         buildingUnder platformInfo: BazelTargetPlatformInfo,
-        queryingFor targetsToQuery: [String],
         language: Language,
     ) throws -> [String]? {
         // Ignore Obj-C header requests, since these don't compile
@@ -97,19 +101,22 @@ final class BazelTargetCompilerArgsExtractor {
             return cached
         }
 
+        guard let resultAquery = aqueryCache else {
+            throw BazelTargetCompilerArgsExtractorError.noCachedAquery
+        }
+
         // First, determine the SDK root based on the platform the target is built for.
-        let platformSdk = platformInfo.parentRuleType.sdkName
+        let platformSdk = platformInfo.platformSdkName
         guard let sdkRoot: String = config.sdkRootPaths[platformSdk] else {
             throw BazelTargetCompilerArgsExtractorError.sdkRootNotFound(platformSdk)
         }
-
-        // Then, run an aquery against all the provided build_test targets.
-        let resultAquery = try runAqueryForArgsExtraction(withTargets: targetsToQuery)
 
         // Then, extract the compiler arguments for the target file from the resulting aquery.
         let processedArgs = CompilerArgumentsProcessor.extractAndProcessCompilerArgs(
             fromAquery: resultAquery,
             bazelTarget: bazelTarget,
+            parentBazelTarget: platformInfo.topLevelParentLabel,
+            parentRuleType: platformInfo.topLevelParentRuleType,
             contentToQuery: contentToQuery,
             language: language,
             sdkRoot: sdkRoot,
@@ -122,21 +129,29 @@ final class BazelTargetCompilerArgsExtractor {
 
     func runAqueryForArgsExtraction(
         withTargets targets: [String],
-    ) throws -> AqueryResult {
-        try aquerier.aquery(
-            targets: targets,
-            config: config,
-            mnemonics: ["SwiftCompile", "ObjcCompile"],
-            additionalFlags: [
-                "--noinclude_artifacts",
-                "--noinclude_aspects",
-                "--features=-compiler_param_file",  // Context: https://github.com/spotify/sourcekit-bazel-bsp/pull/60
-            ]
-        )
+    ) {
+        // We pass BundleTreeApp as a trick to gain access to the parent's configuration id.
+        // We can then use this to locate the exact variant of the target we are looking for.
+        do {
+            aqueryCache = try aquerier.aquery(
+                targets: targets,
+                config: config,
+                mnemonics: ["SwiftCompile", "ObjcCompile", "BundleTreeApp"],
+                additionalFlags: [
+                    "--noinclude_artifacts",
+                    "--noinclude_aspects",
+                    "--features=-compiler_param_file",  // Context: https://github.com/spotify/sourcekit-bazel-bsp/pull/60
+                ]
+            )
+        } catch {
+            logger.error("Error running aquery for args extraction: \(error)")
+            aqueryCache = nil
+        }
     }
 
     func clearCache() {
         argsCache = [:]
+        aqueryCache = nil
         aquerier.clearCache()
     }
 }

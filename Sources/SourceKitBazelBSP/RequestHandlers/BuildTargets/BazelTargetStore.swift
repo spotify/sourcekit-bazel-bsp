@@ -30,18 +30,29 @@ private let logger = makeFileLevelBSPLogger()
 // the project's dependency graph and its files.
 protocol BazelTargetStore: AnyObject {
     var stateLock: OSAllocatedUnfairLock<Void> { get }
-    var platformsToTopLevelLabelsMap: [String: [String]] { get }
     func fetchTargets() throws -> [BuildTarget]
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String
     func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI]
     func bspURIs(containingSrc src: URI) throws -> [URI]
     func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo
+    func topLevelLabelsData() -> [(String, TopLevelRuleType)]
     func clearCache()
 }
 
+// Provides the full information about a target's build label platform,
+// including the top-level parent that provides it.
 struct BazelTargetPlatformInfo {
     let buildTestLabel: String
-    let parentRuleType: TopLevelRuleType
+    let topLevelParentLabel: String
+    let topLevelParentRuleType: TopLevelRuleType
+
+    var platform: String {
+        topLevelParentRuleType.platform
+    }
+
+    var platformSdkName: String {
+        topLevelParentRuleType.sdkName
+    }
 }
 
 enum BazelTargetStoreError: Error, LocalizedError {
@@ -84,9 +95,6 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         self.initializedConfig = initializedConfig
         self.bazelTargetQuerier = bazelTargetQuerier
     }
-
-    /// Maps the list of supported platforms to the list of top-level labels of said platform.
-    var platformsToTopLevelLabelsMap: [String: [String]] = [:]
 
     /// Converts a BSP BuildTarget URI to its underlying Bazel target label.
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String {
@@ -143,8 +151,14 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         let platformBuildSuffix = baseSuffix.replacingOccurrences(of: platformPlaceholder, with: rule.platform)
         return BazelTargetPlatformInfo(
             buildTestLabel: "\(bazelLabel)\(platformBuildSuffix)",
-            parentRuleType: rule,
+            topLevelParentLabel: parentToUse,
+            topLevelParentRuleType: rule,
         )
+    }
+
+    /// Returns the processed data of all top-level labels this BSP is serving.
+    func topLevelLabelsData() -> [(String, TopLevelRuleType)] {
+        return topLevelLabelToRuleMap.map { ($0.key, $0.value) }
     }
 
     @discardableResult
@@ -200,7 +214,6 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         }
         for (target, ruleType) in topLevelTargetData {
             topLevelLabelToRuleMap[target] = ruleType
-            platformsToTopLevelLabelsMap[ruleType.platform, default: []].append(target)
         }
 
         // We need to now map which targets belong to which top-level apps,
@@ -264,7 +277,6 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         bazelLabelToParentsMap = [:]
         availableBazelLabels = []
         topLevelLabelToRuleMap = [:]
-        platformsToTopLevelLabelsMap = [:]
         bazelTargetQuerier.clearCache()
         cachedTargets = nil
     }
