@@ -89,7 +89,9 @@ enum CompilerArgumentsProcessor {
         let relevantActions = _findRelevantActions(
             in: actions,
             for: platformSdk,
-            id: parentConfigurationId
+            id: parentConfigurationId,
+            language: language,
+            contentToQuery: contentToQuery
         )
         if relevantActions.count > 1 {
             logger.error("Found multiple compilation actions for \(bazelTarget) under \(platformSdk). This is unexpected.")
@@ -122,7 +124,9 @@ enum CompilerArgumentsProcessor {
     private static func _findRelevantActions(
         in actions: [Analysis_Action],
         for platformSdk: String,
-        id: UInt32
+        id: UInt32,
+        language: Language,
+        contentToQuery: String
     ) -> [Analysis_Action] {
         // See the comment in AqueryResult.swift.
         // First filter by actions under the platform we're interested in,
@@ -134,8 +138,22 @@ enum CompilerArgumentsProcessor {
             }
         }
         logger.debug("Found \(platformActions.count) actions for \(platformSdk)")
-        return platformActions.filter {
+        let underConfiguration = platformActions.filter {
             return $0.configurationID == id
+        }
+        if language == .objective_c {
+            // For Obj-C, we need to find the action for the specific file we're looking at.
+            for action in underConfiguration {
+                let arguments = action.arguments
+                for i in (0..<arguments.count).reversed() {
+                    if arguments[i] == "-c" && arguments[i + 1] == contentToQuery {
+                        return [action]
+                    }
+                }
+            }
+            return []
+        } else {
+            return underConfiguration
         }
     }
 

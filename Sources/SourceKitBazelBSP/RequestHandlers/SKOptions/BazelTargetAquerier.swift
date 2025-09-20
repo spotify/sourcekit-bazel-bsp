@@ -72,10 +72,7 @@ final class BazelTargetAquerier {
             rootUri: config.rootUri
         )
 
-        let parsedOutput = try BazelProtobufBindings.parseActionGraph(data: output)
-        let aqueryResult = AqueryResult(results: parsedOutput)
-
-        logger.debug("ActionGraphContainer parsed \(parsedOutput.actions.count) actions")
+        let aqueryResult = try AqueryResult(data: output)
 
         queryCache[cmd] = aqueryResult
 

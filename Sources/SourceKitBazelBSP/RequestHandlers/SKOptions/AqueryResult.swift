@@ -42,6 +42,11 @@ final class AqueryResult {
     let targets: [String: Analysis_Target]
     let actions: [UInt32: [Analysis_Action]]
 
+    convenience init(data: Data) throws {
+        let results = try BazelProtobufBindings.parseActionGraph(data: data)
+        self.init(results: results)
+    }
+
     init(results: Analysis_ActionGraphContainer) {
         let targets: [String: Analysis_Target] = results.targets.reduce(into: [:]) { result, target in
             if result.keys.contains(target.label) {

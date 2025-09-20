@@ -42,16 +42,13 @@ enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
 /// Abstraction that handles extracting the compiler args for a given target file.
 final class BazelTargetCompilerArgsExtractor {
 
-    private let commandRunner: CommandRunner
     private let config: InitializedServerConfig
 
     private var argsCache = [String: [String]?]()
 
     init(
-        commandRunner: CommandRunner = ShellCommandRunner(),
         config: InitializedServerConfig
     ) {
-        self.commandRunner = commandRunner
         self.config = config
     }
 
@@ -67,14 +64,12 @@ final class BazelTargetCompilerArgsExtractor {
             return nil
         }
 
-        let bazelTargetToBuild = platformInfo.buildTestLabel
-
         // For Swift, compilation is done at the target-level. But for ObjC, it's file-based instead.
         let cacheKey: String
         let contentToQuery: String
         if language == .swift {
-            cacheKey = bazelTargetToBuild
-            contentToQuery = bazelTargetToBuild
+            cacheKey = bazelTarget
+            contentToQuery = bazelTarget
         } else {
             // Make the path relative, as this is what aquery will return
             let fullUri = textDocument.stringValue
@@ -83,7 +78,7 @@ final class BazelTargetCompilerArgsExtractor {
                 throw BazelTargetCompilerArgsExtractorError.invalidObjCUri(fullUri)
             }
             let parsedFile = String(fullUri.dropFirst(prefixToCut.count))
-            cacheKey = bazelTargetToBuild + "|" + parsedFile
+            cacheKey = bazelTarget + "|" + parsedFile
             contentToQuery = parsedFile
         }
 

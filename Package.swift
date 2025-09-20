@@ -64,7 +64,6 @@ let package = Package(
             ],
             resources: [
                 .copy("Resources/aquery.pb"),
-                .copy("Resources/aquery_objc.pb"),
                 .copy("Resources/streamdeps.pb"),
             ],
         ),
