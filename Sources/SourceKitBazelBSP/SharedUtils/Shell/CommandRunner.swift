@@ -64,6 +64,7 @@ extension CommandRunner {
         outputBase: String,
         cmd: String,
         rootUri: String,
+        preemptible: Bool = false,
     ) throws -> RunningProcess {
         let indexFlags = baseConfig.indexFlags
         let additionalFlags: String
@@ -72,7 +73,8 @@ extension CommandRunner {
         } else {
             additionalFlags = indexFlags.map { " \($0)" }.joined(separator: "")
         }
-        let cmd = "--output_base=\(outputBase) \(cmd)\(additionalFlags)"
+        let preemptibleFlag = preemptible ? " --preemptible " : " "
+        let cmd = "--output_base=\(outputBase)\(preemptibleFlag)\(cmd)\(additionalFlags)"
         return try bazel(baseConfig: baseConfig, rootUri: rootUri, cmd: cmd)
     }
 
@@ -82,12 +84,14 @@ extension CommandRunner {
         outputBase: String,
         cmd: String,
         rootUri: String,
+        preemptible: Bool = false,
     ) throws -> T {
         let process = try bazelIndexAction(
             baseConfig: baseConfig,
             outputBase: outputBase,
             cmd: cmd,
-            rootUri: rootUri
+            rootUri: rootUri,
+            preemptible: preemptible
         )
         return try process.result()
     }
