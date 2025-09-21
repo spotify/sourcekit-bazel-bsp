@@ -43,7 +43,7 @@ The project itself is built using Swift Package Manager. There is also a `Exampl
 5. **Proto Bindings** (`Sources/BazelProtobufBindings/`)
    - Protobuf bindings to allow type-safe querying with Bazel.
 
-When making changes to the message handlers, you should always first inspect how SourceKit-LSP handles will handle the request on their end. The source code for SourceKit-LSP should be available locally inside the `.build` folder after building the tool for the first time.
+When making changes to the message handlers, you should always first inspect how SourceKit-LSP handles will handle the request on their end. The source code for SourceKit-LSP should be available locally inside the `.build/checkouts/sourcekit-lsp` folder after building the tool for the first time.
 
 ### Key Dependencies
 - **sourcekit-lsp**: Provides BuildServerProtocol and LSPBindings. Receives BSP requests and forwards to this server
