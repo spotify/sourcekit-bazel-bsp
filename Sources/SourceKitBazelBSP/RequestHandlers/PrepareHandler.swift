@@ -62,9 +62,17 @@ final class PrepareHandler {
         }
 
         let taskId = TaskId(id: "buildPrepare-\(id.description)")
+        let taskTitle: String = {
+            guard targetsToBuild.count == 1 else {
+                return "sourcekit-bazel-bsp: Building \(targetsToBuild.count) targets..."
+            }
+            let targetUrl = targetsToBuild[0].uri.fileURL
+            let targetName = targetUrl?.lastPathComponent ?? targetsToBuild[0].uri.stringValue
+            return "sourcekit-bazel-bsp: Building \(targetName)..."
+        }()
         connection?.startWorkTask(
             id: taskId,
-            title: "sourcekit-bazel-bsp: Building \(targetsToBuild.count) target(s)..."
+            title: taskTitle
         )
         do {
             let labels = try targetStore.stateLock.withLockUnchecked {
@@ -108,14 +116,15 @@ final class PrepareHandler {
                     logger.info("Finished building! (Request ID: \(id.description))")
                     completion(nil)
                 } else {
-                    logger.logFullObjectInMultipleLogMessages(
-                        level: .error,
-                        header: "Failed to build targets.",
-                        stderr
-                    )
                     if code == 8 {
+                        logger.info("Build (Request ID: \(id.description)) was cancelled.")
                         completion(ResponseError.cancelled)
                     } else {
+                        logger.logFullObjectInMultipleLogMessages(
+                            level: .error,
+                            header: "Failed to build targets.",
+                            stderr
+                        )
                         completion(ResponseError(code: .internalError, message: "The bazel build failed."))
                     }
                 }
