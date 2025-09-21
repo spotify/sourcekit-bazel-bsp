@@ -105,11 +105,14 @@ final class PrepareHandler {
         nonisolated(unsafe) let completion = completion
         try currentTaskLock.withLock { [commandRunner, initializedConfig] currentTask in
             // Build the provided targets, on our special output base and taking into account special index flags.
+            // If using only one output base, add --preemptible to allow the task to be overridden if needed.
+            let preemptible = initializedConfig.baseConfig.useSeparateOutputBaseForAquery == false
             let process = try commandRunner.bazelIndexAction(
                 baseConfig: initializedConfig.baseConfig,
                 outputBase: initializedConfig.outputBase,
                 cmd: "build \(labelsToBuild.joined(separator: " "))",
-                rootUri: initializedConfig.rootUri
+                rootUri: initializedConfig.rootUri,
+                preemptible: preemptible
             )
             process.setTerminationHandler { code, stderr in
                 if code == 0 {
