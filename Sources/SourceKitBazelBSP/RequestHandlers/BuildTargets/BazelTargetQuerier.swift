@@ -65,10 +65,10 @@ final class BazelTargetQuerier {
     }
 
     func queryTopLevelRuleTypes(
-        forConfig config: BaseServerConfig,
+        forConfig config: InitializedServerConfig,
         rootUri: String,
     ) throws -> [(String, TopLevelRuleType)] {
-        let targetQuery = config.targets.joined(separator: " union ")
+        let targetQuery = config.baseConfig.targets.joined(separator: " union ")
 
         logger.info("Processing top level rules request for \(targetQuery)")
 
@@ -78,7 +78,12 @@ final class BazelTargetQuerier {
         }
 
         let cmd = "query \"kind('rule', \(targetQuery))\" --output label_kind"
-        let output: String = try commandRunner.run(config.bazelWrapper + " " + cmd, cwd: rootUri)
+        let output: String = try commandRunner.bazelIndexAction(
+            baseConfig: config.baseConfig,
+            outputBase: config.outputBase,
+            cmd: cmd,
+            rootUri: rootUri
+        )
         let parsed = output.components(separatedBy: "\n")
         var topLevelTargetData: [(String, TopLevelRuleType)] = []
         for line in parsed {
@@ -98,7 +103,7 @@ final class BazelTargetQuerier {
 
     func queryTargetDependencies(
         forTargets targets: [String],
-        forConfig config: BaseServerConfig,
+        forConfig config: InitializedServerConfig,
         rootUri: String,
         kinds: Set<String>
     ) throws -> [BlazeQuery_Target] {
@@ -121,9 +126,13 @@ final class BazelTargetQuerier {
             return cached
         }
 
-        // We run this one on the main output base since it's not related to the actual indexing bits
         let cmd = "query \"kind('\(kindsFilter)', \(depsQuery))\" --output streamed_proto"
-        let output: Data = try commandRunner.run(config.bazelWrapper + " " + cmd, cwd: rootUri)
+        let output: Data = try commandRunner.bazelIndexAction(
+            baseConfig: config.baseConfig,
+            outputBase: config.outputBase,
+            cmd: cmd,
+            rootUri: rootUri
+        )
 
         logger.debug("Finished querying, building result Protobuf")
 
@@ -139,7 +148,7 @@ final class BazelTargetQuerier {
 
     func queryDependencyGraph(
         ofTargets targets: [String],
-        forConfig config: BaseServerConfig,
+        forConfig config: InitializedServerConfig,
         rootUri: String,
         kinds: Set<String>
     ) throws -> [String: [String]] {
@@ -165,7 +174,12 @@ final class BazelTargetQuerier {
         }
 
         let cmd = "query \"kind('\(kindsFilter)', \(depsQuery))\" --output graph"
-        let output: String = try commandRunner.run(config.bazelWrapper + " " + cmd, cwd: rootUri)
+        let output: String = try commandRunner.bazelIndexAction(
+            baseConfig: config.baseConfig,
+            outputBase: config.outputBase,
+            cmd: cmd,
+            rootUri: rootUri
+        )
         let rawGraph = output.components(separatedBy: "\n").filter {
             $0.hasPrefix("  \"")
         }

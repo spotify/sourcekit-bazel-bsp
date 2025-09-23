@@ -40,14 +40,26 @@ struct BazelTargetQuerierTests {
         )
 
         let mockRootUri = "/path/to/project"
+
+        let initializedConfig = InitializedServerConfig(
+            baseConfig: config,
+            rootUri: mockRootUri,
+            outputBase: "/path/to/output/base",
+            outputPath: "/path/to/output/path",
+            devDir: "/path/to/dev/dir",
+            devToolchainPath: "/path/to/toolchain",
+            executionRoot: "/path/to/execution/root",
+            sdkRootPaths: ["iphonesimulator": "/path/to/sdk/root"]
+        )
+
         let expectedCommand =
-            "bazelisk query \"kind('source file|swift_library', deps(//HelloWorld))\" --output streamed_proto"
+            "bazelisk --output_base=/path/to/output/base query \"kind('source file|swift_library', deps(//HelloWorld))\" --output streamed_proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: mockProtobuf)
 
         let kinds: Set<String> = ["source file", "swift_library"]
         let result = try querier.queryTargetDependencies(
             forTargets: config.targets,
-            forConfig: config,
+            forConfig: initializedConfig,
             rootUri: mockRootUri,
             kinds: kinds
         )
@@ -74,14 +86,26 @@ struct BazelTargetQuerierTests {
         )
 
         let mockRootUri = "/path/to/project"
+
+        let initializedConfig = InitializedServerConfig(
+            baseConfig: config,
+            rootUri: mockRootUri,
+            outputBase: "/path/to/output/base",
+            outputPath: "/path/to/output/path",
+            devDir: "/path/to/dev/dir",
+            devToolchainPath: "/path/to/toolchain",
+            executionRoot: "/path/to/execution/root",
+            sdkRootPaths: ["iphonesimulator": "/path/to/sdk/root"]
+        )
+
         let expectedCommand =
-            "bazelisk query \"kind('objc_library|swift_library', deps(//HelloWorld) union deps(//Tests))\" --output streamed_proto"
+            "bazelisk --output_base=/path/to/output/base query \"kind('objc_library|swift_library', deps(//HelloWorld) union deps(//Tests))\" --output streamed_proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: mockProtobuf)
 
         let kinds: Set<String> = ["swift_library", "objc_library"]
         let result = try querier.queryTargetDependencies(
             forTargets: config.targets,
-            forConfig: config,
+            forConfig: initializedConfig,
             rootUri: mockRootUri,
             kinds: kinds
         )
@@ -109,10 +133,21 @@ struct BazelTargetQuerierTests {
 
         let mockRootUri = "/path/to/project"
 
+        let initializedConfig = InitializedServerConfig(
+            baseConfig: config,
+            rootUri: mockRootUri,
+            outputBase: "/path/to/output/base",
+            outputPath: "/path/to/output/path",
+            devDir: "/path/to/dev/dir",
+            devToolchainPath: "/path/to/toolchain",
+            executionRoot: "/path/to/execution/root",
+            sdkRootPaths: ["iphonesimulator": "/path/to/sdk/root"]
+        )
+
         func run(_ kinds: Set<String>) throws {
             _ = try querier.queryTargetDependencies(
                 forTargets: config.targets,
-                forConfig: config,
+                forConfig: initializedConfig,
                 rootUri: mockRootUri,
                 kinds: kinds
             )
@@ -121,12 +156,12 @@ struct BazelTargetQuerierTests {
         var kinds: Set<String> = ["swift_library"]
 
         runnerMock.setResponse(
-            for: "bazel query \"kind('swift_library', deps(//HelloWorld))\" --output streamed_proto",
+            for: "bazel --output_base=/path/to/output/base query \"kind('swift_library', deps(//HelloWorld))\" --output streamed_proto",
             cwd: mockRootUri,
             response: mockProtobuf
         )
         runnerMock.setResponse(
-            for: "bazel query \"kind('objc_library', deps(//HelloWorld))\" --output streamed_proto",
+            for: "bazel --output_base=/path/to/output/base query \"kind('objc_library', deps(//HelloWorld))\" --output streamed_proto",
             cwd: mockRootUri,
             response: mockProtobuf
         )
@@ -163,8 +198,20 @@ struct BazelTargetQuerierTests {
         )
 
         let rootUri = "/path/to/project"
+
+        let initializedConfig = InitializedServerConfig(
+            baseConfig: config,
+            rootUri: rootUri,
+            outputBase: "/path/to/output/base",
+            outputPath: "/path/to/output/path",
+            devDir: "/path/to/dev/dir",
+            devToolchainPath: "/path/to/toolchain",
+            executionRoot: "/path/to/execution/root",
+            sdkRootPaths: ["iphonesimulator": "/path/to/sdk/root"]
+        )
+
         let command =
-            "bazel query \"kind('objc_library|source file|swift_library', deps(//HelloWorld:HelloWorld))\" --output streamed_proto"
+            "bazel --output_base=/path/to/output/base query \"kind(\'objc_library|source file|swift_library\', deps(//HelloWorld:HelloWorld))\" --output streamed_proto"
         guard let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
             let data = try? Data(contentsOf: url)
         else {
@@ -176,7 +223,7 @@ struct BazelTargetQuerierTests {
 
         let result = try querier.queryTargetDependencies(
             forTargets: config.targets,
-            forConfig: config,
+            forConfig: initializedConfig,
             rootUri: rootUri,
             kinds: .init(["objc_library", "source file", "swift_library"])
         )

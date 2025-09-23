@@ -37,19 +37,31 @@ struct BazelTargetParserTests {
             filesToWatch: nil
         )
 
+        let rootUri = "/path/to/project"
+
+        let initializedConfig = InitializedServerConfig(
+            baseConfig: config,
+            rootUri: rootUri,
+            outputBase: "/path/to/output/base",
+            outputPath: "/path/to/output/path",
+            devDir: "/path/to/dev/dir",
+            devToolchainPath: "/path/to/toolchain",
+            executionRoot: "/path/to/execution/root",
+            sdkRootPaths: ["iphonesimulator": "/path/to/sdk/root"]
+        )
+
         let runner = CommandRunnerFake()
         let querier = BazelTargetQuerier(commandRunner: runner)
-        let rootUri = "/path/to/project"
         let toolchainPath = "/path/to/toolchain"
         let command =
-            "bazel query \"kind('objc_library|source file|swift_library', deps(//HelloWorld:HelloWorld))\" --output streamed_proto"
+            "bazel --output_base=/path/to/output/base query \"kind(\'objc_library|source file|swift_library\', deps(//HelloWorld:HelloWorld))\" --output streamed_proto"
         let kinds = Set<String>(["objc_library", "source file", "swift_library"])
 
         runner.setResponse(for: command, cwd: rootUri, response: mockProtobuf)
 
         let targets = try querier.queryTargetDependencies(
             forTargets: config.targets,
-            forConfig: config,
+            forConfig: initializedConfig,
             rootUri: rootUri,
             kinds: kinds
         )

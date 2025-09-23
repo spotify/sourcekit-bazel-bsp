@@ -161,7 +161,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         // as well as throwing an error if the user provided something that we
         // don't currently know how to process.
         let topLevelTargetData = try bazelTargetQuerier.queryTopLevelRuleTypes(
-            forConfig: initializedConfig.baseConfig,
+            forConfig: initializedConfig,
             rootUri: initializedConfig.rootUri,
         )
         let topLevelTargets = topLevelTargetData.map { $0.0 }
@@ -173,7 +173,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         // but we'll fill that in below.
         let targets: [BlazeQuery_Target] = try bazelTargetQuerier.queryTargetDependencies(
             forTargets: topLevelTargets,
-            forConfig: initializedConfig.baseConfig,
+            forConfig: initializedConfig,
             rootUri: initializedConfig.rootUri,
             kinds: Self.supportedKinds
         )
@@ -211,7 +211,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
         let depGraph = try bazelTargetQuerier.queryDependencyGraph(
             ofTargets: topLevelTargets,
-            forConfig: initializedConfig.baseConfig,
+            forConfig: initializedConfig,
             rootUri: initializedConfig.rootUri,
             kinds: depGraphKinds
         )
