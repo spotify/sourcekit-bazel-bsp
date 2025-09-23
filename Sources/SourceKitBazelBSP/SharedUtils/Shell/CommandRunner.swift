@@ -64,15 +64,17 @@ extension CommandRunner {
         outputBase: String,
         cmd: String,
         rootUri: String,
+        additionalFlags: [String] = []
     ) throws -> RunningProcess {
         let indexFlags = baseConfig.indexFlags
-        let additionalFlags: String
+        let additionalFlags = additionalFlags.map { " \($0)" }
+        let flagsString: String
         if indexFlags.isEmpty {
-            additionalFlags = ""
+            flagsString = additionalFlags.joined(separator: "")
         } else {
-            additionalFlags = indexFlags.map { " \($0)" }.joined(separator: "")
+            flagsString = (additionalFlags + indexFlags.map { " \($0)" }).joined(separator: "")
         }
-        let cmd = "--output_base=\(outputBase) \(cmd)\(additionalFlags)"
+        let cmd = "--output_base=\(outputBase) \(cmd)\(flagsString)"
         return try bazel(baseConfig: baseConfig, rootUri: rootUri, cmd: cmd)
     }
 
@@ -82,12 +84,14 @@ extension CommandRunner {
         outputBase: String,
         cmd: String,
         rootUri: String,
+        additionalFlags: [String] = []
     ) throws -> T {
         let process = try bazelIndexAction(
             baseConfig: baseConfig,
             outputBase: outputBase,
             cmd: cmd,
-            rootUri: rootUri
+            rootUri: rootUri,
+            additionalFlags: additionalFlags
         )
         return try process.result()
     }

@@ -34,6 +34,13 @@ final class PrepareHandler {
     private let commandRunner: CommandRunner
     private weak var connection: LSPConnection?
 
+    // When using remote caching, we need certain types of files to always be available locally
+    // so that sourcekit-lsp's manual index builds can work.
+    // Original list was inherited from rules_xcodeproj.
+    static let additionalBuildFlags: [String] = [
+        "--remote_download_regex='.*\\.indexstore/.*|.*\\.(a|cfg|c|C|cc|cl|cpp|cu|cxx|c++|def|h|H|hh|hpp|hxx|h++|hmap|ilc|inc|inl|ipp|tcc|tlh|tli|tpp|m|modulemap|mm|pch|swift|swiftdoc|swiftmodule|swiftsourceinfo|yaml)$'"
+    ]
+
     // The current Bazel build is always stored so that we can cancel it if requested by the LSP.
     private var currentTaskLock = OSAllocatedUnfairLock<(RunningProcess, RequestID)?>(initialState: nil)
 
@@ -109,7 +116,8 @@ final class PrepareHandler {
                 baseConfig: initializedConfig.baseConfig,
                 outputBase: initializedConfig.outputBase,
                 cmd: "build \(labelsToBuild.joined(separator: " "))",
-                rootUri: initializedConfig.rootUri
+                rootUri: initializedConfig.rootUri,
+                additionalFlags: Self.additionalBuildFlags
             )
             process.setTerminationHandler { code, stderr in
                 if code == 0 {
