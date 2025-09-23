@@ -156,12 +156,14 @@ struct BazelTargetQuerierTests {
         var kinds: Set<String> = ["swift_library"]
 
         runnerMock.setResponse(
-            for: "bazel --output_base=/path/to/output/base query \"kind('swift_library', deps(//HelloWorld))\" --output streamed_proto",
+            for:
+                "bazel --output_base=/path/to/output/base query \"kind('swift_library', deps(//HelloWorld))\" --output streamed_proto",
             cwd: mockRootUri,
             response: mockProtobuf
         )
         runnerMock.setResponse(
-            for: "bazel --output_base=/path/to/output/base query \"kind('objc_library', deps(//HelloWorld))\" --output streamed_proto",
+            for:
+                "bazel --output_base=/path/to/output/base query \"kind('objc_library', deps(//HelloWorld))\" --output streamed_proto",
             cwd: mockRootUri,
             response: mockProtobuf
         )
