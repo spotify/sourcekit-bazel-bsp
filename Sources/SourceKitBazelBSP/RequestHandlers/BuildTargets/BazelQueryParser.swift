@@ -27,13 +27,11 @@ private let logger = makeFileLevelBSPLogger()
 enum BazelTargetParserError: Error, LocalizedError {
     case incorrectName(String)
     case convertUriFailed(String)
-    case noSrcFound(String)
 
     var errorDescription: String? {
         switch self {
         case .incorrectName(let target): return "Target name has zero or more than one colon: \(target)"
         case .convertUriFailed(let path): return "Cannot convert target name with path \(path) to Uri with file scheme"
-        case .noSrcFound(let src): return "Cannot find source file: \(src)"
         }
     }
 }
@@ -101,8 +99,9 @@ enum BazelQueryParser {
                 if attr.name == "srcs" {
                     let _srcs: [URI] = try attr.stringListValue.compactMap {
                         guard let path = srcMap[$0] else {
-                            let error: BazelTargetParserError = .noSrcFound($0)
-                            logger.debug("\(error, privacy: .public)")
+                            // FIXME: We should somehow find where the file would be generated to
+                            // and register it as a proper generated file.
+                            logger.debug("Skipping \($0): Source does not exist, most likely a generated file.")
                             return nil
                         }
                         return try URI(string: path)
