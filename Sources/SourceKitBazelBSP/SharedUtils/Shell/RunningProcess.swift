@@ -36,11 +36,15 @@ extension Process: CommandLineProcess {
     }
 }
 
-public struct RunningProcess: Sendable {
+public final class RunningProcess: Sendable {
     let cmd: String
     let stdout: Pipe
     let stderr: Pipe
     let wrappedProcess: CommandLineProcess
+
+    private nonisolated(unsafe) var stdoutData: Data = Data()
+    private nonisolated(unsafe) var stderrData: Data = Data()
+    private let group = DispatchGroup()
 
     public init(cmd: String, stdout: Pipe, stderr: Pipe, wrappedProcess: CommandLineProcess) {
         self.cmd = cmd
@@ -49,11 +53,36 @@ public struct RunningProcess: Sendable {
         self.wrappedProcess = wrappedProcess
     }
 
+    public func attachPipes() {
+        // We need to read the pipes continuously to avoid hitting buffer limits.
+        // See https://github.com/spotify/sourcekit-bazel-bsp/pull/65
+        group.enter()
+        stdout.fileHandleForReading.readabilityHandler = { [weak self] stdoutFileHandle in
+            let tmpstdoutData = stdoutFileHandle.availableData
+            if tmpstdoutData.isEmpty {  // EOF
+                self?.stdout.fileHandleForReading.readabilityHandler = nil
+                self?.group.leave()
+            } else {
+                self?.stdoutData.append(tmpstdoutData)
+            }
+        }
+        group.enter()
+        stderr.fileHandleForReading.readabilityHandler = { [weak self] stderrFileHandle in
+            let tmpstderrData = stderrFileHandle.availableData
+            if tmpstderrData.isEmpty {  // EOF
+                self?.stderr.fileHandleForReading.readabilityHandler = nil
+                self?.group.leave()
+            } else {
+                self?.stderrData.append(tmpstderrData)
+            }
+        }
+    }
+
     public func result<T: DataConvertible>() throws -> T {
         let (stdoutData, stderrString): (T, String) = self.outputs()
 
         guard wrappedProcess.terminationStatus == 0 else {
-            logger.debug("Command failed: \(cmd)")
+            logger.debug("Command failed: \(self.cmd)")
             throw ShellCommandRunnerError.failed(cmd, stderrString)
         }
 
@@ -61,40 +90,10 @@ public struct RunningProcess: Sendable {
     }
 
     public func outputs<T: DataConvertible>() -> (T, String) {
-        nonisolated(unsafe) var stdoutData: Data = Data()
-        nonisolated(unsafe) var stderrData: Data = Data()
-        let group = DispatchGroup()
-
-        // We need to read the pipes continuously to avoid hitting buffer limits.
-        // See https://github.com/spotify/sourcekit-bazel-bsp/pull/65
-        group.enter()
-        stdout.fileHandleForReading.readabilityHandler = { stdoutFileHandle in
-            let tmpstdoutData = stdoutFileHandle.availableData
-            if tmpstdoutData.isEmpty {  // EOF
-                stdout.fileHandleForReading.readabilityHandler = nil
-                group.leave()
-            } else {
-                stdoutData.append(tmpstdoutData)
-            }
-        }
-
-        group.enter()
-        stderr.fileHandleForReading.readabilityHandler = { stderrFileHandle in
-            let tmpstderrData = stderrFileHandle.availableData
-            if tmpstderrData.isEmpty {  // EOF
-                stderr.fileHandleForReading.readabilityHandler = nil
-                group.leave()
-            } else {
-                stderrData.append(tmpstderrData)
-            }
-        }
-
-        wrappedProcess.waitUntilExit()
         group.wait()
-
+        wrappedProcess.waitUntilExit()
         let stdoutResult = T.convert(from: stdoutData)
         let stderrResult = String(data: stderrData, encoding: .utf8) ?? "(no stderr)"
-
         return (stdoutResult, stderrResult)
     }
 

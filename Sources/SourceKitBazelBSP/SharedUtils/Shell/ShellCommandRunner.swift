@@ -46,15 +46,17 @@ struct ShellCommandRunner: CommandRunner {
         process.arguments = ["-c", cmd]
         process.standardInput = nil
 
-        logger.info("Running shell: \(cmd)")
-        try process.run()
-
         let runningProcess = RunningProcess(
             cmd: cmd,
             stdout: stdout,
             stderr: stderr,
             wrappedProcess: process
         )
+
+        runningProcess.attachPipes()
+
+        logger.info("Running shell: \(cmd)")
+        try process.run()
 
         return runningProcess
     }

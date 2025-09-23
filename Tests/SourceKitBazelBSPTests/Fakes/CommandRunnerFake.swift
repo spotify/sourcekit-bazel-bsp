@@ -54,10 +54,13 @@ final class CommandRunnerFake: CommandRunner, @unchecked Sendable {
         guard let response = responses[cacheKey] else {
             throw CommandRunnerFakeError.unregisteredCommand(cmd, cwd)
         }
+        let procFake = CommandLineProcessFake()
+        let runningProc = RunningProcess(cmd: cmd, stdout: stdout, stderr: stderr, wrappedProcess: procFake)
+        runningProc.attachPipes()
         stdout.fileHandleForWriting.write(response)
         stdout.fileHandleForWriting.closeFile()
         stderr.fileHandleForWriting.closeFile()
-        return RunningProcess(cmd: cmd, stdout: stdout, stderr: stderr, wrappedProcess: CommandLineProcessFake())
+        return runningProc
     }
 
     private func key(for command: String, cwd: String?) -> String { return command + "|" + (cwd ?? "nil") }
