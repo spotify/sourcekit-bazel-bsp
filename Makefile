@@ -1,5 +1,6 @@
 .PHONY: release_source_archive
 release_source_archive:
+	swift build -c release
 	mkdir -p archives
 	tar --exclude-vcs \
 		--exclude=bazel-* \
