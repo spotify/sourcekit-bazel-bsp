@@ -192,6 +192,7 @@ final class InitializeHandler {
             data: SourceKitInitializeBuildResponseData(
                 indexDatabasePath: initializedConfig.indexDatabasePath,
                 indexStorePath: initializedConfig.indexStorePath,
+                multiTargetPreparation: MultiTargetPreparationSupport(supported: true),
                 outputPathsProvider: nil,  // FIXME: Not sure if we need this or not
                 prepareProvider: true,
                 sourceKitOptionsProvider: true,

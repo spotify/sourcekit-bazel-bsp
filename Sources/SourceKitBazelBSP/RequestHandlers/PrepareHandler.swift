@@ -70,12 +70,9 @@ final class PrepareHandler {
 
         let taskId = TaskId(id: "buildPrepare-\(id.description)")
         let taskTitle: String = {
-            guard targetsToBuild.count == 1 else {
-                return "sourcekit-bazel-bsp: Building \(targetsToBuild.count) targets..."
-            }
-            let targetUrl = targetsToBuild[0].uri.fileURL
-            let targetName = targetUrl?.lastPathComponent ?? targetsToBuild[0].uri.stringValue
-            return "sourcekit-bazel-bsp: Building \(targetName)..."
+            let targetUrls = targetsToBuild.compactMap { $0.uri.fileURL }
+            let targetNames = targetUrls.map { $0.lastPathComponent }.joined(separator: ", ")
+            return "sourcekit-bazel-bsp: Building \(targetNames)..."
         }()
         connection?.startWorkTask(
             id: taskId,

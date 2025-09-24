@@ -1,4 +1,4 @@
-// swift-tools-version: 6.1
+// swift-tools-version: 6.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -14,8 +14,8 @@ let package = Package(
             revision: "1.5.0"
         ),
         .package(
-            url: "https://github.com/apple/sourcekit-lsp",
-            revision: "1aae2a4c329035163db85d64ae7bc81ee80aaa3c"
+            url: "https://github.com/rockbruno/sourcekit-lsp",
+            revision: "c052baae81ec6532bb2f939a21acc4650fb1dc86"
         ),
         .package(
             url: "https://github.com/apple/swift-protobuf.git",
