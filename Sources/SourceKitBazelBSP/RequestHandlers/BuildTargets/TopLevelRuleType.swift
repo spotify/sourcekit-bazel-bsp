@@ -59,6 +59,15 @@ public enum TopLevelRuleType: String, CaseIterable, ExpressibleByArgument {
         }
     }
 
+    var isTestRule: Bool {
+        switch self {
+        case .iosUnitTest, .iosUiTest, .watchosUnitTest, .watchosUiTest, .macosUnitTest, .macosUiTest, .tvosUnitTest,
+            .tvosUiTest, .visionosUnitTest, .visionosUiTest:
+            return true
+        default: return false
+        }
+    }
+
     // FIXME: Not the best way to handle this as we need to eventually
     // handle device builds as well
     var sdkName: String {

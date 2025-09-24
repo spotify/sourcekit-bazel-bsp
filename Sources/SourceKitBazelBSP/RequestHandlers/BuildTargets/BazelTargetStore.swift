@@ -30,29 +30,43 @@ private let logger = makeFileLevelBSPLogger()
 // the project's dependency graph and its files.
 protocol BazelTargetStore: AnyObject {
     var stateLock: OSAllocatedUnfairLock<Void> { get }
-    var platformsToTopLevelLabelsMap: [String: [String]] { get }
     func fetchTargets() throws -> [BuildTarget]
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String
     func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI]
     func bspURIs(containingSrc src: URI) throws -> [URI]
     func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo
+    func targetsAqueryForArgsExtraction() throws -> AqueryResult
     func clearCache()
 }
 
+// Provides the full information about a target's build info and platform,
+// including the top-level parent that the target is built against.
 struct BazelTargetPlatformInfo {
+    let label: String
     let buildTestLabel: String
-    let parentRuleType: TopLevelRuleType
+    let topLevelParentLabel: String
+    let topLevelParentRuleType: TopLevelRuleType
+
+    var platform: String {
+        topLevelParentRuleType.platform
+    }
+
+    var platformSdkName: String {
+        topLevelParentRuleType.sdkName
+    }
 }
 
 enum BazelTargetStoreError: Error, LocalizedError {
     case unknownBSPURI(URI)
     case unknownBazelLabel(String)
+    case noCachedAquery
 
     var errorDescription: String? {
         switch self {
         case .unknownBSPURI(let uri): return "Requested data about a URI, but couldn't find it in the store: \(uri)"
         case .unknownBazelLabel(let label):
             return "Requested data about a Bazel label, but couldn't find it in the store: \(label)"
+        case .noCachedAquery: return "No cached aquery result found in the store."
         }
     }
 }
@@ -71,6 +85,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
     private let initializedConfig: InitializedServerConfig
     private let bazelTargetQuerier: BazelTargetQuerier
+    private let bazelTargetAquerier: BazelTargetAquerier
 
     private var bspURIsToBazelLabelsMap: [URI: String] = [:]
     private var bspURIsToSrcsMap: [URI: [URI]] = [:]
@@ -79,14 +94,17 @@ final class BazelTargetStoreImpl: BazelTargetStore {
     private var bazelLabelToParentsMap: [String: [String]] = [:]
     private var topLevelLabelToRuleMap: [String: TopLevelRuleType] = [:]
     private var cachedTargets: [BuildTarget]? = nil
+    private var targetsAqueryResult: AqueryResult? = nil
 
-    init(initializedConfig: InitializedServerConfig, bazelTargetQuerier: BazelTargetQuerier = BazelTargetQuerier()) {
+    init(
+        initializedConfig: InitializedServerConfig,
+        bazelTargetQuerier: BazelTargetQuerier = BazelTargetQuerier(),
+        bazelTargetAquerier: BazelTargetAquerier = BazelTargetAquerier()
+    ) {
         self.initializedConfig = initializedConfig
         self.bazelTargetQuerier = bazelTargetQuerier
+        self.bazelTargetAquerier = bazelTargetAquerier
     }
-
-    /// Maps the list of supported platforms to the list of top-level labels of said platform.
-    var platformsToTopLevelLabelsMap: [String: [String]] = [:]
 
     /// Converts a BSP BuildTarget URI to its underlying Bazel target label.
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String {
@@ -142,9 +160,19 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         let platformPlaceholder = initializedConfig.baseConfig.buildTestPlatformPlaceholder
         let platformBuildSuffix = baseSuffix.replacingOccurrences(of: platformPlaceholder, with: rule.platform)
         return BazelTargetPlatformInfo(
+            label: bazelLabel,
             buildTestLabel: "\(bazelLabel)\(platformBuildSuffix)",
-            parentRuleType: rule,
+            topLevelParentLabel: parentToUse,
+            topLevelParentRuleType: rule,
         )
+    }
+
+    /// Returns the processed broad aquery containing compiler arguments for all targets we're interested in.
+    func targetsAqueryForArgsExtraction() throws -> AqueryResult {
+        guard let targetsAqueryResult = targetsAqueryResult else {
+            throw BazelTargetStoreError.noCachedAquery
+        }
+        return targetsAqueryResult
     }
 
     @discardableResult
@@ -200,8 +228,24 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         }
         for (target, ruleType) in topLevelTargetData {
             topLevelLabelToRuleMap[target] = ruleType
-            platformsToTopLevelLabelsMap[ruleType.platform, default: []].append(target)
         }
+
+        // Now, run a broad aquery against all top-level targets
+        // to get the compiler arguments for all targets we're interested in.
+        // We pass BundleTreeApp as a trick to gain access to the parent's configuration id.
+        // We can then use this to locate the exact variant of the target we are looking for.
+        targetsAqueryResult = try bazelTargetAquerier.aquery(
+            targets: topLevelLabelToRuleMap.keys.map { $0 },
+            config: initializedConfig,
+            mnemonics: ["SwiftCompile", "ObjcCompile", "CppCompile", "BundleTreeApp"],
+            additionalFlags: [
+                "--noinclude_artifacts",
+                "--noinclude_aspects",
+                "--features=-compiler_param_file",  // Context: https://github.com/spotify/sourcekit-bazel-bsp/pull/60
+            ]
+        )
+
+        logger.info("Finished gathering all compiler arguments")
 
         // We need to now map which targets belong to which top-level apps,
         // to further support the target / platform combo differentiation mentioned above.
@@ -264,8 +308,8 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         bazelLabelToParentsMap = [:]
         availableBazelLabels = []
         topLevelLabelToRuleMap = [:]
-        platformsToTopLevelLabelsMap = [:]
         bazelTargetQuerier.clearCache()
         cachedTargets = nil
+        targetsAqueryResult = nil
     }
 }

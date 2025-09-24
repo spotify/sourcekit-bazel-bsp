@@ -28,13 +28,17 @@ private let logger = makeFileLevelBSPLogger()
 /// Handles the `textDocument/sourceKitOptions` request.
 ///
 /// Returns the compiler arguments for the provided target based on previously gathered information.
-final class SKOptionsHandler: InvalidatedTargetObserver {
+final class SKOptionsHandler {
 
     private let initializedConfig: InitializedServerConfig
     private let targetStore: BazelTargetStore
     private let extractor: BazelTargetCompilerArgsExtractor
 
     private weak var connection: LSPConnection?
+
+    // This request needs synchronization because we might be requested to wipe the cache
+    // in the middle of the request.
+    private let stateLock = OSAllocatedUnfairLock()
 
     init(
         initializedConfig: InitializedServerConfig,
@@ -55,8 +59,11 @@ final class SKOptionsHandler: InvalidatedTargetObserver {
         let taskId = TaskId(id: "getSKOptions-\(id.description)")
         connection?.startWorkTask(id: taskId, title: "sourcekit-bazel-bsp: Fetching compiler arguments...")
         do {
-            let result = try handle(request: request)
-            connection?.finishTask(id: taskId, status: .ok)
+            let result = try stateLock.withLockUnchecked {
+                let result = try handle(request: request)
+                connection?.finishTask(id: taskId, status: .ok)
+                return result
+            }
             return result
         } catch {
             connection?.finishTask(id: taskId, status: .error)
@@ -65,46 +72,46 @@ final class SKOptionsHandler: InvalidatedTargetObserver {
     }
 
     func handle(request: TextDocumentSourceKitOptionsRequest) throws -> TextDocumentSourceKitOptionsResponse? {
-        let (targetUri, bazelTarget, platform, underlyingLibrary) = try targetStore.stateLock.withLockUnchecked {
-            let targetUri = request.target.uri
-            let buildInfo = try targetStore.platformBuildLabelInfo(forBSPURI: targetUri)
-            let bazelTarget = buildInfo.buildTestLabel
-            let platform = buildInfo.parentRuleType
-            let underlyingLibrary = try targetStore.bazelTargetLabel(forBSPURI: targetUri)
-            return (targetUri, bazelTarget, platform, underlyingLibrary)
+        let targetUri = request.target.uri
+        let (platformInfo, aqueryResult) = try targetStore.stateLock.withLockUnchecked {
+            let platformInfo = try targetStore.platformBuildLabelInfo(forBSPURI: targetUri)
+            let aqueryResult = try targetStore.targetsAqueryForArgsExtraction()
+            return (platformInfo, aqueryResult)
         }
 
-        logger.info(
-            "Fetching SKOptions for \(targetUri.stringValue), target: \(bazelTarget), language: \(request.language)"
+        let strategy = try extractor.getParsingStrategy(
+            for: request.textDocument.uri,
+            language: request.language,
+            targetUri: request.target.uri
         )
 
-        let args =
-            try extractor.compilerArgs(
-                forDoc: request.textDocument.uri,
-                inTarget: bazelTarget,
-                underlyingLibrary: underlyingLibrary,
-                language: request.language,
-                platform: platform
-            ) ?? []
+        let args = try extractor.extractCompilerArgs(
+            fromAquery: aqueryResult,
+            forTarget: platformInfo,
+            withStrategy: strategy,
+        )
 
         // If no compiler arguments are found, return nil to avoid sourcekit indexing with no input files
         guard !args.isEmpty else {
             return nil
         }
+
         return TextDocumentSourceKitOptionsResponse(
             compilerArguments: args,
             workingDirectory: initializedConfig.executionRoot
         )
     }
+}
 
-    // MARK: - InvalidatedTargetObserver
-
+extension SKOptionsHandler: InvalidatedTargetObserver {
     func invalidate(targets: [InvalidatedTarget]) throws {
         // Only clear the cache if at least one file was created or deleted.
         // Otherwise, the compiler args are bound to be the same.
         guard targets.contains(where: { $0.kind == .created || $0.kind == .deleted }) else {
             return
         }
-        extractor.clearCache()
+        stateLock.withLockUnchecked {
+            extractor.clearCache()
+        }
     }
 }

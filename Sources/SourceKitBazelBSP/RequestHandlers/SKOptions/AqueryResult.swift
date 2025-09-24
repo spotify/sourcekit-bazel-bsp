@@ -22,40 +22,30 @@ import Foundation
 
 private let logger = makeFileLevelBSPLogger()
 
-enum AqueryResultError: Error, LocalizedError {
-    case duplicateTarget(label: String)
-    case duplicateAction(targetID: UInt32)
-
-    var errorDescription: String? {
-        switch self {
-        case .duplicateTarget(let label):
-            return
-                "Duplicate target found in the aquery! (\(label)) This can happen if a target gets different arguments depending on which top-level target builds it (on the same platform). Currently, the BSP expects the target to be stable in that sense."
-        case .duplicateAction(let targetID):
-            return "Duplicate action ID found in the aquery! (\(targetID)) This is unexpected."
-        }
-    }
-}
-
 /// Small abstraction on top of Analysis_ActionGraphContainer to pre-aggregate the proto results.
-final class AqueryResult {
+struct AqueryResult: Hashable {
     let targets: [String: Analysis_Target]
-    let actions: [UInt32: Analysis_Action]
+    let actions: [UInt32: [Analysis_Action]]
+
+    init(data: Data) throws {
+        let results = try BazelProtobufBindings.parseActionGraph(data: data)
+        self = AqueryResult(results: results)
+    }
 
     init(results: Analysis_ActionGraphContainer) {
         let targets: [String: Analysis_Target] = results.targets.reduce(into: [:]) { result, target in
             if result.keys.contains(target.label) {
-                logger.warning(
-                    "Duplicate target found when aquerying (\(target.label))! This can happen if a target gets different arguments depending on which top-level target builds it (on the same platform). Currently, the BSP expects the target to be stable in that sense."
+                logger.error(
+                    "Duplicate target found when aquerying (\(target.label))! This is unexpected. Will ignore the duplicate."
                 )
             }
             result[target.label] = target
         }
-        let actions: [UInt32: Analysis_Action] = results.actions.reduce(into: [:]) { result, action in
-            if result.keys.contains(action.targetID) {
-                logger.warning("Duplicate action ID found when aquerying (\(action.targetID)) ! This is unexpected.")
-            }
-            result[action.targetID] = action
+        let actions: [UInt32: [Analysis_Action]] = results.actions.reduce(into: [:]) { result, action in
+            // If the aquery contains data of multiple platforms,
+            // then we will see multiple entries for the same targetID.
+            // We need to store all of them and find the correct variant later.
+            result[action.targetID, default: []].append(action)
         }
         self.targets = targets
         self.actions = actions
