@@ -35,6 +35,8 @@ final class WatchedFileChangeHandler {
         "swift",
         "h",
         "m",
+        "c",
+        "cpp",
     ]
 
     init(

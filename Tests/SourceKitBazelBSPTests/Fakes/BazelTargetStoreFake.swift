@@ -31,9 +31,6 @@ final class BazelTargetStoreFake: BazelTargetStore {
     var fetchTargetsCalled = false
     var fetchTargetsError: Error?
     var mockSrcToBspURIs: [DocumentURI: [DocumentURI]] = [:]
-    var mockPlatformsToTopLevelLabelsMap: [String: [String]] = [:]
-
-    var platformsToTopLevelLabelsMap: [String: [String]] { mockPlatformsToTopLevelLabelsMap }
 
     func fetchTargets() throws -> [BuildTarget] {
         fetchTargetsCalled = true
@@ -59,6 +56,10 @@ final class BazelTargetStoreFake: BazelTargetStore {
     }
 
     func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo {
+        unimplemented()
+    }
+
+    func targetsAqueryForArgsExtraction() throws -> AqueryResult {
         unimplemented()
     }
 

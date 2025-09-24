@@ -17,6 +17,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import BazelProtobufBindings
 import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
@@ -26,114 +27,431 @@ import struct os.OSAllocatedUnfairLock
 private let logger = makeFileLevelBSPLogger()
 
 enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
-    case invalidObjCUri(String)
+    case invalidCUri(String)
     case invalidTarget(String)
     case sdkRootNotFound(String)
+    case parentTargetNotFound(String, String)
+    case parentActionNotFound(String, UInt32)
+    case multipleParentActions(String, String)
+    case targetNotFound(String)
+    case actionNotFound(String, UInt32)
+    case multipleTargetActions(String, UInt32)
+    case unsupportedLanguage(String, String, String)
+    case shouldNeverHappen(String)
+    case relevantTargetActionsNotFound(String)
 
     var errorDescription: String? {
         switch self {
-        case .invalidObjCUri(let uri): return "Unexpected non-Swift URI missing root URI prefix: \(uri)"
+        case .invalidCUri(let uri): return "Unexpected C-type URI missing root URI prefix: \(uri)"
         case .invalidTarget(let target): return "Expected to receive a build_test target, but got: \(target)"
         case .sdkRootNotFound(let sdk): return "sdkRootPath not found for \(sdk). Is it installed?"
+        case .parentTargetNotFound(let parent, let target):
+            return "Parent target \(parent) of \(target) was not found in the aquery output."
+        case .parentActionNotFound(let parent, let id):
+            return "Parent action \(id) for parent \(parent) not found in the aquery output."
+        case .multipleParentActions(let parent, let target):
+            return "Multiple parent actions found for parent \(parent) of \(target). This is unexpected."
+        case .targetNotFound(let target): return "Target \(target) not found in the aquery output."
+        case .actionNotFound(let target, let id):
+            return "Action \(id) for target \(target) not found in the aquery output."
+        case .relevantTargetActionsNotFound(let target):
+            return "No relevant target actions found for \(target). This is unexpected."
+        case .multipleTargetActions(let target, let id):
+            return "Multiple relevant target actions found for target \(target) with id \(id). This is unexpected."
+        case .unsupportedLanguage(let language, let file, let target):
+            return
+                "Was requested to extract compiler args for an unsupported language: \(language) (file: \(file), target: \(target))"
+        case .shouldNeverHappen(let message):
+            return "Triggered a code block that should have never happened! \(message)"
         }
     }
 }
 
-/// Abstraction that handles running action queries and extracting the compiler args for a given target file.
+/// Abstraction that handles processing and answering compiler args requests for SourceKit-LSP.
 final class BazelTargetCompilerArgsExtractor {
+    enum ParsingStrategy: CustomStringConvertible {
+        case swiftModule
+        case objcImpl(String)
+        case cImpl(String)
+        case cHeader
 
-    private let commandRunner: CommandRunner
-    private let aquerier: BazelTargetAquerier
+        var description: String {
+            switch self {
+            case .swiftModule: return "swiftModule"
+            case .objcImpl(let uri): return "objcImpl(\(uri))"
+            case .cImpl(let uri): return "cImpl(\(uri))"
+            case .cHeader: return "cHeader"
+            }
+        }
+    }
+
+    struct ParentData {
+        let configurationID: UInt32
+        let action: Analysis_Action
+    }
+
     private let config: InitializedServerConfig
-    private var argsCache = [String: [String]?]()
+    private var argsCache = [String: [String]]()
 
-    // This class needs synchronization because we might be requested to wipe the cache
-    // in the middle of an aquery request.
-    private let stateLock = OSAllocatedUnfairLock()
-
-    init(
-        commandRunner: CommandRunner = ShellCommandRunner(),
-        aquerier: BazelTargetAquerier = BazelTargetAquerier(),
-        config: InitializedServerConfig
-    ) {
-        self.commandRunner = commandRunner
-        self.aquerier = aquerier
+    init(config: InitializedServerConfig) {
         self.config = config
     }
 
-    func compilerArgs(
-        forDoc textDocument: URI,
-        inTarget bazelTarget: String,
-        underlyingLibrary: String,
-        language: Language,
-        platform: TopLevelRuleType
-    ) throws -> [String]? {
-        stateLock.lock()
-        defer { stateLock.unlock() }
-
-        // Ignore Obj-C header requests, since these don't compile
-        guard !textDocument.stringValue.hasSuffix(".h") else {
-            return nil
-        }
-
-        // For Swift, compilation is done at the target-level. But for ObjC, it's file-based instead.
-        let cacheKey: String
-        let contentToQuery: String
-        if language == .swift {
-            cacheKey = bazelTarget
-            contentToQuery = bazelTarget
-        } else {
+    func getParsingStrategy(for uri: URI, language: Language, targetUri: URI) throws -> ParsingStrategy {
+        switch language {
+        case .swift:
+            return .swiftModule
+        case .objective_c, .c:
+            if uri.stringValue.hasSuffix(".h") {
+                return .cHeader
+            }
             // Make the path relative, as this is what aquery will return
-            let fullUri = textDocument.stringValue
+            let fullUri = uri.stringValue
             let prefixToCut = "file://" + config.rootUri + "/"
             guard fullUri.hasPrefix(prefixToCut) else {
-                throw BazelTargetCompilerArgsExtractorError.invalidObjCUri(fullUri)
+                throw BazelTargetCompilerArgsExtractorError.invalidCUri(fullUri)
             }
             let parsedFile = String(fullUri.dropFirst(prefixToCut.count))
-            cacheKey = bazelTarget + "|" + parsedFile
-            contentToQuery = parsedFile
+            if language == .c {
+                return .cImpl(parsedFile)
+            } else if language == .objective_c {
+                return .objcImpl(parsedFile)
+            }
+            throw BazelTargetCompilerArgsExtractorError.shouldNeverHappen("No language for C-type parsing")
+        default:
+            throw BazelTargetCompilerArgsExtractorError.unsupportedLanguage(
+                language.rawValue,
+                uri.stringValue,
+                targetUri.stringValue
+            )
+        }
+    }
+
+    func extractCompilerArgs(
+        fromAquery aquery: AqueryResult,
+        forTarget platformInfo: BazelTargetPlatformInfo,
+        withStrategy strategy: ParsingStrategy,
+    ) throws -> [String] {
+        // Ignore Obj-C header requests as these don't compile.
+        if case .cHeader = strategy {
+            return []
         }
 
-        logger.info("Fetching compiler args for \(cacheKey)")
+        logger.info(
+            "Fetching SKOptions for \(platformInfo.label), strategy: \(strategy)",
+        )
 
+        let cacheKey = try getCacheKey(
+            forTarget: platformInfo.label,
+            fromAquery: aquery,
+            strategy: strategy
+        )
+
+        logger.info("Fetching compiler args for \(cacheKey)")
         if let cached = argsCache[cacheKey] {
             logger.debug("Returning cached results")
             return cached
         }
 
         // First, determine the SDK root based on the platform the target is built for.
-        let platformSdk = platform.sdkName
+        let platformSdk = platformInfo.platformSdkName
         guard let sdkRoot: String = config.sdkRootPaths[platformSdk] else {
             throw BazelTargetCompilerArgsExtractorError.sdkRootNotFound(platformSdk)
         }
 
-        // Then, run an aquery against the build_test target in question,
-        // filtering for the "real" underlying library.
-        let resultAquery = try aquerier.aquery(
-            target: bazelTarget,
-            filteringFor: underlyingLibrary,
-            config: config,
-            mnemonics: ["SwiftCompile", "ObjcCompile"],
-            additionalFlags: ["--noinclude_artifacts", "--noinclude_aspects", "--features=-compiler_param_file"]
+        // Then, search for the relevant compilation step within the aquery.
+        // Start by getting data about this target's top-level parent that we're using as a reference.
+        let parentAction = try getParentAction(forTarget: platformInfo, fromAquery: aquery)
+        logger.debug("Parent configuration id: \(parentAction.configurationID)")
+
+        // Then, find the target compilation step that matches the parent data we just extracted.
+        let targetAction = try getTargetAction(
+            forTarget: platformInfo,
+            fromAquery: aquery,
+            basedOn: parentAction,
+            strategy: strategy
         )
 
         // Then, extract the compiler arguments for the target file from the resulting aquery.
-        let processedArgs = CompilerArgumentsProcessor.extractAndProcessCompilerArgs(
-            fromAquery: resultAquery,
-            bazelTarget: underlyingLibrary,
-            contentToQuery: contentToQuery,
-            language: language,
+        let processedArgs = _processCompilerArguments(
+            rawArguments: targetAction.arguments,
             sdkRoot: sdkRoot,
-            initializedConfig: config
+            strategy: strategy
         )
+
+        logger.info("Finished processing compiler arguments")
+        logger.logFullObjectInMultipleLogMessages(
+            level: .debug,
+            header: "Parsed compiler arguments",
+            processedArgs.joined(separator: "\n"),
+        )
+
         argsCache[cacheKey] = processedArgs
         return processedArgs
     }
 
-    func clearCache() {
-        stateLock.withLockUnchecked {
-            argsCache = [:]
-            aquerier.clearCache()
+    private func getCacheKey(
+        forTarget target: String,
+        fromAquery aquery: AqueryResult,
+        strategy: ParsingStrategy
+    ) throws -> String {
+        let queryHash = String(aquery.hashValue)
+        // For Swift, compilation is done at the target-level. But for ObjC, it's file-based instead.
+        switch strategy {
+        case .swiftModule, .cHeader:
+            return target + "|" + queryHash
+        case .objcImpl(let uri), .cImpl(let uri):
+            return target + "|" + uri + "|" + queryHash
         }
+    }
+
+    private func getParentAction(
+        forTarget platformInfo: BazelTargetPlatformInfo,
+        fromAquery aquery: AqueryResult
+    ) throws -> ParentData {
+        let bazelTarget = platformInfo.label
+        let parentRuleType = platformInfo.topLevelParentRuleType
+        let parentBazelTarget = platformInfo.topLevelParentLabel
+
+        // If the parent is a test target, we need to append __internal__.__test_bundle to the label to find it in the output.
+        let effectiveParentLabel: String
+        if parentRuleType.isTestRule {
+            effectiveParentLabel = parentBazelTarget + ".__internal__.__test_bundle"
+        } else {
+            effectiveParentLabel = parentBazelTarget
+        }
+
+        // First, fetch the configuration id of the target's parent.
+        guard let parentTarget = aquery.targets[effectiveParentLabel] else {
+            throw BazelTargetCompilerArgsExtractorError.parentTargetNotFound(effectiveParentLabel, bazelTarget)
+        }
+        guard let parentActions = aquery.actions[parentTarget.id] else {
+            throw BazelTargetCompilerArgsExtractorError.parentActionNotFound(effectiveParentLabel, parentTarget.id)
+        }
+        guard parentActions.count == 1 else {
+            throw BazelTargetCompilerArgsExtractorError.multipleParentActions(effectiveParentLabel, bazelTarget)
+        }
+        let parentAction = parentActions[0]
+        let parentConfigurationId = parentAction.configurationID
+        return ParentData(configurationID: parentConfigurationId, action: parentAction)
+    }
+
+    private func getTargetAction(
+        forTarget platformInfo: BazelTargetPlatformInfo,
+        fromAquery aquery: AqueryResult,
+        basedOn parentAction: ParentData,
+        strategy: ParsingStrategy
+    ) throws -> Analysis_Action {
+        let bazelTarget = platformInfo.label
+        guard let target = aquery.targets[bazelTarget] else {
+            throw BazelTargetCompilerArgsExtractorError.targetNotFound(bazelTarget)
+        }
+        guard let actions = aquery.actions[target.id] else {
+            throw BazelTargetCompilerArgsExtractorError.actionNotFound(bazelTarget, target.id)
+        }
+        // `actions` will contain all different configurations for the target we're processing.
+        // We need to now locate the one that matches the configuration from the parent action
+        // we're using as a reference.
+        var candidateActions = actions.filter {
+            $0.configurationID == parentAction.configurationID
+        }
+        let contentBeingQueried: String
+        switch strategy {
+        case .swiftModule, .cHeader:
+            contentBeingQueried = bazelTarget
+        case .objcImpl(let uri), .cImpl(let uri):
+            // For C, we need to additionally filter for the action containing the specific file we're looking at.
+            contentBeingQueried = uri + " (\(bazelTarget))"
+            candidateActions = candidateActions.filter {
+                let args = $0.arguments
+                for i in (0..<args.count).reversed() {
+                    if args[i] == "-c" && args[i + 1] == uri {
+                        return true
+                    }
+                }
+                return false
+            }
+        }
+        guard candidateActions.count > 0 else {
+            throw BazelTargetCompilerArgsExtractorError.relevantTargetActionsNotFound(contentBeingQueried)
+        }
+        guard candidateActions.count == 1 else {
+            throw BazelTargetCompilerArgsExtractorError.multipleTargetActions(contentBeingQueried, target.id)
+        }
+        return candidateActions[0]
+    }
+
+    func clearCache() {
+        argsCache = [:]
+    }
+}
+
+extension BazelTargetCompilerArgsExtractor {
+    /// Processes compiler arguments for the LSP by removing unnecessary arguments and replacing placeholders.
+    private func _processCompilerArguments(
+        rawArguments: [String],
+        sdkRoot: String,
+        strategy: ParsingStrategy
+    ) -> [String] {
+        let devDir = config.devDir
+        let rootUri = config.rootUri
+
+        // We ran the aquery on the aquery output base, but we need this
+        // to reflect the data of the real build output base.
+        let outputPath: String = {
+            let base: String = config.outputPath
+            guard config.aqueryOutputBase != config.outputBase else {
+                return base
+            }
+            return base.replacingOccurrences(
+                of: config.aqueryOutputBase,
+                with: config.outputBase
+            )
+        }()
+        let outputBase = {
+            let base: String = config.outputBase
+            guard config.aqueryOutputBase != config.outputBase else {
+                return base
+            }
+            return base.replacingOccurrences(
+                of: config.aqueryOutputBase,
+                with: config.outputBase
+            )
+        }()
+
+        var compilerArguments: [String] = []
+
+        // For Obj-C, start by adding some necessary args that wouldn't show up in the aquery
+        if case .objcImpl = strategy {
+            compilerArguments.append("-x")
+            compilerArguments.append("objective-c")
+        }
+
+        var index = 0
+        let count = rawArguments.count
+
+        // For Swift, invocations start with "wrapped swiftc". We can ignore those.
+        // In the case of Obj-C, this is just a single `clang` reference.
+        switch strategy {
+        case .swiftModule: index = 2
+        case .objcImpl, .cImpl, .cHeader: index = 1
+        }
+
+        while index < count {
+            let arg = rawArguments[index]
+
+            // Skip wrapped arguments. These don't work for some reason
+            if arg.hasPrefix("-Xwrapped-swift") {
+                index += 1
+                continue
+            }
+
+            // Skip unsupported -c arg for Obj-C
+            if case .objcImpl = strategy, arg == "-c" {
+                index += 1
+                continue
+            }
+
+            // Replace execution root placeholder
+            if arg.contains("__BAZEL_EXECUTION_ROOT__") {
+                let transformedArg = arg.replacingOccurrences(of: "__BAZEL_EXECUTION_ROOT__", with: rootUri)
+                compilerArguments.append(transformedArg)
+                index += 1
+                continue
+            }
+
+            // Skip batch mode (incompatible with -index-file)
+            if arg == "-enable-batch-mode" {
+                index += 1
+                continue
+            }
+
+            // Skip -emit-const-values-path for now, this causes permission issues in bazel-out
+            if arg == "-emit-const-values-path" {
+                index += 2
+                continue
+            }
+
+            // Replace SDK placeholder
+            if arg.contains("__BAZEL_XCODE_SDKROOT__") {
+                let transformedArg = arg.replacingOccurrences(of: "__BAZEL_XCODE_SDKROOT__", with: sdkRoot)
+                compilerArguments.append(transformedArg)
+                index += 1
+                continue
+            }
+
+            // Replace Xcode Developer Directory
+            if arg.contains("__BAZEL_XCODE_DEVELOPER_DIR__") {
+                let transformedArg = arg.replacingOccurrences(of: "__BAZEL_XCODE_DEVELOPER_DIR__", with: devDir)
+                compilerArguments.append(transformedArg)
+                index += 1
+                continue
+            }
+
+            // Transform bazel-out/ paths
+            // FIXME: How to be sure this is actually the placeholder and not an actual "bazel-out" folder?
+            if arg.contains("bazel-out/") {
+                let transformedArg = arg.replacingOccurrences(of: "bazel-out/", with: outputPath + "/")
+
+                compilerArguments.append(transformedArg)
+                index += 1
+                continue
+            }
+
+            // Transform external/ paths
+            // FIXME: How to be sure this is actually the placeholder and not an actual "external/"" folder?
+            if arg.contains("external/") {
+                let transformedArg = arg.replacingOccurrences(of: "external/", with: outputBase + "/external/")
+                compilerArguments.append(transformedArg)
+                index += 1
+                continue
+            }
+
+            // For Swift, Bazel will print relative paths, but indexing needs absolute paths.
+            if arg.hasSuffix(".swift"), !arg.hasPrefix("/") {
+                let transformedArg = rootUri + "/" + arg
+                compilerArguments.append(transformedArg)
+                index += 1
+                continue
+            }
+
+            // Same thing for modulemaps.
+            if arg.hasPrefix("-fmodule-map-file="), !arg.hasPrefix("-fmodule-map-file=/") {
+                let components = arg.components(separatedBy: "-fmodule-map-file=")
+                let proper = rootUri + "/" + components[1]
+                let transformedArg = "-fmodule-map-file=" + proper
+                compilerArguments.append(transformedArg)
+                index += 1
+                continue
+            }
+
+            compilerArguments.append(arg)
+            index += 1
+        }
+
+        // Handle remaining necessary adjustments for indexing.
+        switch strategy {
+        case .objcImpl, .cImpl:
+            compilerArguments.append("-index-store-path")
+            compilerArguments.append(config.indexStorePath)
+            compilerArguments.append("-working-directory")
+            compilerArguments.append(config.rootUri)
+        case .swiftModule:
+            // For Swift, swap the index store arg with the global cache.
+            // Bazel handles this a bit differently internally, which is why
+            // we need to do this.
+            _editArg("-index-store-path", config.indexStorePath, &compilerArguments)
+        case .cHeader:
+            break
+        }
+
+        return compilerArguments
+    }
+
+    private func _editArg(_ arg: String, _ new: String, _ lines: inout [String]) {
+        guard let idx = lines.firstIndex(of: arg) else {
+            return
+        }
+        lines[idx + 1] = new
     }
 }

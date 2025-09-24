@@ -33,7 +33,6 @@ enum BazelTargetAquerierError: Error, LocalizedError {
 }
 
 /// Small abstraction to handle and cache the results of bazel _action queries_.
-/// FIXME: This is separate from BazelTargetQuerier because of the different output types, but we can unify these.
 final class BazelTargetAquerier {
 
     private let commandRunner: CommandRunner
@@ -44,8 +43,7 @@ final class BazelTargetAquerier {
     }
 
     func aquery(
-        target: String,
-        filteringFor: String,
+        targets: [String],
         config: InitializedServerConfig,
         mnemonics: Set<String>,
         additionalFlags: [String]
@@ -55,11 +53,11 @@ final class BazelTargetAquerier {
         }
 
         let mnemonicsFilter = mnemonics.sorted().joined(separator: "|")
-        let depsQuery = BazelTargetQuerier.queryDepsString(forTargets: [target])
+        let depsQuery = BazelTargetQuerier.queryDepsString(forTargets: targets)
 
         let otherFlags = additionalFlags.joined(separator: " ") + " --output proto"
-        let cmd = "aquery \"mnemonic('\(mnemonicsFilter)', filter(\(filteringFor), \(depsQuery)))\" \(otherFlags)"
-        logger.info("Processing aquery request for \(target), filtering for \(filteringFor)")
+        let cmd = "aquery \"mnemonic('\(mnemonicsFilter)', \(depsQuery))\" \(otherFlags)"
+        logger.info("Processing aquery request for \(targets)")
 
         if let cached = queryCache[cmd] {
             logger.debug("Returning cached results")
@@ -74,10 +72,7 @@ final class BazelTargetAquerier {
             rootUri: config.rootUri
         )
 
-        let parsedOutput = try BazelProtobufBindings.parseActionGraph(data: output)
-        let aqueryResult = AqueryResult(results: parsedOutput)
-
-        logger.debug("ActionGraphContainer parsed \(parsedOutput.actions.count) actions")
+        let aqueryResult = try AqueryResult(data: output)
 
         queryCache[cmd] = aqueryResult
 
