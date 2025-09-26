@@ -181,18 +181,14 @@ extension String {
     ///
     func toTargetId(rootUri: String) throws -> URI {
         let (packageName, targetName) = try splitTargetLabel()
-
-        // FIXME: This is assuming everything is iOS code. Will soon update this to handle all platforms.
         let path = "file://" + rootUri + "/" + packageName + "___" + targetName
-
         guard let uri = try? URI(string: path) else {
             throw BazelTargetParserError.convertUriFailed(path)
         }
-
         return uri
     }
 
-    /// Converts the target name a URI and returns the target's base directory.
+    /// Fetches the base directory of a target based on its unique identifier.
     ///
     /// file://<path-to-root>/<package-name>
     ///

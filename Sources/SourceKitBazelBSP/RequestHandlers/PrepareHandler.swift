@@ -67,25 +67,26 @@ final class PrepareHandler {
             reply(.success(VoidResponse()))
             return
         }
-
         let taskId = TaskId(id: "buildPrepare-\(id.description)")
-        let taskTitle: String = {
-            let targetUrls = targetsToBuild.compactMap { $0.uri.fileURL }
-            let targetNames = targetUrls.map { $0.lastPathComponent }.joined(separator: ", ")
-            return "sourcekit-bazel-bsp: Building \(targetNames)..."
-        }()
-        connection?.startWorkTask(
-            id: taskId,
-            title: taskTitle
-        )
+        var didStartTask = false
         do {
-            let labels = try targetStore.stateLock.withLockUnchecked {
+            let platformInfo = try targetStore.stateLock.withLockUnchecked {
                 return try targetsToBuild.map {
-                    try targetStore.platformBuildLabelInfo(forBSPURI: $0.uri).buildTestLabel
+                    try targetStore.platformBuildLabelInfo(forBSPURI: $0.uri)
                 }
             }
+            let taskTitle: String = {
+                let targetLabels = platformInfo.map { $0.label }
+                let targetNames = targetLabels.joined(separator: ", ")
+                return "sourcekit-bazel-bsp: Building \(targetsToBuild.count) target(s): \(targetNames)"
+            }()
+            connection?.startWorkTask(
+                id: taskId,
+                title: taskTitle
+            )
+            didStartTask = true
             nonisolated(unsafe) let reply = reply
-            try build(bazelLabels: labels, id: id) { [connection] error in
+            try build(bazelLabels: platformInfo.map { $0.buildTestLabel }, id: id) { [connection] error in
                 if let error = error {
                     connection?.finishTask(id: taskId, status: .error)
                     reply(.failure(error))
@@ -94,7 +95,9 @@ final class PrepareHandler {
                 reply(.success(VoidResponse()))
             }
         } catch {
-            connection?.finishTask(id: taskId, status: .error)
+            if didStartTask {
+                connection?.finishTask(id: taskId, status: .error)
+            }
             reply(.failure(error))
         }
     }
