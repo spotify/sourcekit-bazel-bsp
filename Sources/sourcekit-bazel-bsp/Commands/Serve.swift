@@ -73,6 +73,12 @@ struct Serve: ParsableCommand {
     )
     var topLevelRuleToDiscover: [TopLevelRuleType] = []
 
+    @Option(
+        help:
+            "The number of targets to prepare in parallel. If not specified, SourceKit-LSP will calculate an appropriate value based on the environment. Requires using the pre-built SourceKit-LSP binary from the release archive.",
+    )
+    var indexBuildBatchSize: Int? = nil
+
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
@@ -111,7 +117,8 @@ struct Serve: ParsableCommand {
             buildTestSuffix: buildTestSuffix,
             buildTestPlatformPlaceholder: buildTestPlatformPlaceholder,
             filesToWatch: filesToWatch,
-            useSeparateOutputBaseForAquery: separateAqueryOutput
+            useSeparateOutputBaseForAquery: separateAqueryOutput,
+            indexBuildBatchSize: indexBuildBatchSize
         )
         let server = SourceKitBazelBSPServer(baseConfig: config)
         server.run()
