@@ -7,6 +7,7 @@ setup_sourcekit_bsp(
     bazel_wrapper = "bazel",
     files_to_watch = ["Sources/**/*.swift"],
     index_flags = [],
+    index_build_batch_size = 7,
     targets = [
         "//Sources/sourcekit-bazel-bsp",
         "//Sources/SourceKitBazelBSP",

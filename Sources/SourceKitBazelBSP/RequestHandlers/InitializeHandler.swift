@@ -172,6 +172,7 @@ final class InitializeHandler {
         } else {
             watchers = nil
         }
+        let batchSize: Int? = initializedConfig.baseConfig.indexBuildBatchSize
         return InitializeBuildResponse(
             displayName: "sourcekit-bazel-bsp",
             version: sourcekitBazelBSPVersion,
@@ -192,7 +193,10 @@ final class InitializeHandler {
             data: SourceKitInitializeBuildResponseData(
                 indexDatabasePath: initializedConfig.indexDatabasePath,
                 indexStorePath: initializedConfig.indexStorePath,
-                multiTargetPreparation: MultiTargetPreparationSupport(supported: true),
+                multiTargetPreparation: MultiTargetPreparationSupport(
+                    supported: true,
+                    batchSize: batchSize
+                ),
                 outputPathsProvider: nil,  // FIXME: Not sure if we need this or not
                 prepareProvider: true,
                 sourceKitOptionsProvider: true,
