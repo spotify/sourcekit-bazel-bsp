@@ -26,7 +26,9 @@ jobs:
       - name: Build sourcekit-bazel-bsp (release)
         run: swift build -c release
       - name: Build sourcekit-bazel-bsp (Bazel)
-        run: bazelisk run //:setup_sourcekit_bsp
+        run: |
+          cd Example
+          bazelisk run //HelloWorld:setup_sourcekit_bsp_example_project
       - name: Build example //HelloWorld iOS app
         run: |
           cd Example

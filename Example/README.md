@@ -8,8 +8,11 @@ This is a simple **iOS** app that lets you see sourcekit-bazel-bsp in action. Th
 - Install [bazelisk](https://github.com/bazelbuild/bazelisk) if you haven't already.
   - On macOS: `brew install bazelisk`
 - On the parent folder, build sourcekit-bazel-bsp for release: `swift build -c release`
+- On this folder, run:
+  - `bazelisk run //HelloWorld:setup_sourcekit_bsp_example_project`
 - On Cursor, open a workspace **targeting this specific folder.**
 - On the settings page for the Swift extension, enable `SourceKit-LSP: Background Indexing` at the **workspace level**. It **has** to be workspace settings; this specific setting is not supported at the folder level.
+- (Optional) Follow the instructions from the main README regarding configuring a custom SourceKit-LSP binary.
 - Reload your workspace (`Cmd+Shift+P -> Reload Window`)
 - Open a Swift file to load the extension. It has to be a Swift file; as of writing this will not work if you open a Objective-C file (but they will work fine after the extension is loaded).
 

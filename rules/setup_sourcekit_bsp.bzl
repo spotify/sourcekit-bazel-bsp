@@ -6,7 +6,7 @@ def _setup_sourcekit_bsp_impl(ctx):
     ]
     for target in ctx.attr.targets:
         bsp_config_argv.append("--target")
-        bsp_config_argv.append(target.label)
+        bsp_config_argv.append(target)
     bsp_config_argv.append("--bazel-wrapper")
     bsp_config_argv.append(ctx.attr.bazel_wrapper)
     bsp_config_argv.append("--build-test-suffix")
@@ -32,7 +32,7 @@ def _setup_sourcekit_bsp_impl(ctx):
         template = ctx.file._bsp_config_template,
         output = rendered_bsp_config,
         substitutions = {
-            "%argv%": ", ".join(["\"%s\"" % arg for arg in bsp_config_argv]),
+            "%argv%": ",\n        ".join(["\"%s\"" % arg for arg in bsp_config_argv]),
         },
     )
     executable = ctx.actions.declare_file("setup_sourcekit_bsp.sh")
@@ -42,12 +42,11 @@ def _setup_sourcekit_bsp_impl(ctx):
         output = executable,
         substitutions = {
             "%bsp_config_path%": rendered_bsp_config.short_path,
-            "%sourcekit_bazel_bsp_path%": ctx.executable._sourcekit_bazel_bsp_tool.short_path,
         },
     )
     tools_runfiles = ctx.runfiles(
         files = [
-            ctx.executable._sourcekit_bazel_bsp_tool,
+            ctx.file.sourcekit_bazel_bsp_path,
             rendered_bsp_config,
         ],
     )
@@ -72,13 +71,13 @@ setup_sourcekit_bsp = rule(
             default = "//rules:setup_sourcekit_bsp.sh.tpl",
             allow_single_file = True,
         ),
-        "_sourcekit_bazel_bsp_tool": attr.label(
-            doc = "The sourcekit-bazel-bsp binary.",
-            default = "//Sources/sourcekit-bazel-bsp",
-            cfg = "exec",
-            executable = True,
+        "sourcekit_bazel_bsp_path": attr.label(
+            doc = "The path to the sourcekit-bazel-bsp binary.",
+            mandatory = True,
+            allow_single_file = True,
         ),
-        "targets": attr.label_list(
+        # We avoid using label_list here to not trigger unnecessary bazel dependency graph checks.
+        "targets": attr.string_list(
             doc = "The *top level* Bazel applications or test targets that this should serve a BSP for. It's best to keep this list small if possible for performance reasons. If not specified, the server will try to discover top-level targets automatically",
             mandatory = True,
         ),
