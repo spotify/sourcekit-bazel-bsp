@@ -63,12 +63,12 @@ setup_sourcekit_bsp(
 
 - Run `bazel run {path to the rule, e.g //:setup_sourcekit_bsp}`.
 
-This will result in a `.bsp/` folder being added to your workspace. Users should then re-run the above command whenever the configuration changes.
+This will result in a `.bsp/skbsp.json` file being added to your workspace. Users should then re-run the above command whenever the configuration changes.
 
 #### Integrating Manually
 
-- Copy the `.bsp/` folder on this repository to the root of the repository you'd like to use this tool for.
-- Edit the `argv` fields in `.bsp/config.json` to match the details for your app / setup. You can see all available options by running `sourcekit-bazel-bsp serve --help`.
+- Copy the `rules/bsp_config.json.tpl` template file from this repository to your desired repository's `.bsp/(name_of_your_choice).json`.
+- Edit the `argv` fields to match the details for your app / setup. You can see all available options by running `sourcekit-bazel-bsp serve --help`.
 
 #### After Integrating
 

@@ -1,7 +1,14 @@
 // swift-tools-version: 6.2
-// The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
+
+// See the same comment in Sources/BUILD.bazel.
+// Ideally we would define everything in Bazel
+// so that users can make good use of caching and other Bazel features,
+// but this currently causes duplication on our end. What we can do instead is once this tool advances
+// enough so that we can even run tests from the IDE, we can remove the SPM integration entirely
+// and move everything to Bazel, essentially allowing us to using this tool to develop the tool itself
+// similarly to how Swift eventually started using Swift itself to build its own compiler.
 
 let package = Package(
     name: "sourcekit-bazel-bsp",
@@ -32,9 +39,6 @@ let package = Package(
                     package: "swift-argument-parser"
                 ),
             ],
-            exclude: [
-                "BUILD",
-            ]
         ),
         .target(
             name: "SourceKitBazelBSP",
@@ -53,9 +57,6 @@ let package = Package(
                     package: "swift-argument-parser"
                 )
             ],
-            exclude: [
-                "BUILD",
-            ]
         ),
         .testTarget(
             name: "SourceKitBazelBSPTests",
@@ -73,7 +74,6 @@ let package = Package(
                 .product(name: "SwiftProtobuf", package: "swift-protobuf")
             ],
             exclude: [
-                "BUILD",
                 "README.md",
                 "protos/analysis_v2.proto",
                 "protos/build.proto",

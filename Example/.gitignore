@@ -16,3 +16,4 @@
 /production
 /.sass-cache
 user.bazelrc
+/.bsp/skbsp.json

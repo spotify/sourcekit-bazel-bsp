@@ -16,3 +16,4 @@ bazel-*
 archives/
 /MODULE.bazel.lock
 Example/MODULE.bazel.lock
+/.bsp/
