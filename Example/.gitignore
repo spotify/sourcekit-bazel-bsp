@@ -17,3 +17,4 @@
 /.sass-cache
 user.bazelrc
 /.bsp/skbsp.json
+/.bsp/sourcekit-bazel-bsp

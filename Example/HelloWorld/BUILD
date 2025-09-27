@@ -193,7 +193,6 @@ macos_unit_test(
 
 setup_sourcekit_bsp(
     name = "setup_sourcekit_bsp_example_project",
-    sourcekit_bazel_bsp_path = "//.bsp:sourcekit-bazel-bsp",
     bazel_wrapper = "bazelisk",
     files_to_watch = [
         "HelloWorld/**/*.swift",
