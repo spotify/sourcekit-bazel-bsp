@@ -212,5 +212,5 @@ setup_sourcekit_bsp(
     ],
     build_test_suffix = "_(PLAT)_skbsp",
 	build_test_platform_placeholder = "(PLAT)",
-    index_build_batch_size = 10
+    index_build_batch_size = 10,
 )

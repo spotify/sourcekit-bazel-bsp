@@ -1,22 +1,22 @@
-def _spm_release_binary_impl(ctx):
-    """Builds a Swift package with SPM."""
+BASE_SCRIPT = """#!/bin/bash
+set -e
+ORIG_PATH=$(pwd)
+PKG_PATH="{}"
+PKG_DIR=$(dirname $PKG_PATH)
 
-    # Declare the output binary
+cd $PKG_DIR
+swift build -c release
+BIN_PATH=$(realpath .build/release/{})
+cd $ORIG_PATH
+cp $BIN_PATH "{}"
+"""
+
+def _spm_release_binary_impl(ctx):
     binary_name = ctx.attr.name
     binary_output = ctx.actions.declare_file(binary_name)
 
     build_script = ctx.actions.declare_file("build_spm.sh")
-    base_script = """#!/bin/bash
-    set -e
-    ORIG_PATH=$(pwd)
-    PKG_PATH="{}"
-    PKG_DIR=$(dirname $PKG_PATH)
-    cd $PKG_DIR
-    swift build -c release
-    BIN_PATH=$(realpath .build/release/{})
-    cd $ORIG_PATH
-    cp $BIN_PATH "{}"
-    """.format(
+    base_script = BASE_SCRIPT.format(
         ctx.file.package_swift.path,
         ctx.attr.name,
         binary_output.path,
@@ -34,6 +34,11 @@ def _spm_release_binary_impl(ctx):
         arguments = [],
         mnemonic = "SPMBuild",
         progress_message = "Building SPM binary: {}".format(ctx.attr.name),
+        use_default_shell_env = True,
+        execution_requirements = {
+            "no-sandbox": "1",
+            "requires-network": "1",
+        },
     )
 
     return DefaultInfo(

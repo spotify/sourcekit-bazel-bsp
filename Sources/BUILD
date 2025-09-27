@@ -16,5 +16,6 @@ spm_release_binary(
     visibility = ["//visibility:public"],
     tags = [
         "no-sandbox",
+        "requires-network",
     ],
 )
