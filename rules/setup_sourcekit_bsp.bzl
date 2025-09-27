@@ -59,7 +59,7 @@ def _setup_sourcekit_bsp_impl(ctx):
 setup_sourcekit_bsp = rule(
     implementation = _setup_sourcekit_bsp_impl,
     executable = True,
-    doc = "Sets up the sourcekit-bazel-bsp in the current workspace using the provided configuration.",
+    doc = "Configures sourcekit-bazel-bsp in the current workspace using the provided configuration.",
     attrs = {
         "_bsp_config_template": attr.label(
             doc = "The template for the sourcekit-bazel-bsp configuration.",
@@ -71,9 +71,9 @@ setup_sourcekit_bsp = rule(
             default = "//rules:setup_sourcekit_bsp.sh.tpl",
             allow_single_file = True,
         ),
-        "sourcekit_bazel_bsp_path": attr.label(
-            doc = "The path to the sourcekit-bazel-bsp binary.",
-            mandatory = True,
+        "sourcekit_bazel_bsp": attr.label(
+            doc = "The path to the sourcekit-bazel-bsp binary. Will compile from source if not provided.",
+            default = "//Sources:sourcekit_bazel_bsp",
             allow_single_file = True,
         ),
         # We avoid using label_list here to not trigger unnecessary bazel dependency graph checks.
