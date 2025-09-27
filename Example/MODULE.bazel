@@ -1,3 +1,9 @@
+bazel_dep(name = "sourcekit_bazel_bsp", version = "0.1.1")
+local_path_override(
+    module_name = "sourcekit_bazel_bsp",
+    path = "../",
+)
+
 bazel_dep(
     name = "rules_swift",
     version = "3.1.2",
@@ -12,4 +18,4 @@ bazel_dep(
 
 bazel_dep(name = "apple_support", version = "1.23.1", repo_name = "build_bazel_apple_support")
 
-bazel_dep(name = "aspect_bazel_lib", version = "2.9.3")
+bazel_dep(name = "aspect_bazel_lib", version = "2.13.0")

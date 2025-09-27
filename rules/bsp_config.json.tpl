@@ -9,5 +9,7 @@
 		"objective-cpp",
 		"swift"
 	],
-	"argv": [%argv%]
+	"argv": [
+		%argv%
+	]
 }

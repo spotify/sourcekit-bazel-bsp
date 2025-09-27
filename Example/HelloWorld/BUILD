@@ -3,6 +3,7 @@ load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application", "macos_un
 load("@build_bazel_rules_apple//apple:watchos.bzl", "watchos_application", "watchos_extension", "watchos_unit_test")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_interop_hint")
 load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template_rule")
+load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl", "setup_sourcekit_bsp")
 load("//tools:apple.bzl", "hello_objc_library", "hello_swift_library", "IOS_MINIMUM_OS_VERSION", "WATCHOS_MINIMUM_OS_VERSION", "MACOS_MINIMUM_OS_VERSION")
 
 ## MARK: iOS / Shared targets
@@ -186,4 +187,30 @@ macos_unit_test(
     name = "HelloWorldMacTests",
     minimum_os_version = MACOS_MINIMUM_OS_VERSION,
     deps = [":MacAppTestsLib"],
+)
+
+# Project setup
+
+setup_sourcekit_bsp(
+    name = "setup_sourcekit_bsp_example_project",
+    bazel_wrapper = "bazelisk",
+    files_to_watch = [
+        "HelloWorld/**/*.swift",
+        "HelloWorld/**/*.h",
+        "HelloWorld/**/*.m"
+    ],
+    index_flags = [
+        "config=index_build",
+    ],
+    targets = [
+        "//HelloWorld:HelloWorld",
+		"//HelloWorld:HelloWorldTests",
+		"//HelloWorld:HelloWorldWatchApp",
+		"//HelloWorld:HelloWorldWatchTests",
+		"//HelloWorld:HelloWorldMacApp",
+		"//HelloWorld:HelloWorldMacTests",
+    ],
+    build_test_suffix = "_(PLAT)_skbsp",
+	build_test_platform_placeholder = "(PLAT)",
+    index_build_batch_size = 10
 )

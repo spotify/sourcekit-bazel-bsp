@@ -9,7 +9,7 @@ bsp_folder_path="$BUILD_WORKSPACE_DIRECTORY/.bsp"
 
 mkdir -p "$bsp_folder_path"
 
-target_bsp_config_path="$bsp_folder_path/config.json"
+target_bsp_config_path="$bsp_folder_path/skbsp.json"
 target_sourcekit_bazel_bsp_path="$bsp_folder_path/sourcekit-bazel-bsp"
 
 cp "$bsp_config_path" "$target_bsp_config_path"

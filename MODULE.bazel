@@ -3,29 +3,3 @@ module(
     version = "0.1.1",
     compatibility_level = 0,
 )
-
-bazel_dep(name = "rules_swift", version = "3.1.2", repo_name = "build_bazel_rules_swift")
-bazel_dep(name = "rules_swift_package_manager", version = "1.3.0")
-bazel_dep(name = "rules_apple", version = "4.1.2", repo_name = "build_bazel_rules_apple")
-bazel_dep(name = "apple_support", version = "1.23.1", repo_name = "build_bazel_apple_support")
-
-swift_deps = use_extension(
-    "@rules_swift_package_manager//:extensions.bzl",
-    "swift_deps",
-)
-swift_deps.from_package(
-    resolved = "//:Package.resolved",
-    swift = "//:Package.swift",
-)
-use_repo(
-    swift_deps,
-    "swift_package",
-    "swiftpkg_sourcekit_lsp",
-    "swiftpkg_swift_argument_parser",
-    "swiftpkg_swift_protobuf",
-    # The name of the Swift package repositories will be added to this declaration in step 4 after
-    # running `bazel mod tidy`.
-    # NOTE: The name of the Bazel external repository for a Swift package is `swiftpkg_xxx` where
-    # `xxx` is the Swift package identity, lowercase, with punctuation replaced by `hyphen`. For
-    # example, the repository name for apple/swift-nio is `swiftpkg_swift_nio`.
-)
