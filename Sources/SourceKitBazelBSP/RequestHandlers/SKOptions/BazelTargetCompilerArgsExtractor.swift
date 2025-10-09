@@ -101,7 +101,7 @@ final class BazelTargetCompilerArgsExtractor {
         switch language {
         case .swift:
             return .swiftModule
-        case .objective_c, .c:
+        case .objective_c, .c, .objective_cpp:
             if uri.stringValue.hasSuffix(".h") {
                 return .cHeader
             }
@@ -114,7 +114,7 @@ final class BazelTargetCompilerArgsExtractor {
             let parsedFile = String(fullUri.dropFirst(prefixToCut.count))
             if language == .c {
                 return .cImpl(parsedFile)
-            } else if language == .objective_c {
+            } else if language == .objective_c || language == .objective_cpp {
                 return .objcImpl(parsedFile)
             }
             throw BazelTargetCompilerArgsExtractorError.shouldNeverHappen("No language for C-type parsing")
@@ -322,9 +322,14 @@ extension BazelTargetCompilerArgsExtractor {
         var compilerArguments: [String] = []
 
         // For Obj-C, start by adding some necessary args that wouldn't show up in the aquery
-        if case .objcImpl = strategy {
+        if case .objcImpl(let fileURL) = strategy {
             compilerArguments.append("-x")
-            compilerArguments.append("objective-c")
+
+            if fileURL.hasSuffix(".mm") {
+                compilerArguments.append("objective-c++")
+            } else {
+                compilerArguments.append("objective-c")
+            }
         }
 
         var index = 0
