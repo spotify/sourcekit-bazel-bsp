@@ -321,4 +321,71 @@ struct WatchedFileChangeHandlerTests {
         #expect(observer.invalidateCalled == false)
         #expect(connection.sentNotifications.count == 0)
     }
+
+    @Test
+    func fileWithValidExtensions() throws {
+        // Arrange - test with multiple file changes of different types in one notification
+        let (handler, targetStore, connection, observer) = createHandler()
+
+        let swiftFileURI = try makeURI("file:///path/to/project/Sources/ChangedFile.swift")
+        let objcFileURI = try makeURI("file:///path/to/project/Sources/ChangedFile.m")
+        let objcppFileURL = try makeURI("file:///path/to/project/Sources/ChangedFile.mm")
+
+        let swiftTarget = try makeURI("build://swiftTarget")
+        let objcTarget = try makeURI("build://objcTarget")
+        let objcppTarget = try makeURI("build://objcppTarget")
+
+        targetStore.mockSrcToBspURIs[swiftFileURI] = [swiftTarget]
+        targetStore.mockSrcToBspURIs[objcFileURI] = [objcTarget]
+        targetStore.mockSrcToBspURIs[objcppFileURL] = [objcppTarget]
+
+        let notification = OnWatchedFilesDidChangeNotification(
+            changes: [
+                FileEvent(uri: swiftFileURI, type: .created),
+                FileEvent(uri: objcFileURI, type: .created),
+                FileEvent(uri: objcppFileURL, type: .created),
+            ]
+        )
+
+        // Act
+        handler.onWatchedFilesDidChange(notification)
+
+        // Assert
+        #expect(targetStore.clearCacheCalled, "clearCache should be called when there are created or deleted files")
+        #expect(targetStore.fetchTargetsCalled, "fetchTargets should be called when there are created or deleted files")
+
+        // Check that the observer was notified with all affected targets
+        #expect(observer.invalidateCalled)
+        #expect(observer.invalidatedTargets.count == 3)
+        #expect(
+            observer.invalidatedTargets.contains(
+                InvalidatedTarget(uri: swiftTarget, fileUri: swiftFileURI, kind: .created)
+            )
+        )
+        #expect(
+            observer.invalidatedTargets.contains(
+                InvalidatedTarget(uri: objcTarget, fileUri: objcFileURI, kind: .created)
+            )
+        )
+        #expect(
+            observer.invalidatedTargets.contains(
+                InvalidatedTarget(uri: objcppTarget, fileUri: objcppFileURL, kind: .created)
+            )
+        )
+
+        // Check that the LSP connection received the notification with all changes
+        #expect(connection.sentNotifications.count == 1)
+        if let sentNotification = connection.sentNotifications.first as? OnBuildTargetDidChangeNotification {
+            #expect(sentNotification.changes?.count == 3)
+
+            if let notificationChanges = sentNotification.changes {
+                let changes = notificationChanges.map { (uri: $0.target.uri, kind: $0.kind) }
+                #expect(changes.contains { $0.uri == swiftTarget && $0.kind == .changed })
+                #expect(changes.contains { $0.uri == objcTarget && $0.kind == .changed })
+                #expect(changes.contains { $0.uri == objcppTarget && $0.kind == .changed })
+            }
+        } else {
+            Issue.record("Expected OnBuildTargetDidChangeNotification")
+        }
+    }
 }
