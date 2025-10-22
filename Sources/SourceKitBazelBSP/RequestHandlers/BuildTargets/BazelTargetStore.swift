@@ -194,7 +194,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         )
         let topLevelTargets = topLevelTargetData.map { $0.0 }
 
-        logger.debug("Queried top-level target data: \(topLevelTargetData)")
+        logger.debug("Queried top-level target data: \(topLevelTargetData, privacy: .public)")
 
         // Parse the target dependencies for the top-level targets.
         // This doesn't include information about which top-level app a target belongs to,

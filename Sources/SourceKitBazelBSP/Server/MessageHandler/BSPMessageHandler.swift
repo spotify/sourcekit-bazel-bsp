@@ -60,11 +60,13 @@ final class BSPMessageHandler: MessageHandler {
     }
 
     func handle<Notification: NotificationType>(_ notification: Notification) {
-        logger.info("Received notification: \(Notification.method)")
+        logger.info("Received notification: \(Notification.method, privacy: .public)")
         do {
             let handler = try getHandler(for: notification, state: state)
             try handler(notification)
-        } catch { logger.error("Error while handling BSP notification: \(error.localizedDescription)") }
+        } catch {
+            logger.error("Error while handling BSP notification: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     func handle<Request: RequestType>(
@@ -72,21 +74,23 @@ final class BSPMessageHandler: MessageHandler {
         id: RequestID,
         reply: @escaping (LSPResult<Request.Response>) -> Void
     ) {
-        logger.info("Received request: \(Request.method)")
+        logger.info("Received request: \(Request.method, privacy: .public)")
         do {
             let handler = try getHandler(for: request, id, reply, state: state)
             handler(request, id) { [buildLSPError] result in
                 do {
                     let response = try result.get()
-                    logger.info("Replying to \(Request.method)")
+                    logger.info("Replying to \(Request.method, privacy: .public)")
                     reply(.success(response))
                 } catch {
-                    logger.error("Error while replying to \(Request.method): \(error.localizedDescription)")
+                    logger.error(
+                        "Error while replying to \(Request.method, privacy: .public): \(error.localizedDescription, privacy: .public)"
+                    )
                     reply(.failure(buildLSPError(error)))
                 }
             }
         } catch {
-            logger.error("Error while handling BSP request: \(error.localizedDescription)")
+            logger.error("Error while handling BSP request: \(error.localizedDescription, privacy: .public)")
             reply(.failure(buildLSPError(from: error)))
         }
     }

@@ -46,7 +46,7 @@ final class BuildTargetsHandler {
             let result = try targetStore.stateLock.withLockUnchecked {
                 return try targetStore.fetchTargets()
             }
-            logger.debug("Found \(result.count) targets")
+            logger.debug("Found \(result.count, privacy: .public) targets")
             logger.logFullObjectInMultipleLogMessages(
                 level: .debug,
                 header: "Target list",

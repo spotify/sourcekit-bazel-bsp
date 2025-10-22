@@ -147,7 +147,7 @@ final class BazelTargetCompilerArgsExtractor {
             strategy: strategy
         )
 
-        logger.info("Fetching compiler args for \(cacheKey)")
+        logger.info("Fetching compiler args for \(cacheKey, privacy: .public)")
         if let cached = argsCache[cacheKey] {
             logger.debug("Returning cached results")
             return cached
@@ -162,7 +162,7 @@ final class BazelTargetCompilerArgsExtractor {
         // Then, search for the relevant compilation step within the aquery.
         // Start by getting data about this target's top-level parent that we're using as a reference.
         let parentAction = try getParentAction(forTarget: platformInfo, fromAquery: aquery)
-        logger.debug("Parent configuration id: \(parentAction.configurationID)")
+        logger.debug("Parent configuration id: \(parentAction.configurationID, privacy: .public)")
 
         // Then, find the target compilation step that matches the parent data we just extracted.
         let targetAction = try getTargetAction(

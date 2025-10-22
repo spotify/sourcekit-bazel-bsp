@@ -57,7 +57,7 @@ final class BazelTargetAquerier {
 
         let otherFlags = additionalFlags.joined(separator: " ") + " --output proto"
         let cmd = "aquery \"mnemonic('\(mnemonicsFilter)', \(depsQuery))\" \(otherFlags)"
-        logger.info("Processing aquery request for \(targets)")
+        logger.info("Processing aquery request for \(targets, privacy: .public)")
 
         if let cached = queryCache[cmd] {
             logger.debug("Returning cached results")

@@ -78,18 +78,18 @@ final class InitializeHandler {
         baseConfig: BaseServerConfig,
     ) throws -> InitializedServerConfig {
         let rootUri = request.rootUri.arbitrarySchemeURL.path
-        logger.debug("rootUri: \(rootUri)")
+        logger.debug("rootUri: \(rootUri, privacy: .public)")
         let regularOutputBase = URL(
             fileURLWithPath: try commandRunner.bazel(baseConfig: baseConfig, rootUri: rootUri, cmd: "info output_base")
         )
-        logger.debug("regularOutputBase: \(regularOutputBase)")
+        logger.debug("regularOutputBase: \(regularOutputBase, privacy: .public)")
 
         // Setup the special output base path where we will run indexing commands from.
         let regularOutputBaseLastPath = regularOutputBase.lastPathComponent
         let outputBase = regularOutputBase.deletingLastPathComponent().appendingPathComponent(
             "\(regularOutputBaseLastPath)-sourcekit-bazel-bsp"
         ).path
-        logger.debug("outputBase: \(outputBase)")
+        logger.debug("outputBase: \(outputBase, privacy: .public)")
 
         // Now, get the full output path based on the above output base.
         let outputPath: String = try commandRunner.bazelIndexAction(
@@ -98,7 +98,7 @@ final class InitializeHandler {
             cmd: "info output_path",
             rootUri: rootUri
         )
-        logger.debug("outputPath: \(outputPath)")
+        logger.debug("outputPath: \(outputPath, privacy: .public)")
 
         // Get the execution root based on the above output base.
         let executionRoot: String = try commandRunner.bazelIndexAction(
@@ -107,16 +107,16 @@ final class InitializeHandler {
             cmd: "info execution_root",
             rootUri: rootUri
         )
-        logger.debug("executionRoot: \(executionRoot)")
+        logger.debug("executionRoot: \(executionRoot, privacy: .public)")
 
         // Collecting the rest of the env's details
         let devDir: String = try commandRunner.run("xcode-select --print-path")
         let toolchain = try getToolchainPath(with: commandRunner)
         let sdkRootPaths: [String: String] = getSDKRootPaths(with: commandRunner)
 
-        logger.debug("devDir: \(devDir)")
-        logger.debug("toolchain: \(toolchain)")
-        logger.debug("sdkRootPaths: \(sdkRootPaths)")
+        logger.debug("devDir: \(devDir, privacy: .public)")
+        logger.debug("toolchain: \(toolchain, privacy: .public)")
+        logger.debug("sdkRootPaths: \(sdkRootPaths, privacy: .public)")
 
         return InitializedServerConfig(
             baseConfig: baseConfig,

@@ -70,7 +70,7 @@ final class BazelTargetQuerier {
     ) throws -> [(String, TopLevelRuleType)] {
         let targetQuery = config.baseConfig.targets.joined(separator: " union ")
 
-        logger.info("Processing top level rules request for \(targetQuery)")
+        logger.info("Processing top level rules request for \(targetQuery, privacy: .public)")
 
         if let cached = topLevelRuleCache[targetQuery] {
             logger.debug("Returning cached results")
@@ -119,7 +119,7 @@ final class BazelTargetQuerier {
         let depsQuery = Self.queryDepsString(forTargets: targets)
         let cacheKey = "\(kindsFilter)+\(depsQuery)"
 
-        logger.info("Processing query request for \(cacheKey)")
+        logger.info("Processing query request for \(cacheKey, privacy: .public)")
 
         if let cached = queryCache[cacheKey] {
             logger.debug("Returning cached results")
@@ -140,7 +140,7 @@ final class BazelTargetQuerier {
             throw BazelTargetQuerierError.invalidQueryOutput
         }
 
-        logger.debug("Parsed \(targets.count) targets")
+        logger.debug("Parsed \(targets.count, privacy: .public) targets")
         queryCache[cacheKey] = targets
 
         return targets
@@ -166,7 +166,7 @@ final class BazelTargetQuerier {
 
         let cacheKey = "\(kindsFilter)+\(depsQuery)"
 
-        logger.info("Processing dependency graph request for \(cacheKey)")
+        logger.info("Processing dependency graph request for \(cacheKey, privacy: .public)")
 
         if let cached = dependencyGraphCache[cacheKey] {
             logger.debug("Returning cached results")

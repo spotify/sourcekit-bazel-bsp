@@ -107,7 +107,7 @@ final class PrepareHandler {
         id: RequestID,
         completion: @escaping ((ResponseError?) -> Void)
     ) throws {
-        logger.info("Will build \(labelsToBuild.joined(separator: ", "))")
+        logger.info("Will build \(labelsToBuild.joined(separator: ", "), privacy: .public)")
 
         nonisolated(unsafe) let completion = completion
         try currentTaskLock.withLock { [commandRunner, initializedConfig] currentTask in
@@ -121,11 +121,11 @@ final class PrepareHandler {
             )
             process.setTerminationHandler { code, stderr in
                 if code == 0 {
-                    logger.info("Finished building! (Request ID: \(id.description))")
+                    logger.info("Finished building! (Request ID: \(id.description), privacy: .public)")
                     completion(nil)
                 } else {
                     if code == 8 {
-                        logger.info("Build (Request ID: \(id.description)) was cancelled.")
+                        logger.info("Build (Request ID: \(id.description), privacy: .public) was cancelled.")
                         completion(ResponseError.cancelled)
                     } else {
                         logger.logFullObjectInMultipleLogMessages(
