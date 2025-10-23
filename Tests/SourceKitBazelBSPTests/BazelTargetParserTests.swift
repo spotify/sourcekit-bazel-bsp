@@ -54,16 +54,17 @@ struct BazelTargetParserTests {
         let querier = BazelTargetQuerier(commandRunner: runner)
         let toolchainPath = "/path/to/toolchain"
         let command =
-            "bazel --output_base=/path/to/output/base query \"kind(\'objc_library|source file|swift_library\', deps(//HelloWorld:HelloWorld))\" --output streamed_proto"
-        let kinds = Set<String>(["objc_library", "source file", "swift_library"])
+            "bazel --output_base=/path/to/output/base query \'let topLevelTargets = kind(\"ios_application|ios_unit_test\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library|source file|swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output streamed_proto"
+
+        let topLevelRuleKinds: Set<String> = ["ios_application", "ios_unit_test"]
+        let dependencyKinds: Set<String> = ["objc_library", "source file", "swift_library"]
 
         runner.setResponse(for: command, cwd: rootUri, response: mockProtobuf)
 
-        let targets = try querier.queryTargetDependencies(
-            forTargets: config.targets,
-            forConfig: initializedConfig,
-            rootUri: rootUri,
-            kinds: kinds
+        let targets = try querier.queryTargets(
+            config: initializedConfig,
+            topLevelRuleKinds: topLevelRuleKinds,
+            dependencyKinds: dependencyKinds
         )
 
         let result = try BazelQueryParser.parseTargetsWithProto(
