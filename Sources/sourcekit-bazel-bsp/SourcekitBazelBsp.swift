@@ -20,12 +20,36 @@
 import ArgumentParser
 import SourceKitBazelBSP
 
-@main
-struct SourcekitBazelBsp: ParsableCommand {
+private let logger = makeFileLevelBSPLogger()
+
+struct SourcekitBazelBspCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "A Build Server Protocol server for Bazel, for usage with SourceKit-LSP.",
         version: sourcekitBazelBSPVersion,
         subcommands: [Serve.self],
         defaultSubcommand: Serve.self
     )
+}
+
+@main
+struct SourcekitBazelBsp {
+    static func main() throws {
+        var command: ParsableCommand
+
+        // Parse the command
+        do {
+            command = try SourcekitBazelBspCommand.parseAsRoot()
+        } catch {
+            logger.fault("Failed to parse arguments for build server: \(error, privacy: .public)")
+            throw ExitCode(1)
+        }
+
+        // Run the command
+        do {
+            try command.run()
+        } catch {
+            logger.fault("Failed to run build server: \(error, privacy: .public)")
+            throw ExitCode(1)
+        }
+    }
 }
