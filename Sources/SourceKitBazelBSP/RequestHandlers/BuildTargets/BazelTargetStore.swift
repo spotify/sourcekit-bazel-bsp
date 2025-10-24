@@ -232,12 +232,13 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
         // Now, run a broad aquery against all top-level targets
         // to get the compiler arguments for all targets we're interested in.
-        // We pass BundleTreeApp as a trick to gain access to the parent's configuration id.
+        // We pass BundleTreeApp and SignBinary as a trick to gain access to the parent's configuration id.
         // We can then use this to locate the exact variant of the target we are looking for.
+        // BundleTreeApp is used by most rule types, while SignBinary is for macOS CLI apps specifically.
         targetsAqueryResult = try bazelTargetAquerier.aquery(
             targets: topLevelLabelToRuleMap.keys.map { $0 },
             config: initializedConfig,
-            mnemonics: ["SwiftCompile", "ObjcCompile", "CppCompile", "BundleTreeApp"],
+            mnemonics: ["SwiftCompile", "ObjcCompile", "CppCompile", "BundleTreeApp", "SignBinary"],
             additionalFlags: [
                 "--noinclude_artifacts",
                 "--noinclude_aspects",
