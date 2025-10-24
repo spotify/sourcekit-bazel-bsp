@@ -44,8 +44,6 @@ struct BazelTargetCompilerArgsExtractorTests {
                 bazelWrapper: "bazel",
                 targets: ["//HelloWorld"],
                 indexFlags: [],
-                buildTestSuffix: "_(PLAT)_skbsp",
-                buildTestPlatformPlaceholder: "(PLAT)",
                 filesToWatch: nil
             ),
             rootUri: mockRootUri,
@@ -71,11 +69,11 @@ struct BazelTargetCompilerArgsExtractorTests {
             fromAquery: aqueryResult,
             forTarget: BazelTargetPlatformInfo(
                 label: "//HelloWorld:HelloWorldLib",
-                buildTestLabel: "//HelloWorld:HelloWorldLib_ios_skbsp",
                 topLevelParentLabel: "//HelloWorld:HelloWorld",
                 topLevelParentRuleType: .iosApplication
             ),
             withStrategy: .swiftModule,
+            compileMnemonics: BazelTargetStoreImpl.compileMnemonics
         )
         #expect(result == expectedSwiftResult)
     }
@@ -89,11 +87,11 @@ struct BazelTargetCompilerArgsExtractorTests {
             fromAquery: aqueryResult,
             forTarget: BazelTargetPlatformInfo(
                 label: "//HelloWorld:TodoObjCSupport",
-                buildTestLabel: "//HelloWorld:TodoObjCSupport_ios_skbsp",
                 topLevelParentLabel: "//HelloWorld:HelloWorld",
                 topLevelParentRuleType: .iosApplication
             ),
             withStrategy: .objcImpl("HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.m"),
+            compileMnemonics: BazelTargetStoreImpl.compileMnemonics
         )
         #expect(result == expectedObjCResult)
     }
@@ -108,11 +106,11 @@ struct BazelTargetCompilerArgsExtractorTests {
                 fromAquery: aqueryResult,
                 forTarget: BazelTargetPlatformInfo(
                     label: "//HelloWorld:TodoObjCSupport",
-                    buildTestLabel: "//HelloWorld:TodoObjCSupport_ios_skbsp",
                     topLevelParentLabel: "//HelloWorld:HelloWorld",
                     topLevelParentRuleType: .iosApplication
                 ),
                 withStrategy: .objcImpl("HelloWorld/TodoObjCSupport/Sources/SomethingElse.m"),
+                compileMnemonics: BazelTargetStoreImpl.compileMnemonics
             )
         }
         #expect(
@@ -130,11 +128,11 @@ struct BazelTargetCompilerArgsExtractorTests {
             fromAquery: aqueryResult,
             forTarget: BazelTargetPlatformInfo(
                 label: "//HelloWorld:TodoObjCSupport",
-                buildTestLabel: "//HelloWorld:TodoObjCSupport_ios_skbsp",
                 topLevelParentLabel: "//HelloWorld:HelloWorld",
                 topLevelParentRuleType: .iosApplication
             ),
             withStrategy: .cHeader,
+            compileMnemonics: BazelTargetStoreImpl.compileMnemonics
         )
         #expect(result == [])
     }
@@ -173,11 +171,11 @@ struct BazelTargetCompilerArgsExtractorTests {
                 fromAquery: aqueryResult,
                 forTarget: BazelTargetPlatformInfo(
                     label: "//HelloWorld:SomethingElseLib",
-                    buildTestLabel: "//HelloWorld:SomethingElseLib_ios_skbsp",
                     topLevelParentLabel: "//HelloWorld:HelloWorld",
                     topLevelParentRuleType: .iosApplication
                 ),
                 withStrategy: .swiftModule,
+                compileMnemonics: BazelTargetStoreImpl.compileMnemonics
             )
         }
         #expect(error?.localizedDescription == "Target //HelloWorld:SomethingElseLib not found in the aquery output.")

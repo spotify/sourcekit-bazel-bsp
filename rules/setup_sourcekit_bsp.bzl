@@ -9,10 +9,6 @@ def _setup_sourcekit_bsp_impl(ctx):
         bsp_config_argv.append(target)
     bsp_config_argv.append("--bazel-wrapper")
     bsp_config_argv.append(ctx.attr.bazel_wrapper)
-    bsp_config_argv.append("--build-test-suffix")
-    bsp_config_argv.append(ctx.attr.build_test_suffix)
-    bsp_config_argv.append("--build-test-platform-placeholder")
-    bsp_config_argv.append(ctx.attr.build_test_platform_placeholder)
     if ctx.attr.separate_aquery_output:
         bsp_config_argv.append("--separate-aquery-output")
     if ctx.attr.index_build_batch_size:
@@ -99,14 +95,6 @@ setup_sourcekit_bsp = rule(
         "top_level_rules_to_discover": attr.string_list(
             doc = "A list of top-level rule types to discover targets for (e.g. 'ios_application', 'ios_unit_test'). Only applicable when not specifying targets directly. If not specified, all supported top-level rule types will be used for target discovery.",
             default = [],
-        ),
-        "build_test_suffix": attr.string(
-            doc = "The expected suffix format for build_test targets. Use the value of `build_test_platform_placeholder` as a platform placeholder.",
-            default = "_(PLAT)_skbsp",
-        ),
-        "build_test_platform_placeholder": attr.string(
-            doc = "The expected platform placeholder for build_test targets.",
-            default = "(PLAT)",
         ),
         "separate_aquery_output": attr.bool(
             doc = "Whether to use a separate output base for compiler arguments requests. This greatly increases the performance of the server at the cost of more disk usage.",

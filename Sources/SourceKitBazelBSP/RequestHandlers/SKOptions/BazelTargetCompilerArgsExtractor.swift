@@ -32,7 +32,7 @@ enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
     case sdkRootNotFound(String)
     case parentTargetNotFound(String, String)
     case parentActionNotFound(String, UInt32)
-    case multipleParentActions(String, String)
+    case multipleParentActions(String, String, [String])
     case targetNotFound(String)
     case actionNotFound(String, UInt32)
     case multipleTargetActions(String, UInt32)
@@ -49,8 +49,8 @@ enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
             return "Parent target \(parent) of \(target) was not found in the aquery output."
         case .parentActionNotFound(let parent, let id):
             return "Parent action \(id) for parent \(parent) not found in the aquery output."
-        case .multipleParentActions(let parent, let target):
-            return "Multiple parent actions found for parent \(parent) of \(target). This is unexpected."
+        case .multipleParentActions(let parent, let target, let mnemonics):
+            return "Multiple parent actions found for parent \(parent) of \(target) with mnemonics: \(mnemonics)"
         case .targetNotFound(let target): return "Target \(target) not found in the aquery output."
         case .actionNotFound(let target, let id):
             return "Action \(id) for target \(target) not found in the aquery output."
@@ -131,6 +131,7 @@ final class BazelTargetCompilerArgsExtractor {
         fromAquery aquery: AqueryResult,
         forTarget platformInfo: BazelTargetPlatformInfo,
         withStrategy strategy: ParsingStrategy,
+        compileMnemonics: Set<String>
     ) throws -> [String] {
         // Ignore Obj-C header requests as these don't compile.
         if case .cHeader = strategy {
@@ -169,7 +170,8 @@ final class BazelTargetCompilerArgsExtractor {
             forTarget: platformInfo,
             fromAquery: aquery,
             basedOn: parentAction,
-            strategy: strategy
+            strategy: strategy,
+            compileMnemonics: compileMnemonics
         )
 
         // Then, extract the compiler arguments for the target file from the resulting aquery.
@@ -229,7 +231,11 @@ final class BazelTargetCompilerArgsExtractor {
             throw BazelTargetCompilerArgsExtractorError.parentActionNotFound(effectiveParentLabel, parentTarget.id)
         }
         guard parentActions.count == 1 else {
-            throw BazelTargetCompilerArgsExtractorError.multipleParentActions(effectiveParentLabel, bazelTarget)
+            throw BazelTargetCompilerArgsExtractorError.multipleParentActions(
+                effectiveParentLabel,
+                bazelTarget,
+                parentActions.map(\.mnemonic)
+            )
         }
         let parentAction = parentActions[0]
         let parentConfigurationId = parentAction.configurationID
@@ -240,7 +246,8 @@ final class BazelTargetCompilerArgsExtractor {
         forTarget platformInfo: BazelTargetPlatformInfo,
         fromAquery aquery: AqueryResult,
         basedOn parentAction: ParentData,
-        strategy: ParsingStrategy
+        strategy: ParsingStrategy,
+        compileMnemonics: Set<String>,
     ) throws -> Analysis_Action {
         let bazelTarget = platformInfo.label
         guard let target = aquery.targets[bazelTarget] else {
@@ -249,12 +256,15 @@ final class BazelTargetCompilerArgsExtractor {
         guard let actions = aquery.actions[target.id] else {
             throw BazelTargetCompilerArgsExtractorError.actionNotFound(bazelTarget, target.id)
         }
+
         // `actions` will contain all different configurations for the target we're processing.
         // We need to now locate the one that matches the configuration from the parent action
         // we're using as a reference.
         var candidateActions = actions.filter {
             $0.configurationID == parentAction.configurationID
         }
+        let compileActions = actions.filter { compileMnemonics.contains($0.mnemonic) }
+
         let contentBeingQueried: String
         switch strategy {
         case .swiftModule, .cHeader:
@@ -272,12 +282,30 @@ final class BazelTargetCompilerArgsExtractor {
                 return false
             }
         }
+
         guard candidateActions.count > 0 else {
-            throw BazelTargetCompilerArgsExtractorError.relevantTargetActionsNotFound(contentBeingQueried)
+            guard compileActions.count > 0 else {
+                logger.fault(
+                    "No actions for: \(contentBeingQueried) with parent id: \(parentAction.configurationID, privacy: .public) or compile mnemonic found: \(actions.map(\.mnemonic).joined(separator: " "), privacy: .public)"
+                )
+                throw BazelTargetCompilerArgsExtractorError.relevantTargetActionsNotFound(contentBeingQueried)
+            }
+            guard compileActions.count == 1 else {
+                logger.fault(
+                    "Ambigious compile actions found for: \(contentBeingQueried): \(compileActions.map(\.mnemonic).joined(separator: " "), privacy: .public)"
+                )
+                throw BazelTargetCompilerArgsExtractorError.multipleTargetActions(contentBeingQueried, target.id)
+            }
+            logger.debug(
+                "Did not determine matching parent action for: \(contentBeingQueried, privacy: .public), falling back to compile action"
+            )
+            return compileActions[0]
         }
+
         guard candidateActions.count == 1 else {
             throw BazelTargetCompilerArgsExtractorError.multipleTargetActions(contentBeingQueried, target.id)
         }
+
         return candidateActions[0]
     }
 

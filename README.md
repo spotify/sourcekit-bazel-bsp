@@ -31,9 +31,8 @@
 
 - Make sure your Bazel project is using compatible versions of all iOS-related Bazel rulesets (available on each release's description) and is configured to generate Swift/Obj-C indexing data and debug symbols, either by default or under a specific config.
   - Detailed information around configuring Bazel flags is currently WIP, but you can currently check out the [example project](./Example) for an example.
-- Make sure all libraries that you'd like to use the BSP for have accompanying `(platform)_build_test` rules that directly targets them and have a predictable suffix that includes the platform name. Example naming scheme: `(lib_name)_{ios,watchos,tvos,macos,visionos}_skbsp`
-  - This is because Bazel is currently missing a couple of important features we need in order to make this work in a clean way. This requirement is thus only temporary and you can expect it to be removed in the future as we evolve the tool and those missing features are introduced.
-  - Keep in mind that our current focus are iOS targets, so as of writing your mileage may vary when it comes to other Apple platforms.
+- Make sure all libraries that you'd like to use the BSP for have accompanying top-level targets (e.g. `ios_application`, `ios_build_test`, etc.) that directly depends on them.
+  - Keep in mind that our current focus are iOS targets, so as of writing your mileage may vary when it comes to other Apple platforms, file an issue if you run into any problems.
 - Download and install [the official Swift extension](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) for Cursor / VSCode.
 - On Cursor / VSCode, open a workspace containing the repository in question.
 - On the settings page for the Swift extension, enable `SourceKit-LSP: Background Indexing` at the **workspace level**. It **has** to be workspace settings; this specific setting is not supported at the folder level.
@@ -72,7 +71,7 @@ This will result in a `.bsp/skbsp.json` file being added to your workspace. User
 
 #### After Integrating
 
-- Reload your workspace (`Cmd+Shift+P -> Reload Window`)
+- Reload your workspace (`Cmd+Shift+P -> Reload Window`) or restart the language server (`Cmd+Shift+P -> Swift: Restart LSP Server`)
 
 After following these steps, the `SourceKit Language Server` output tab (_Cmd+Shift+U_) should show up when opening Swift or Obj-C files, and indexing-related actions will start popping up at the bottom of the IDE after a while alongside a new `SourceKit-LSP: Indexing` output tab when working with those files.
 

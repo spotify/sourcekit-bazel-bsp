@@ -34,8 +34,6 @@ struct BazelTargetQuerierTests {
             bazelWrapper: "bazelisk",
             targets: ["//HelloWorld"],
             indexFlags: ["--config=test"],
-            buildTestSuffix: "_(PLAT)_skbsp",
-            buildTestPlatformPlaceholder: "(PLAT)",
             filesToWatch: nil
         )
 
@@ -80,8 +78,6 @@ struct BazelTargetQuerierTests {
             bazelWrapper: "bazelisk",
             targets: ["//HelloWorld", "//Tests"],
             indexFlags: ["--config=test"],
-            buildTestSuffix: "_(PLAT)_skbsp",
-            buildTestPlatformPlaceholder: "(PLAT)",
             filesToWatch: nil
         )
 
@@ -126,8 +122,6 @@ struct BazelTargetQuerierTests {
             bazelWrapper: "bazel",
             targets: ["//HelloWorld"],
             indexFlags: [],
-            buildTestSuffix: "_(PLAT)_skbsp",
-            buildTestPlatformPlaceholder: "(PLAT)",
             filesToWatch: nil
         )
 
@@ -196,8 +190,6 @@ struct BazelTargetQuerierTests {
             bazelWrapper: "bazel",
             targets: ["//HelloWorld:HelloWorld"],
             indexFlags: [],
-            buildTestSuffix: "_(PLAT)_skbsp",
-            buildTestPlatformPlaceholder: "(PLAT)",
             filesToWatch: nil
         )
 

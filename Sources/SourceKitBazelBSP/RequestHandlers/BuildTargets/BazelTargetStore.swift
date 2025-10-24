@@ -43,7 +43,6 @@ protocol BazelTargetStore: AnyObject {
 // including the top-level parent that the target is built against.
 struct BazelTargetPlatformInfo {
     let label: String
-    let buildTestLabel: String
     let topLevelParentLabel: String
     let topLevelParentRuleType: TopLevelRuleType
 
@@ -95,6 +94,15 @@ final class BazelTargetStoreImpl: BazelTargetStore {
     // The list of kinds that provide compilation params that are used by the BSP.
     // These are collected from the top-level targets that depend on them.
     static let supportedKinds: Set<String> = ["source file", "swift_library", "objc_library"]
+
+    // The mnemonics representing compilation acitons
+    static let compileMnemonics: Set<String> = ["SwiftCompile", "ObjcCompile", "CppCompile"]
+
+    // The mnemonics representing top-level rule actions
+    // - `BundleTreeApp` for finding bundling rules like `ios_unit_test`, `ios_application`
+    // - `SignBinary` for finding macOS CLI app rules like `macos_command_line_application`
+    // - `TestRunner` for finding build test rules like `ios_build_test`
+    static let topLevelMnemonics: Set<String> = ["BundleTreeApp", "SignBinary", "TestRunner"]
 
     // Users of BazelTargetStore are expected to acquire this lock before reading or writing any of the internal state.
     // This is to prevent race conditions between concurrent requests. It's easier to have each request handle critical sections
@@ -172,16 +180,16 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         // FIXME: When a target can compile to multiple platforms, the way Xcode handles it is by selecting
         // the one matching your selected simulator in the IDE. We don't have any sort of special IDE integration
         // at the moment, so for now we just select the first parent.
-        let parentToUse = parents[0]
-        let rule = try topLevelRuleType(forBazelLabel: parentToUse)
-        let baseSuffix = initializedConfig.baseConfig.buildTestSuffix
-        let platformPlaceholder = initializedConfig.baseConfig.buildTestPlatformPlaceholder
-        let platformBuildSuffix = baseSuffix.replacingOccurrences(of: platformPlaceholder, with: rule.platform)
+        let topLevelParent = parents[0]
+        if parents.count > 1 {
+            logger.warning("Target \(uri.description, privacy: .public) has multiple top-level parents will use first one: \(topLevelParent, privacy: .public)")
+        }
+
+        let topLevelRuleType = try topLevelRuleType(forBazelLabel: topLevelParent)
         return BazelTargetPlatformInfo(
             label: bazelLabel,
-            buildTestLabel: "\(bazelLabel)\(platformBuildSuffix)",
-            topLevelParentLabel: parentToUse,
-            topLevelParentRuleType: rule,
+            topLevelParentLabel: topLevelParent,
+            topLevelParentRuleType: topLevelRuleType
         )
     }
 
@@ -267,13 +275,13 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
         // Now, run a broad aquery against all top-level targets
         // to get the compiler arguments for all targets we're interested in.
-        // We pass BundleTreeApp and SignBinary as a trick to gain access to the parent's configuration id.
+        // We pass top-level mnemonics in addition to compile ones as a method to gain access to the parent's configuration id.
         // We can then use this to locate the exact variant of the target we are looking for.
         // BundleTreeApp is used by most rule types, while SignBinary is for macOS CLI apps specifically.
         targetsAqueryResult = try bazelTargetAquerier.aquery(
             targets: topLevelLabelToRuleMap.keys.map { $0 },
             config: initializedConfig,
-            mnemonics: ["SwiftCompile", "ObjcCompile", "CppCompile", "BundleTreeApp", "SignBinary"],
+            mnemonics: Self.compileMnemonics.union(Self.topLevelMnemonics),
             additionalFlags: [
                 "--noinclude_artifacts",
                 "--noinclude_aspects",
