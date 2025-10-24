@@ -82,7 +82,7 @@ public final class RunningProcess: Sendable {
         let (stdoutData, stderrString): (T, String) = self.outputs()
 
         guard wrappedProcess.terminationStatus == 0 else {
-            logger.debug("Command failed: \(self.cmd)")
+            logger.debug("Command failed: \(self.cmd, privacy: .public)")
             throw ShellCommandRunnerError.failed(cmd, stderrString)
         }
 

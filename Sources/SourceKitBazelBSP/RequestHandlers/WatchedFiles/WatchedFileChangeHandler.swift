@@ -56,7 +56,9 @@ final class WatchedFileChangeHandler {
         // See SourceKitLSPServer.didChangeWatchedFiles in sourcekit-lsp for more details.
         let changes = notification.changes.filter { change in
             guard isSupportedFile(uri: change.uri) else {
-                logger.debug("Ignoring file change (unsupported extension): \(change.uri.stringValue)")
+                logger.debug(
+                    "Ignoring file change (unsupported extension): \(change.uri.stringValue, privacy: .public)"
+                )
                 return false
             }
             return true
@@ -68,7 +70,9 @@ final class WatchedFileChangeHandler {
         }
 
         for change in changes {
-            logger.debug("File change: \(change.uri.stringValue) \(change.type.rawValue)")
+            logger.debug(
+                "File change: \(change.uri.stringValue, privacy: .public) \(change.type.rawValue, privacy: .public)"
+            )
         }
 
         // In this case, we keep the lock until the very end of the notification to avoid race conditions
@@ -76,7 +80,7 @@ final class WatchedFileChangeHandler {
         // Also because we need the targetStore at multiple points of this function.
         let invalidatedTargets = targetStore.stateLock.withLockUnchecked {
 
-            logger.info("Received \(changes.count) file changes")
+            logger.info("Received \(changes.count, privacy: .public) file changes")
 
             let deletedFiles = changes.filter { $0.type == .deleted }
             let createdFiles = changes.filter { $0.type == .created }
@@ -90,7 +94,7 @@ final class WatchedFileChangeHandler {
                         }
                     }
                 } catch {
-                    logger.error("Error calculating deleted targets: \(error)")
+                    logger.error("Error calculating deleted targets: \(error, privacy: .public)")
                     return []
                 }
             }()
@@ -130,7 +134,7 @@ final class WatchedFileChangeHandler {
                         }
                     }
                 } catch {
-                    logger.error("Error calculating created targets: \(error)")
+                    logger.error("Error calculating created targets: \(error, privacy: .public)")
                     return []
                 }
             }()

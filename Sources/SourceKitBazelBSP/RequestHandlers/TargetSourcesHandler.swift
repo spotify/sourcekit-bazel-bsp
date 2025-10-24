@@ -41,7 +41,7 @@ final class TargetSourcesHandler {
         _ id: RequestID
     ) throws -> BuildTargetSourcesResponse {
         let targets = request.targets
-        logger.info("Fetching sources for \(targets.count) targets")
+        logger.info("Fetching sources for \(targets.count, privacy: .public) targets")
 
         let srcs: [SourcesItem] = try targetStore.stateLock.withLockUnchecked {
             var srcs: [SourcesItem] = []
@@ -55,7 +55,9 @@ final class TargetSourcesHandler {
 
         let count = srcs.reduce(0) { $0 + $1.sources.count }
 
-        logger.info("Returning \(srcs.count) source specs (\(count) total source entries)")
+        logger.info(
+            "Returning \(srcs.count, privacy: .public) source specs (\(count, privacy: .public) total source entries"
+        )
 
         return BuildTargetSourcesResponse(items: srcs)
     }

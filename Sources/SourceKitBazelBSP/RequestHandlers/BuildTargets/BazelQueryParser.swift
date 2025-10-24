@@ -101,7 +101,9 @@ enum BazelQueryParser {
                         guard let path = srcMap[$0] else {
                             // FIXME: We should somehow find where the file would be generated to
                             // and register it as a proper generated file.
-                            logger.debug("Skipping \($0): Source does not exist, most likely a generated file.")
+                            logger.debug(
+                                "Skipping \($0, privacy: .public): Source does not exist, most likely a generated file."
+                            )
                             return nil
                         }
                         return try URI(string: path)
