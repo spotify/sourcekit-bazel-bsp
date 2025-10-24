@@ -1,5 +1,5 @@
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test")
-load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application", "macos_unit_test")
+load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application", "macos_command_line_application", "macos_unit_test")
 load("@build_bazel_rules_apple//apple:watchos.bzl", "watchos_application", "watchos_extension", "watchos_unit_test")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_interop_hint")
 load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template_rule")
@@ -136,6 +136,16 @@ hello_swift_library(
     platforms = ["macos"],
 )
 
+## MARK: MacOS CLI targets
+
+hello_swift_library(
+    name = "MacCLIAppLib",
+    module_name = "MacCLIAppLib",
+    srcs = glob(["MacCLIApp/MacCLIAppLib/Sources/*.swift"]),
+    deps = [":TodoModels"],
+    platforms = ["macos"],
+)
+
 ## MARK: Top level targets
 
 ios_unit_test(
@@ -189,6 +199,14 @@ macos_unit_test(
     deps = [":MacAppTestsLib"],
 )
 
+macos_command_line_application(
+    name = "HelloWorldMacCLIApp",
+    bundle_id = "com.example.HelloWorld.MacCLI",
+    infoplists = ["Resources/MacCLIApp-Info.plist"],
+    minimum_os_version = MACOS_MINIMUM_OS_VERSION,
+    deps = [":MacCLIAppLib"],
+)
+
 # Project setup
 
 setup_sourcekit_bsp(
@@ -209,6 +227,7 @@ setup_sourcekit_bsp(
 		"//HelloWorld:HelloWorldWatchTests",
 		"//HelloWorld:HelloWorldMacApp",
 		"//HelloWorld:HelloWorldMacTests",
+		"//HelloWorld:HelloWorldMacCLIApp",
     ],
     build_test_suffix = "_(PLAT)_skbsp",
 	build_test_platform_placeholder = "(PLAT)",
