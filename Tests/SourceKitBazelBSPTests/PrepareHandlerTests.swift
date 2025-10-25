@@ -54,7 +54,7 @@ struct PrepareHandlerTests {
         )
 
         let expectedCommand =
-            "bazel --output_base=/tmp/output_base build //HelloWorld --remote_download_regex=\'.*\\.indexstore/.*|.*\\.(a|cfg|c|C|cc|cl|cpp|cu|cxx|c++|def|h|H|hh|hpp|hxx|h++|hmap|ilc|inc|inl|ipp|tcc|tlh|tli|tpp|m|modulemap|mm|pch|swift|swiftdoc|swiftmodule|swiftsourceinfo|yaml)$\' --config=index"
+            "bazel --output_base=/tmp/output_base build //HelloWorld:HelloWorld --remote_download_regex=\'.*\\.indexstore/.*|.*\\.(a|cfg|c|C|cc|cl|cpp|cu|cxx|c++|def|h|H|hh|hpp|hxx|h++|hmap|ilc|inc|inl|ipp|tcc|tlh|tli|tpp|m|modulemap|mm|pch|swift|swiftdoc|swiftmodule|swiftsourceinfo|yaml)$\' --config=index"
         commandRunner.setResponse(for: expectedCommand, cwd: rootUri, response: "")
 
         let handler = PrepareHandler(
@@ -103,7 +103,7 @@ struct PrepareHandlerTests {
         )
 
         let expectedCommand =
-            "bazel --output_base=/tmp/output_base build //HelloWorld //HelloWorld2 --remote_download_regex=\'.*\\.indexstore/.*|.*\\.(a|cfg|c|C|cc|cl|cpp|cu|cxx|c++|def|h|H|hh|hpp|hxx|h++|hmap|ilc|inc|inl|ipp|tcc|tlh|tli|tpp|m|modulemap|mm|pch|swift|swiftdoc|swiftmodule|swiftsourceinfo|yaml)$\' --config=index"
+            "bazel --output_base=/tmp/output_base build //HelloWorld:HelloWorld //HelloWorld2:HelloWorld2 --remote_download_regex=\'.*\\.indexstore/.*|.*\\.(a|cfg|c|C|cc|cl|cpp|cu|cxx|c++|def|h|H|hh|hpp|hxx|h++|hmap|ilc|inc|inl|ipp|tcc|tlh|tli|tpp|m|modulemap|mm|pch|swift|swiftdoc|swiftmodule|swiftsourceinfo|yaml)$\' --config=index"
         commandRunner.setResponse(for: expectedCommand, response: "Build completed")
 
         let handler = PrepareHandler(

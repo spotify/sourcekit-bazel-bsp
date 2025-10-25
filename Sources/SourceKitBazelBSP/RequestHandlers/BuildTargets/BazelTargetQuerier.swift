@@ -62,10 +62,9 @@ final class BazelTargetQuerier {
 
     func queryTargets(
         config: InitializedServerConfig,
-        topLevelRuleKinds: Set<String>,
         dependencyKinds: Set<String>,
     ) throws -> [BlazeQuery_Target] {
-        if topLevelRuleKinds.isEmpty || dependencyKinds.isEmpty {
+        if dependencyKinds.isEmpty {
             throw BazelTargetQuerierError.noKinds
         }
 
@@ -77,12 +76,11 @@ final class BazelTargetQuerier {
         let providedTargetsQuerySet = "set(\(providedTargets.joined(separator: " ")))"
 
         // NOTE: important to sort for determinism
-        let topLevelKindsFilter = topLevelRuleKinds.sorted().joined(separator: "|")
         let dependencyKindsFilter = dependencyKinds.sorted().joined(separator: "|")
 
         // Collect the top-level targets -> collect these targets' dependencies
         let topLevelTargetsQuery = """
-            let topLevelTargets = kind("\(topLevelKindsFilter)", \(providedTargetsQuerySet)) in \
+            let topLevelTargets = kind("rule", \(providedTargetsQuerySet)) in \
               $topLevelTargets \
               union \
               kind("\(dependencyKindsFilter)", deps($topLevelTargets))
