@@ -57,16 +57,33 @@ struct BazelTargetPlatformInfo {
 }
 
 enum BazelTargetStoreError: Error, LocalizedError {
+    case noTopLevelTargets
+    case unsupportedTargetType(target: String, type: String)
     case unknownBSPURI(URI)
-    case unknownBazelLabel(String)
+    case unableToMapBazelLabelToParents(String)
+    case unableToMapBazelLabelToTopLevelRuleType(String)
     case noCachedAquery
 
     var errorDescription: String? {
         switch self {
-        case .unknownBSPURI(let uri): return "Requested data about a URI, but couldn't find it in the store: \(uri)"
-        case .unknownBazelLabel(let label):
-            return "Requested data about a Bazel label, but couldn't find it in the store: \(label)"
-        case .noCachedAquery: return "No cached aquery result found in the store."
+        case .noTopLevelTargets:
+            return """
+                No top-level targets found in the store for query of kind: \
+                \(TopLevelRuleType.allCases.map { $0.rawValue }.joined(separator: ", "))
+                """
+        case .unsupportedTargetType(let target, let type):
+            return """
+                Unsupported top-level target type: '\(type)' for target: \
+                '\(target)' supported types: \(TopLevelRuleType.allCases.map { $0.rawValue }.joined(separator: ", "))
+                """
+        case .unknownBSPURI(let uri):
+            return "Unable to map '\(uri)' to a Bazel target label"
+        case .unableToMapBazelLabelToParents(let label):
+            return "Unable to map '\(label)' to its parents"
+        case .unableToMapBazelLabelToTopLevelRuleType(let label):
+            return "Unable to map '\(label)' to its top-level rule type"
+        case .noCachedAquery:
+            return "No cached aquery result found in the store."
         }
     }
 }
@@ -75,7 +92,8 @@ enum BazelTargetStoreError: Error, LocalizedError {
 /// Used by many of the requests to calculate and provide data about the project's targets.
 final class BazelTargetStoreImpl: BazelTargetStore {
 
-    // The list of kinds we currently care about and can query for.
+    // The list of kinds that provide compilation params that are used by the BSP.
+    // These are collected from the top-level targets that depend on them.
     static let supportedKinds: Set<String> = ["source file", "swift_library", "objc_library"]
 
     // Users of BazelTargetStore are expected to acquire this lock before reading or writing any of the internal state.
@@ -133,7 +151,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
     /// Retrieves the list of top-level apps that a given Bazel target label belongs to.
     func bazelLabelToParents(forBazelLabel label: String) throws -> [String] {
         guard let parents = bazelLabelToParentsMap[label] else {
-            throw BazelTargetStoreError.unknownBazelLabel(label)
+            throw BazelTargetStoreError.unableToMapBazelLabelToParents(label)
         }
         return parents
     }
@@ -141,7 +159,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
     /// Retrieves the top-level rule type for a given Bazel **top-level** target label.
     func topLevelRuleType(forBazelLabel label: String) throws -> TopLevelRuleType {
         guard let ruleType = topLevelLabelToRuleMap[label] else {
-            throw BazelTargetStoreError.unknownBazelLabel(label)
+            throw BazelTargetStoreError.unableToMapBazelLabelToTopLevelRuleType(label)
         }
         return ruleType
     }
@@ -183,31 +201,47 @@ final class BazelTargetStoreImpl: BazelTargetStore {
             return cachedTargets
         }
 
-        // Start by determining which platforms each top-level app is for.
-        // This will allow us to later determine which sets of flags to provide
-        // depending on the target / platform combo the LSP is interested in,
-        // as well as throwing an error if the user provided something that we
-        // don't currently know how to process.
-        let topLevelTargetData = try bazelTargetQuerier.queryTopLevelRuleTypes(
-            forConfig: initializedConfig,
-            rootUri: initializedConfig.rootUri,
-        )
-        let topLevelTargets = topLevelTargetData.map { $0.0 }
+        let topLevelRuleKinds = Set(TopLevelRuleType.allCases.map(\.rawValue))
 
-        logger.debug("Queried top-level target data: \(topLevelTargetData, privacy: .public)")
+        // Query all the targets we are interested in one invocation:
+        //  - Top-level targets (e.g. `ios_application`, `ios_unit_test`, etc.)
+        //  - Dependencies of the top-level targets (e.g. `swift_library`, `objc_library`, etc.)
+        let allTargets =
+            try bazelTargetQuerier
+            .queryTargets(
+                config: initializedConfig,
+                topLevelRuleKinds: topLevelRuleKinds,
+                dependencyKinds: Self.supportedKinds
+            )
 
-        // Parse the target dependencies for the top-level targets.
-        // This doesn't include information about which top-level app a target belongs to,
-        // but we'll fill that in below.
-        let targets: [BlazeQuery_Target] = try bazelTargetQuerier.queryTargetDependencies(
-            forTargets: topLevelTargets,
-            forConfig: initializedConfig,
-            rootUri: initializedConfig.rootUri,
-            kinds: Self.supportedKinds
-        )
+        // Find the top-level targets (based on our supported rule kinds) from the query results.
+        var topLevelTargetLabels: [String] = []
+        var topLevelTargetTypes: [TopLevelRuleType] = []
+        var supportedTargets: [BlazeQuery_Target] = []
+        for target in allTargets {
+            let kind = target.rule.ruleClass
+            let name = target.rule.name
+            let topLevelRuleType = TopLevelRuleType(rawValue: kind)
+            let specifiedInConfig = initializedConfig.baseConfig.targets.contains(name)
+
+            if let topLevelRuleType, specifiedInConfig {
+                topLevelTargetLabels.append(name)
+                topLevelTargetTypes.append(topLevelRuleType)
+            } else if topLevelRuleType == nil && specifiedInConfig {
+                throw BazelTargetStoreError.unsupportedTargetType(target: name, type: kind)
+            } else {
+                supportedTargets.append(target)
+            }
+        }
+
+        guard !topLevelTargetLabels.isEmpty else {
+            throw BazelTargetStoreError.noTopLevelTargets
+        }
+
+        logger.debug("Queried top-level targets: \(topLevelTargetLabels.joined(separator: " "), privacy: .public)")
 
         let targetData = try BazelQueryParser.parseTargetsWithProto(
-            from: targets,
+            from: supportedTargets,
             rootUri: initializedConfig.rootUri,
             toolchainPath: initializedConfig.devToolchainPath,
         )
@@ -226,7 +260,8 @@ final class BazelTargetStoreImpl: BazelTargetStore {
                 srcToBspURIsMap[src, default: []].append(uri)
             }
         }
-        for (target, ruleType) in topLevelTargetData {
+
+        for (target, ruleType) in zip(topLevelTargetLabels, topLevelTargetTypes) {
             topLevelLabelToRuleMap[target] = ruleType
         }
 
@@ -252,10 +287,9 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         // to further support the target / platform combo differentiation mentioned above.
 
         // We need to include the top-level data here as well to be able to traverse the graph correctly.
-        let depGraphKinds = Self.supportedKinds.union(TopLevelRuleType.allCases.map { $0.rawValue })
-
+        let depGraphKinds = Self.supportedKinds.union(topLevelRuleKinds)
         let depGraph = try bazelTargetQuerier.queryDependencyGraph(
-            ofTargets: topLevelTargets,
+            ofTargets: topLevelTargetLabels,
             forConfig: initializedConfig,
             rootUri: initializedConfig.rootUri,
             kinds: depGraphKinds
@@ -264,9 +298,9 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         // We should ignore any app -> app nodes as we don't want to follow things such
         // as the watchos_application field in ios_application rules. Otherwise some targets
         // will be misclassified.
-        let targetsToIgnore = Set(topLevelTargets)
+        let targetsToIgnore = Set(topLevelTargetLabels)
 
-        for topLevelTarget in topLevelTargets {
+        for topLevelTarget in topLevelTargetLabels {
             let deps = traverseGraph(from: topLevelTarget, in: depGraph, ignoring: targetsToIgnore)
             for dep in deps {
                 guard availableBazelLabels.contains(dep) else {

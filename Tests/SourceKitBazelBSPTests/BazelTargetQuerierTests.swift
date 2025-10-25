@@ -53,15 +53,15 @@ struct BazelTargetQuerierTests {
         )
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base query \"kind('source file|swift_library', deps(//HelloWorld))\" --output streamed_proto --config=test"
+            "bazelisk --output_base=/path/to/output/base query \'let topLevelTargets = kind(\"ios_application\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"source file|swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output streamed_proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: mockProtobuf)
 
+        let topLevelRuleKinds: Set<String> = ["ios_application"]
         let kinds: Set<String> = ["source file", "swift_library"]
-        let result = try querier.queryTargetDependencies(
-            forTargets: config.targets,
-            forConfig: initializedConfig,
-            rootUri: mockRootUri,
-            kinds: kinds
+        let result = try querier.queryTargets(
+            config: initializedConfig,
+            topLevelRuleKinds: topLevelRuleKinds,
+            dependencyKinds: kinds
         )
 
         let ranCommands = runnerMock.commands
@@ -99,15 +99,15 @@ struct BazelTargetQuerierTests {
         )
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base query \"kind('objc_library|swift_library', deps(//HelloWorld) union deps(//Tests))\" --output streamed_proto --config=test"
+            "bazelisk --output_base=/path/to/output/base query \'let topLevelTargets = kind(\"ios_application|ios_unit_test\", set(//HelloWorld //Tests)) in   $topLevelTargets   union   kind(\"objc_library|swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output streamed_proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: mockProtobuf)
 
+        let topLevelRuleKinds: Set<String> = ["ios_application", "ios_unit_test"]
         let kinds: Set<String> = ["swift_library", "objc_library"]
-        let result = try querier.queryTargetDependencies(
-            forTargets: config.targets,
-            forConfig: initializedConfig,
-            rootUri: mockRootUri,
-            kinds: kinds
+        let result = try querier.queryTargets(
+            config: initializedConfig,
+            topLevelRuleKinds: topLevelRuleKinds,
+            dependencyKinds: kinds
         )
 
         let ranCommands = runnerMock.commands
@@ -144,45 +144,47 @@ struct BazelTargetQuerierTests {
             sdkRootPaths: ["iphonesimulator": "/path/to/sdk/root"]
         )
 
-        func run(_ kinds: Set<String>) throws {
-            _ = try querier.queryTargetDependencies(
-                forTargets: config.targets,
-                forConfig: initializedConfig,
-                rootUri: mockRootUri,
-                kinds: kinds
+        func run(topLevelRuleKinds: Set<String>, dependencyKinds: Set<String>) throws {
+            _ = try querier.queryTargets(
+                config: initializedConfig,
+                topLevelRuleKinds: topLevelRuleKinds,
+                dependencyKinds: kinds
             )
         }
 
+        var topLevelKinds: Set<String> = ["ios_application"]
         var kinds: Set<String> = ["swift_library"]
 
         runnerMock.setResponse(
             for:
-                "bazel --output_base=/path/to/output/base query \"kind('swift_library', deps(//HelloWorld))\" --output streamed_proto",
+                "bazel --output_base=/path/to/output/base query \'let topLevelTargets = kind(\"ios_application\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output streamed_proto",
             cwd: mockRootUri,
             response: mockProtobuf
         )
         runnerMock.setResponse(
             for:
-                "bazel --output_base=/path/to/output/base query \"kind('objc_library', deps(//HelloWorld))\" --output streamed_proto",
+                "bazel --output_base=/path/to/output/base query \'let topLevelTargets = kind(\"ios_unit_test\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output streamed_proto",
             cwd: mockRootUri,
             response: mockProtobuf
         )
 
-        try run(kinds)
-        try run(kinds)
+        try run(topLevelRuleKinds: topLevelKinds, dependencyKinds: kinds)
+        try run(topLevelRuleKinds: topLevelKinds, dependencyKinds: kinds)
 
         #expect(runnerMock.commands.count == 1)
 
         // Querying something else then results in a new command
+        topLevelKinds = ["ios_unit_test"]
         kinds = ["objc_library"]
-        try run(kinds)
+        try run(topLevelRuleKinds: topLevelKinds, dependencyKinds: kinds)
         #expect(runnerMock.commands.count == 2)
-        try run(kinds)
+        try run(topLevelRuleKinds: topLevelKinds, dependencyKinds: kinds)
         #expect(runnerMock.commands.count == 2)
 
         // But the original call is still cached
+        topLevelKinds = ["ios_application"]
         kinds = ["swift_library"]
-        try run(kinds)
+        try run(topLevelRuleKinds: topLevelKinds, dependencyKinds: kinds)
         #expect(runnerMock.commands.count == 2)
     }
 
@@ -213,7 +215,7 @@ struct BazelTargetQuerierTests {
         )
 
         let command =
-            "bazel --output_base=/path/to/output/base query \"kind(\'objc_library|source file|swift_library\', deps(//HelloWorld:HelloWorld))\" --output streamed_proto"
+            "bazel --output_base=/path/to/output/base query \'let topLevelTargets = kind(\"ios_application\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library|source file|swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output streamed_proto"
         guard let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
             let data = try? Data(contentsOf: url)
         else {
@@ -223,11 +225,13 @@ struct BazelTargetQuerierTests {
 
         runner.setResponse(for: command, cwd: rootUri, response: data)
 
-        let result = try querier.queryTargetDependencies(
-            forTargets: config.targets,
-            forConfig: initializedConfig,
-            rootUri: rootUri,
-            kinds: .init(["objc_library", "source file", "swift_library"])
+        let topLevelRuleKinds: Set<String> = ["ios_application"]
+        let dependencyKinds: Set<String> = ["objc_library", "source file", "swift_library"]
+
+        let result = try querier.queryTargets(
+            config: initializedConfig,
+            topLevelRuleKinds: topLevelRuleKinds,
+            dependencyKinds: dependencyKinds
         )
 
         let rules = result.filter { target in
