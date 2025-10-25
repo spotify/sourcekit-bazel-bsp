@@ -28,8 +28,6 @@ package struct BaseServerConfig: Equatable {
     let bazelWrapper: String
     let targets: [String]
     let indexFlags: [String]
-    let buildTestSuffix: String
-    let buildTestPlatformPlaceholder: String
     let filesToWatch: String?
     let useSeparateOutputBaseForAquery: Bool
     let indexBuildBatchSize: Int?
@@ -38,8 +36,6 @@ package struct BaseServerConfig: Equatable {
         bazelWrapper: String,
         targets: [String],
         indexFlags: [String],
-        buildTestSuffix: String,
-        buildTestPlatformPlaceholder: String,
         filesToWatch: String?,
         useSeparateOutputBaseForAquery: Bool = false,
         indexBuildBatchSize: Int? = nil
@@ -47,8 +43,6 @@ package struct BaseServerConfig: Equatable {
         self.bazelWrapper = bazelWrapper
         self.targets = targets
         self.indexFlags = indexFlags
-        self.buildTestSuffix = buildTestSuffix
-        self.buildTestPlatformPlaceholder = buildTestPlatformPlaceholder
         self.filesToWatch = filesToWatch
         self.useSeparateOutputBaseForAquery = useSeparateOutputBaseForAquery
         self.indexBuildBatchSize = indexBuildBatchSize

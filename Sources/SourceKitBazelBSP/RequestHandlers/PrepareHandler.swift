@@ -86,7 +86,7 @@ final class PrepareHandler {
             )
             didStartTask = true
             nonisolated(unsafe) let reply = reply
-            try build(bazelLabels: platformInfo.map { $0.buildTestLabel }, id: id) { [connection] error in
+            try build(bazelLabels: platformInfo.map { $0.topLevelParentLabel }, id: id) { [connection] error in
                 if let error = error {
                     connection?.finishTask(id: taskId, status: .error)
                     reply(.failure(error))

@@ -89,6 +89,7 @@ final class SKOptionsHandler {
             fromAquery: aqueryResult,
             forTarget: platformInfo,
             withStrategy: strategy,
+            compileMnemonics: BazelTargetStoreImpl.compileMnemonics
         )
 
         // If no compiler arguments are found, return nil to avoid sourcekit indexing with no input files
