@@ -45,12 +45,30 @@ package struct BaseServerConfig: Equatable {
         indexBuildBatchSize: Int? = nil
     ) {
         self.bazelWrapper = bazelWrapper
-        self.targets = targets
         self.indexFlags = indexFlags
         self.buildTestSuffix = buildTestSuffix
         self.buildTestPlatformPlaceholder = buildTestPlatformPlaceholder
         self.filesToWatch = filesToWatch
         self.useSeparateOutputBaseForAquery = useSeparateOutputBaseForAquery
         self.indexBuildBatchSize = indexBuildBatchSize
+
+        // We need to post-process the target list provided by the user
+        // because the queries will always return the "full" label.
+        // e.g: "//foo/bar" -> "//foo/bar:bar"
+        self.targets = targets.map { $0.toFullLabel() }
+    }
+}
+
+extension String {
+    func toFullLabel() -> String {
+        let paths = components(separatedBy: "/")
+        let lastComponent = paths.last
+        if lastComponent?.contains(":") == true {
+            return self
+        } else if let lastComponent = lastComponent {
+            return "\(self):\(lastComponent)"
+        } else {
+            return self
+        }
     }
 }
