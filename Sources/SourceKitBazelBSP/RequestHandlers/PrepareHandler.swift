@@ -112,20 +112,23 @@ final class PrepareHandler {
         nonisolated(unsafe) let completion = completion
         try currentTaskLock.withLock { [commandRunner, initializedConfig] currentTask in
             // Build the provided targets, on our special output base and taking into account special index flags.
+            // If using only one output base, add --preemptible to allow the task to be overridden if needed.
+            let preemptible = initializedConfig.baseConfig.useSeparateOutputBaseForAquery == false
             let process = try commandRunner.bazelIndexAction(
                 baseConfig: initializedConfig.baseConfig,
                 outputBase: initializedConfig.outputBase,
                 cmd: "build \(labelsToBuild.joined(separator: " "))",
                 rootUri: initializedConfig.rootUri,
-                additionalFlags: Self.additionalBuildFlags
+                additionalFlags: Self.additionalBuildFlags,
+                additionalStartupFlags: preemptible ? ["--preemptible"] : []
             )
             process.setTerminationHandler { code, stderr in
                 if code == 0 {
-                    logger.info("Finished building! (Request ID: \(id.description), privacy: .public)")
+                    logger.info("Finished building! (Request ID: \(id.description, privacy: .public))")
                     completion(nil)
                 } else {
                     if code == 8 {
-                        logger.info("Build (Request ID: \(id.description), privacy: .public) was cancelled.")
+                        logger.info("Build (Request ID: \(id.description, privacy: .public)) was cancelled.")
                         completion(ResponseError.cancelled)
                     } else {
                         logger.logFullObjectInMultipleLogMessages(
