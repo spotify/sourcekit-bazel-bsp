@@ -58,7 +58,7 @@ struct BazelTargetPlatformInfo {
 
 enum BazelTargetStoreError: Error, LocalizedError {
     case noTopLevelTargets
-    case unsupportedTargetType(target: String, type: String)
+    case unsupportedTargetType(target: String, type: String, supportedTypes: [TopLevelRuleType])
     case unknownBSPURI(URI)
     case unableToMapBazelLabelToParents(String)
     case unableToMapBazelLabelToTopLevelRuleType(String)
@@ -71,10 +71,10 @@ enum BazelTargetStoreError: Error, LocalizedError {
                 No top-level targets found in the store for query of kind: \
                 \(TopLevelRuleType.allCases.map { $0.rawValue }.joined(separator: ", "))
                 """
-        case .unsupportedTargetType(let target, let type):
+        case .unsupportedTargetType(let target, let type, let supportedTypes):
             return """
                 Unsupported top-level target type: '\(type)' for target: \
-                '\(target)' supported types: \(TopLevelRuleType.allCases.map { $0.rawValue }.joined(separator: ", "))
+                '\(target)' supported types: \(supportedTypes.map { $0.rawValue }.joined(separator: ", "))
                 """
         case .unknownBSPURI(let uri):
             return "Unable to map '\(uri)' to a Bazel target label"
@@ -201,7 +201,8 @@ final class BazelTargetStoreImpl: BazelTargetStore {
             return cachedTargets
         }
 
-        let topLevelRuleKinds = Set(TopLevelRuleType.allCases.map(\.rawValue))
+        let topLevelRuleTypes = TopLevelRuleType.allCases
+        let topLevelRuleKinds = Set(topLevelRuleTypes.map(\.rawValue))
 
         // Query all the targets we are interested in one invocation:
         //  - Top-level targets (e.g. `ios_application`, `ios_unit_test`, etc.)
@@ -210,27 +211,31 @@ final class BazelTargetStoreImpl: BazelTargetStore {
             try bazelTargetQuerier
             .queryTargets(
                 config: initializedConfig,
-                topLevelRuleKinds: topLevelRuleKinds,
                 dependencyKinds: Self.supportedKinds
             )
 
         // Find the top-level targets (based on our supported rule kinds) from the query results.
+        // We don't need to handle the case where a provided target is missing entirely
+        // because Bazel itself will fail when this is the case.
+        let userProvidedTargets = Set(initializedConfig.baseConfig.targets)
         var topLevelTargetLabels: [String] = []
         var topLevelTargetTypes: [TopLevelRuleType] = []
-        var supportedTargets: [BlazeQuery_Target] = []
+        var dependencyTargets: [BlazeQuery_Target] = []
         for target in allTargets {
             let kind = target.rule.ruleClass
             let name = target.rule.name
-            let topLevelRuleType = TopLevelRuleType(rawValue: kind)
-            let specifiedInConfig = initializedConfig.baseConfig.targets.contains(name)
-
-            if let topLevelRuleType, specifiedInConfig {
+            if userProvidedTargets.contains(name) {
+                guard let topLevelRuleType = TopLevelRuleType(rawValue: kind) else {
+                    throw BazelTargetStoreError.unsupportedTargetType(
+                        target: name,
+                        type: kind,
+                        supportedTypes: topLevelRuleTypes
+                    )
+                }
                 topLevelTargetLabels.append(name)
                 topLevelTargetTypes.append(topLevelRuleType)
-            } else if topLevelRuleType == nil && specifiedInConfig {
-                throw BazelTargetStoreError.unsupportedTargetType(target: name, type: kind)
             } else {
-                supportedTargets.append(target)
+                dependencyTargets.append(target)
             }
         }
 
@@ -241,7 +246,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         logger.debug("Queried top-level targets: \(topLevelTargetLabels.joined(separator: " "), privacy: .public)")
 
         let targetData = try BazelQueryParser.parseTargetsWithProto(
-            from: supportedTargets,
+            from: dependencyTargets,
             rootUri: initializedConfig.rootUri,
             toolchainPath: initializedConfig.devToolchainPath,
         )
