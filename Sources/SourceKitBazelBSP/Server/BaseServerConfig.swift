@@ -31,7 +31,6 @@ package struct BaseServerConfig: Equatable {
     let buildTestSuffix: String
     let buildTestPlatformPlaceholder: String
     let filesToWatch: String?
-    let useSeparateOutputBaseForAquery: Bool
     let indexBuildBatchSize: Int?
 
     package init(
@@ -41,7 +40,6 @@ package struct BaseServerConfig: Equatable {
         buildTestSuffix: String,
         buildTestPlatformPlaceholder: String,
         filesToWatch: String?,
-        useSeparateOutputBaseForAquery: Bool = false,
         indexBuildBatchSize: Int? = nil
     ) {
         self.bazelWrapper = bazelWrapper
@@ -49,7 +47,6 @@ package struct BaseServerConfig: Equatable {
         self.buildTestSuffix = buildTestSuffix
         self.buildTestPlatformPlaceholder = buildTestPlatformPlaceholder
         self.filesToWatch = filesToWatch
-        self.useSeparateOutputBaseForAquery = useSeparateOutputBaseForAquery
         self.indexBuildBatchSize = indexBuildBatchSize
 
         // We need to post-process the target list provided by the user

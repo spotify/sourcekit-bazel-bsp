@@ -295,29 +295,8 @@ extension BazelTargetCompilerArgsExtractor {
     ) -> [String] {
         let devDir = config.devDir
         let rootUri = config.rootUri
-
-        // We ran the aquery on the aquery output base, but we need this
-        // to reflect the data of the real build output base.
-        let outputPath: String = {
-            let base: String = config.outputPath
-            guard config.aqueryOutputBase != config.outputBase else {
-                return base
-            }
-            return base.replacingOccurrences(
-                of: config.aqueryOutputBase,
-                with: config.outputBase
-            )
-        }()
-        let outputBase = {
-            let base: String = config.outputBase
-            guard config.aqueryOutputBase != config.outputBase else {
-                return base
-            }
-            return base.replacingOccurrences(
-                of: config.aqueryOutputBase,
-                with: config.outputBase
-            )
-        }()
+        let outputPath = config.outputPath
+        let outputBase = config.outputBase
 
         var compilerArguments: [String] = []
 

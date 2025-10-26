@@ -13,8 +13,6 @@ def _setup_sourcekit_bsp_impl(ctx):
     bsp_config_argv.append(ctx.attr.build_test_suffix)
     bsp_config_argv.append("--build-test-platform-placeholder")
     bsp_config_argv.append(ctx.attr.build_test_platform_placeholder)
-    if ctx.attr.separate_aquery_output:
-        bsp_config_argv.append("--separate-aquery-output")
     if ctx.attr.index_build_batch_size:
         bsp_config_argv.append("--index-build-batch-size")
         bsp_config_argv.append(ctx.attr.index_build_batch_size)
@@ -107,10 +105,6 @@ setup_sourcekit_bsp = rule(
         "build_test_platform_placeholder": attr.string(
             doc = "The expected platform placeholder for build_test targets.",
             default = "(PLAT)",
-        ),
-        "separate_aquery_output": attr.bool(
-            doc = "Whether to use a separate output base for compiler arguments requests. This greatly increases the performance of the server at the cost of more disk usage.",
-            default = False,
         ),
         "index_build_batch_size": attr.int(
             doc = "The number of targets to prepare in parallel. If not specified, SourceKit-LSP will calculate an appropriate value based on the environment. Requires using the pre-built SourceKit-LSP binary from the release archive.",

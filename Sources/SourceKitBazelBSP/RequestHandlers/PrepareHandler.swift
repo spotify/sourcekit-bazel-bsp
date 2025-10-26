@@ -41,6 +41,11 @@ final class PrepareHandler {
         "--remote_download_regex='.*\\.indexstore/.*|.*\\.(a|cfg|c|C|cc|cl|cpp|cu|cxx|c++|def|h|H|hh|hpp|hxx|h++|hmap|ilc|inc|inl|ipp|tcc|tlh|tli|tpp|m|modulemap|mm|pch|swift|swiftdoc|swiftmodule|swiftsourceinfo|yaml)$'"
     ]
 
+    // Allow prepare requests to be overridden if needed.
+    static let additionalStartupFlags: [String] = [
+        "--preemptible"
+    ]
+
     // The current Bazel build is always stored so that we can cancel it if requested by the LSP.
     private var currentTaskLock = OSAllocatedUnfairLock<(RunningProcess, RequestID)?>(initialState: nil)
 
@@ -111,16 +116,13 @@ final class PrepareHandler {
 
         nonisolated(unsafe) let completion = completion
         try currentTaskLock.withLock { [commandRunner, initializedConfig] currentTask in
-            // Build the provided targets, on our special output base and taking into account special index flags.
-            // If using only one output base, add --preemptible to allow the task to be overridden if needed.
-            let preemptible = initializedConfig.baseConfig.useSeparateOutputBaseForAquery == false
             let process = try commandRunner.bazelIndexAction(
                 baseConfig: initializedConfig.baseConfig,
                 outputBase: initializedConfig.outputBase,
                 cmd: "build \(labelsToBuild.joined(separator: " "))",
                 rootUri: initializedConfig.rootUri,
                 additionalFlags: Self.additionalBuildFlags,
-                additionalStartupFlags: preemptible ? ["--preemptible"] : []
+                additionalStartupFlags: Self.additionalStartupFlags
             )
             process.setTerminationHandler { code, stderr in
                 if code == 0 {
