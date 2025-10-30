@@ -56,13 +56,6 @@ struct Serve: ParsableCommand {
     )
     var buildTestPlatformPlaceholder: String = Self.defaultBuildTestPlatformPlaceholder
 
-    // FIXME: This should be enabled by default, but I ran into some weird race condition issues with rules_swift I'm not sure about.
-    @Flag(
-        help:
-            "Whether to use a separate output base for compiler arguments requests. This greatly increases the performance of the server at the cost of more disk usage."
-    )
-    var separateAqueryOutput: Bool = false
-
     @Option(help: "Comma separated list of file globs to watch for changes.")
     var filesToWatch: String?
 
@@ -117,7 +110,6 @@ struct Serve: ParsableCommand {
             buildTestSuffix: buildTestSuffix,
             buildTestPlatformPlaceholder: buildTestPlatformPlaceholder,
             filesToWatch: filesToWatch,
-            useSeparateOutputBaseForAquery: separateAqueryOutput,
             indexBuildBatchSize: indexBuildBatchSize
         )
         let server = SourceKitBazelBSPServer(baseConfig: config)

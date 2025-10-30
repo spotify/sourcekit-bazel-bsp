@@ -67,7 +67,7 @@ final class BazelTargetAquerier {
         // Run the aquery with the special index flags since that's what we will build with.
         let output: Data = try commandRunner.bazelIndexAction(
             baseConfig: config.baseConfig,
-            outputBase: config.aqueryOutputBase,
+            outputBase: config.outputBase,
             cmd: cmd,
             rootUri: config.rootUri
         )
