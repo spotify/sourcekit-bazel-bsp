@@ -30,9 +30,6 @@ enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
     case invalidCUri(String)
     case invalidTarget(String)
     case sdkRootNotFound(String)
-    case parentTargetNotFound(String, String)
-    case parentActionNotFound(String, UInt32)
-    case multipleParentActions(String, String)
     case targetNotFound(String)
     case actionNotFound(String, UInt32)
     case multipleTargetActions(String, UInt32)
@@ -45,12 +42,6 @@ enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
         case .invalidCUri(let uri): return "Unexpected C-type URI missing root URI prefix: \(uri)"
         case .invalidTarget(let target): return "Expected to receive a build_test target, but got: \(target)"
         case .sdkRootNotFound(let sdk): return "sdkRootPath not found for \(sdk). Is it installed?"
-        case .parentTargetNotFound(let parent, let target):
-            return "Parent target \(parent) of \(target) was not found in the aquery output."
-        case .parentActionNotFound(let parent, let id):
-            return "Parent action \(id) for parent \(parent) not found in the aquery output."
-        case .multipleParentActions(let parent, let target):
-            return "Multiple parent actions found for parent \(parent) of \(target). This is unexpected."
         case .targetNotFound(let target): return "Target \(target) not found in the aquery output."
         case .actionNotFound(let target, let id):
             return "Action \(id) for target \(target) not found in the aquery output."
@@ -83,11 +74,6 @@ final class BazelTargetCompilerArgsExtractor {
             case .cHeader: return "cHeader"
             }
         }
-    }
-
-    struct ParentData {
-        let configurationID: UInt32
-        let action: Analysis_Action
     }
 
     private let config: InitializedServerConfig
@@ -159,16 +145,10 @@ final class BazelTargetCompilerArgsExtractor {
             throw BazelTargetCompilerArgsExtractorError.sdkRootNotFound(platformSdk)
         }
 
-        // Then, search for the relevant compilation step within the aquery.
-        // Start by getting data about this target's top-level parent that we're using as a reference.
-        let parentAction = try getParentAction(forTarget: platformInfo, fromAquery: aquery)
-        logger.debug("Parent configuration id: \(parentAction.configurationID, privacy: .public)")
-
-        // Then, find the target compilation step that matches the parent data we just extracted.
+        // Then, find the target compilation step that matches the parent data.
         let targetAction = try getTargetAction(
             forTarget: platformInfo,
             fromAquery: aquery,
-            basedOn: parentAction,
             strategy: strategy
         )
 
@@ -176,7 +156,9 @@ final class BazelTargetCompilerArgsExtractor {
         let processedArgs = _processCompilerArguments(
             rawArguments: targetAction.arguments,
             sdkRoot: sdkRoot,
-            strategy: strategy
+            strategy: strategy,
+            originalConfigName: platformInfo.topLevelParentConfig.configurationName,
+            effectiveConfigName: platformInfo.topLevelParentConfig.effectiveConfigurationName
         )
 
         logger.info("Finished processing compiler arguments")
@@ -205,41 +187,9 @@ final class BazelTargetCompilerArgsExtractor {
         }
     }
 
-    private func getParentAction(
-        forTarget platformInfo: BazelTargetPlatformInfo,
-        fromAquery aquery: AqueryResult
-    ) throws -> ParentData {
-        let bazelTarget = platformInfo.label
-        let parentRuleType = platformInfo.topLevelParentRuleType
-        let parentBazelTarget = platformInfo.topLevelParentLabel
-
-        // If the parent is a test target, we need to append __internal__.__test_bundle to the label to find it in the output.
-        let effectiveParentLabel: String
-        if parentRuleType.isTestRule {
-            effectiveParentLabel = parentBazelTarget + ".__internal__.__test_bundle"
-        } else {
-            effectiveParentLabel = parentBazelTarget
-        }
-
-        // First, fetch the configuration id of the target's parent.
-        guard let parentTarget = aquery.targets[effectiveParentLabel] else {
-            throw BazelTargetCompilerArgsExtractorError.parentTargetNotFound(effectiveParentLabel, bazelTarget)
-        }
-        guard let parentActions = aquery.actions[parentTarget.id] else {
-            throw BazelTargetCompilerArgsExtractorError.parentActionNotFound(effectiveParentLabel, parentTarget.id)
-        }
-        guard parentActions.count == 1 else {
-            throw BazelTargetCompilerArgsExtractorError.multipleParentActions(effectiveParentLabel, bazelTarget)
-        }
-        let parentAction = parentActions[0]
-        let parentConfigurationId = parentAction.configurationID
-        return ParentData(configurationID: parentConfigurationId, action: parentAction)
-    }
-
     private func getTargetAction(
         forTarget platformInfo: BazelTargetPlatformInfo,
         fromAquery aquery: AqueryResult,
-        basedOn parentAction: ParentData,
         strategy: ParsingStrategy
     ) throws -> Analysis_Action {
         let bazelTarget = platformInfo.label
@@ -253,7 +203,7 @@ final class BazelTargetCompilerArgsExtractor {
         // We need to now locate the one that matches the configuration from the parent action
         // we're using as a reference.
         var candidateActions = actions.filter {
-            $0.configurationID == parentAction.configurationID
+            $0.configurationID == platformInfo.topLevelParentConfig.configurationID
         }
         let contentBeingQueried: String
         switch strategy {
@@ -291,7 +241,9 @@ extension BazelTargetCompilerArgsExtractor {
     private func _processCompilerArguments(
         rawArguments: [String],
         sdkRoot: String,
-        strategy: ParsingStrategy
+        strategy: ParsingStrategy,
+        originalConfigName: String,
+        effectiveConfigName: String
     ) -> [String] {
         let devDir = config.devDir
         let rootUri = config.rootUri
@@ -375,8 +327,15 @@ extension BazelTargetCompilerArgsExtractor {
             // Transform bazel-out/ paths
             // FIXME: How to be sure this is actually the placeholder and not an actual "bazel-out" folder?
             if arg.contains("bazel-out/") {
-                let transformedArg = arg.replacingOccurrences(of: "bazel-out/", with: outputPath + "/")
-
+                var transformedArg = arg.replacingOccurrences(of: "bazel-out/", with: outputPath + "/")
+                // If compiling libraries individually, we need to also map the full apps' conf name
+                // with the one that will be used in practice.
+                if !config.baseConfig.compileTopLevel {
+                    transformedArg = transformedArg.replacingOccurrences(
+                        of: "/\(originalConfigName)/",
+                        with: "/\(effectiveConfigName)/"
+                    )
+                }
                 compilerArguments.append(transformedArg)
                 index += 1
                 continue

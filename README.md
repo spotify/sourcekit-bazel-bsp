@@ -5,9 +5,6 @@
 > [!IMPORTANT]
 > sourcekit-bazel-bsp is designed specifically for projects that use the [Bazel build system](https://bazel.build/) under the hood. It will not work for regular Xcode projects. For Xcode, check out projects like [xcode-build-server](https://github.com/SolaWing/xcode-build-server) (unrelated to this project and Spotify).
 
-> [!WARNING]
-> sourcekit-bazel-bsp is currently in very early stages of development and is not ready for production usage. It currently works only at a limited capacity and is missing several important features.
-
 <img width="1462" alt="Cursor running iOS" src="./Example/img/readme.png">
 
 ## Features
@@ -31,9 +28,6 @@
 
 - Make sure your Bazel project is using compatible versions of all iOS-related Bazel rulesets (available on each release's description) and is configured to generate Swift/Obj-C indexing data and debug symbols, either by default or under a specific config.
   - Detailed information around configuring Bazel flags is currently WIP, but you can currently check out the [example project](./Example) for an example.
-- Make sure all libraries that you'd like to use the BSP for have accompanying `(platform)_build_test` rules that directly targets them and have a predictable suffix that includes the platform name. Example naming scheme: `(lib_name)_{ios,watchos,tvos,macos,visionos}_skbsp`
-  - This is because Bazel is currently missing a couple of important features we need in order to make this work in a clean way. This requirement is thus only temporary and you can expect it to be removed in the future as we evolve the tool and those missing features are introduced.
-  - Keep in mind that our current focus are iOS targets, so as of writing your mileage may vary when it comes to other Apple platforms.
 - Download and install [the official Swift extension](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) for Cursor / VSCode.
 - On Cursor / VSCode, open a workspace containing the repository in question.
 - On the settings page for the Swift extension, enable `SourceKit-LSP: Background Indexing` at the **workspace level**. It **has** to be workspace settings; this specific setting is not supported at the folder level.
@@ -81,6 +75,12 @@ If you experience any trouble trying to get it to work, check out the [Example/ 
 ### Other IDEs
 
 The setup instructions depend on how the IDE integrates with LSPs. You should then search for instructions on how to install sourcekit-lsp on your IDE of choice and enable background indexing. After that, follow the `.bsp/` related steps from the above instructions. Keep in mind that this since project is developed specifically with Cursor / VSCode in mind, we cannot say how well sourcekit-bazel-bsp would work with other IDEs.
+
+## Bazel Caching Implications
+
+The BSP by default works by attempting to build your library targets individually with a set of platform flags based on the library's parent app, which is an action that currently does not share action cache keys with the compilation of the apps themselves. If your goal is to have index builds to have the same set of flags and cache as debug app compilations, this would mean that as of writing mean you would end up with two sets of cache.
+
+If this is undesirable, you can pass the `--compile-top-level` flag to make the BSP compile the target's **parent** instead, without any special flags. We recommend using this for projects that define fine-grained `*_build_test` targets and providing them as top-level targets for the BSP, as this enables maximum predictability and cacheability.
 
 ## Troubleshooting
 

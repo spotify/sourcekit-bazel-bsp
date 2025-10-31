@@ -24,19 +24,34 @@ import LanguageServerProtocol
 
 private let logger = makeFileLevelBSPLogger()
 
-enum BazelTargetParserError: Error, LocalizedError {
+enum BazelQueryParserError: Error, LocalizedError {
     case incorrectName(String)
     case convertUriFailed(String)
+    case parentTargetNotFound(String, String)
+    case parentActionNotFound(String, UInt32)
+    case multipleParentActions(String, String)
+    case noArguments(String, String)
+    case indexOutOfBounds(Int, [String])
 
     var errorDescription: String? {
         switch self {
         case .incorrectName(let target): return "Target name has zero or more than one colon: \(target)"
         case .convertUriFailed(let path): return "Cannot convert target name with path \(path) to Uri with file scheme"
+        case .parentTargetNotFound(let parent, let target):
+            return "Parent target \(parent) of \(target) was not found in the aquery output."
+        case .parentActionNotFound(let parent, let id):
+            return "Parent action \(id) for parent \(parent) not found in the aquery output."
+        case .multipleParentActions(let parent, let target):
+            return "Multiple parent actions found for parent \(parent) of \(target). This is unexpected."
+        case .noArguments(let parent, let target):
+            return "No arguments found for parent \(parent) of \(target)."
+        case .indexOutOfBounds(let index, let array):
+            return "Index \(index) is out of bounds for array: \(array)"
         }
     }
 }
 
-/// Small abstraction to parse the results of bazel target queries.
+/// Small abstraction to parse the results of bazel target queries and aqueries.
 enum BazelQueryParser {
     /// Parses Bazel query results from protobuf format into Build Server Protocol (BSP) build targets.
     ///
@@ -146,7 +161,7 @@ enum BazelQueryParser {
     /// Bazel query outputs a list of targets and each target contains list of attributes.
     /// The `srcs` attribute is a list of source_file labels instead of URI, thus we need
     /// a hashmap to reduce the time complexity.
-    static func buildSourceFilesMap(
+    private static func buildSourceFilesMap(
         _ targets: [BlazeQuery_Target]
     ) -> [String: String] {
         var srcMap: [String: String] = [:]
@@ -174,6 +189,78 @@ enum BazelQueryParser {
     }
 }
 
+// MARK: - Utilities for parsing top-level configuration data from aqueries
+
+extension BazelQueryParser {
+    static func topLevelConfigInfo(
+        ofTarget target: String,
+        withType type: TopLevelRuleType,
+        in aquery: AqueryResult
+    ) throws -> BazelTargetConfigurationInfo {
+        // If the parent is a test target, we need to append __internal__.__test_bundle to the label to find it in the output.
+        let effectiveParentLabel: String
+        if type.isTestRule {
+            effectiveParentLabel = target + ".__internal__.__test_bundle"
+        } else {
+            effectiveParentLabel = target
+        }
+        // First, fetch the configuration id of the target's parent.
+        guard let parentTarget = aquery.targets[effectiveParentLabel] else {
+            throw BazelQueryParserError.parentTargetNotFound(effectiveParentLabel, target)
+        }
+        guard let parentActions = aquery.actions[parentTarget.id] else {
+            throw BazelQueryParserError.parentActionNotFound(effectiveParentLabel, parentTarget.id)
+        }
+        guard parentActions.count == 1 else {
+            throw BazelQueryParserError.multipleParentActions(effectiveParentLabel, target)
+        }
+        let parentAction = parentActions[0]
+        let configId = parentAction.configurationID
+        let parentArgs = parentAction.arguments
+        // The last argument for all of these actions is the output (bazel-out/a/b/c...).
+        // We will parse the "a/b/c" bit (the target configuration) out of that.
+        // e.g. darwin_arm64-dbg-macos-arm64-min15.0-applebin_macos-ST-d1334902beb6
+        guard let lastArgument = parentArgs.last else {
+            throw BazelQueryParserError.noArguments(effectiveParentLabel, target)
+        }
+        let outputArg: String
+        switch type {
+        case .macosCommandLineApplication:
+            // In macOS CLI SignBinary actions, the last action is slightly different.
+            outputArg = try lastArgument.components(separatedBy: " ").getIndexThrowing(1)
+        default:
+            outputArg = lastArgument
+        }
+
+        let fullConfig = try outputArg.components(separatedBy: "/").getIndexThrowing(1)
+        let configComponents = fullConfig.components(separatedBy: "-")
+        // min15.0 -> 15.0
+        let minTargetArg = String(try configComponents.getIndexThrowing(4).dropFirst(3))
+
+        // To support compiling libraries directly, we need to additionally strip out
+        // the transition and distinguisher parts of the configuration name, as those will not
+        // be present when compiling directly.
+        let configWithoutTransitionOrDistinguisher = configComponents.dropLast(3)
+        let effectiveConfigurationName = configWithoutTransitionOrDistinguisher.joined(separator: "-")
+        return BazelTargetConfigurationInfo(
+            configurationID: configId,
+            configurationName: fullConfig,
+            effectiveConfigurationName: effectiveConfigurationName,
+            minimumOsVersion: minTargetArg,
+            action: parentAction
+        )
+    }
+}
+
+extension Array where Element == String {
+    fileprivate func getIndexThrowing(_ index: Int) throws -> Element {
+        guard index < count else {
+            throw BazelQueryParserError.indexOutOfBounds(index, self)
+        }
+        return self[index]
+    }
+}
+
 // MARK: - Bazel target name helpers
 
 extension String {
@@ -181,11 +268,11 @@ extension String {
     ///
     /// file://<path-to-root>/<package-name>___<target-name>
     ///
-    func toTargetId(rootUri: String) throws -> URI {
+    fileprivate func toTargetId(rootUri: String) throws -> URI {
         let (packageName, targetName) = try splitTargetLabel()
         let path = "file://" + rootUri + "/" + packageName + "___" + targetName
         guard let uri = try? URI(string: path) else {
-            throw BazelTargetParserError.convertUriFailed(path)
+            throw BazelQueryParserError.convertUriFailed(path)
         }
         return uri
     }
@@ -194,24 +281,24 @@ extension String {
     ///
     /// file://<path-to-root>/<package-name>
     ///
-    func toBaseDirectory(rootUri: String) throws -> URI {
+    fileprivate func toBaseDirectory(rootUri: String) throws -> URI {
         let (packageName, _) = try splitTargetLabel()
 
         let fileScheme = "file://" + rootUri + "/" + packageName
 
         guard let uri = try? URI(string: fileScheme) else {
-            throw BazelTargetParserError.convertUriFailed(fileScheme)
+            throw BazelQueryParserError.convertUriFailed(fileScheme)
         }
 
         return uri
     }
 
     /// Splits a full Bazel label into a tuple of its package and target names.
-    func splitTargetLabel() throws -> (packageName: String, targetName: String) {
+    fileprivate func splitTargetLabel() throws -> (packageName: String, targetName: String) {
         let components = split(separator: ":")
 
         guard components.count == 2 else {
-            throw BazelTargetParserError.incorrectName(self)
+            throw BazelQueryParserError.incorrectName(self)
         }
 
         let packageName =
