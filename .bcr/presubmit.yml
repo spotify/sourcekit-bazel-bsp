@@ -1,0 +1,13 @@
+matrix:
+  platform:
+  - macos_arm64
+  bazel:
+  - 8.x
+  - 7.x
+tasks:
+  verify_targets:
+    name: Verify build targets
+    platform: ${{ platform }}
+    bazel: ${{ bazel }}
+    build_targets:
+    - '@sourcekit_bazel_bsp//Sources:sourcekit-bazel-bsp'
