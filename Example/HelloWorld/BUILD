@@ -229,7 +229,4 @@ setup_sourcekit_bsp(
 		"//HelloWorld:HelloWorldMacTests",
 		"//HelloWorld:HelloWorldMacCLIApp",
     ],
-    build_test_suffix = "_(PLAT)_skbsp",
-	build_test_platform_placeholder = "(PLAT)",
-    index_build_batch_size = 10,
 )

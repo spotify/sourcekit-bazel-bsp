@@ -32,9 +32,8 @@ struct BazelTargetParserTests {
             bazelWrapper: "bazel",
             targets: ["//HelloWorld:HelloWorld"],
             indexFlags: [],
-            buildTestSuffix: "_(PLAT)_skbsp",
-            buildTestPlatformPlaceholder: "(PLAT)",
-            filesToWatch: nil
+            filesToWatch: nil,
+            compileTopLevel: false
         )
 
         let rootUri = "/path/to/project"
@@ -82,5 +81,22 @@ struct BazelTargetParserTests {
         let actual = result.map(\.0.id.uri.stringValue).sorted()
 
         #expect(expected == actual)
+    }
+
+    // FIXME: Generate an updated aquery containing the other app types
+    // so that we can test the other cases as well.
+    @Test
+    func canParseTopLevelConfigInfo() throws {
+        let aqueryResult = try AqueryResult(data: exampleAqueryOutput)
+        let config = try BazelQueryParser.topLevelConfigInfo(
+            ofTarget: "//HelloWorld:HelloWorld",
+            withType: .iosApplication,
+            in: aqueryResult
+        )
+        #expect(config.configurationName == "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f")
+        #expect(config.effectiveConfigurationName == "ios_sim_arm64-dbg-ios-sim_arm64-min17.0")
+        #expect(config.minimumOsVersion == "17.0")
+        // In this case it's a BundleTreeApp as it's an app, but other types will differ here.
+        #expect(config.action.mnemonic == "BundleTreeApp")
     }
 }

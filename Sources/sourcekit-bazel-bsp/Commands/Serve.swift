@@ -44,18 +44,6 @@ struct Serve: ParsableCommand {
     )
     var indexFlag: [String] = []
 
-    @Option(
-        help:
-            "The expected suffix format for build_test targets. Use the value of `--build-test-platform-placeholder` as a platform placeholder.",
-    )
-    var buildTestSuffix: String = "_\(Self.defaultBuildTestPlatformPlaceholder)_skbsp"
-
-    @Option(
-        help:
-            "The expected platform placeholder for build_test targets.",
-    )
-    var buildTestPlatformPlaceholder: String = Self.defaultBuildTestPlatformPlaceholder
-
     @Option(help: "Comma separated list of file globs to watch for changes.")
     var filesToWatch: String?
 
@@ -68,9 +56,15 @@ struct Serve: ParsableCommand {
 
     @Option(
         help:
-            "The number of targets to prepare in parallel. If not specified, SourceKit-LSP will calculate an appropriate value based on the environment. Requires using the pre-built SourceKit-LSP binary from the release archive.",
+            "The number of targets to prepare in parallel. If not specified, SourceKit-LSP will calculate an appropriate value based on the environment. Requires --compile-top-level and using the pre-built SourceKit-LSP binary from the release archive.",
     )
     var indexBuildBatchSize: Int? = nil
+
+    @Flag(
+        help:
+            "Instead of attempting to build targets individually, build the top-level parent. If your project contains build_test targets for your individual libraries and you're passing them as the top-level targets for the BSP, you can use this flag to build those targets directly for better predictability and caching."
+    )
+    var compileTopLevel: Bool = false
 
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
@@ -107,9 +101,8 @@ struct Serve: ParsableCommand {
             bazelWrapper: bazelWrapper,
             targets: targets,
             indexFlags: indexFlag.map { "--" + $0 },
-            buildTestSuffix: buildTestSuffix,
-            buildTestPlatformPlaceholder: buildTestPlatformPlaceholder,
             filesToWatch: filesToWatch,
+            compileTopLevel: compileTopLevel,
             indexBuildBatchSize: indexBuildBatchSize
         )
         let server = SourceKitBazelBSPServer(baseConfig: config)
