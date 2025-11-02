@@ -231,6 +231,7 @@ struct BazelTargetCompilerArgsExtractorTests {
 // MARK: - Example inputs and expected results
 
 /// Example aquery output for the example app shipped with this repo.
+/// bazelisk aquery "mnemonic('BundleTreeApp|CppCompile|ObjcCompile|SignBinary|SwiftCompile|TestRunner', deps(//HelloWorld:HelloWorld) union deps(//HelloWorld:HelloWorldTests) union deps(//HelloWorld:HelloWorldWatchApp) union deps(//HelloWorld:HelloWorldMacApp) union deps(//HelloWorld:HelloWorldMacCLIApp) union deps(//HelloWorld:HelloWorldLib_ios_skbsp)" --noinclude_artifacts --noinclude_artifacts --noinclude_aspects --output proto --features=-compiler_param_file --config=index_build
 let exampleAqueryOutput: Data = {
     guard let url = Bundle.module.url(forResource: "aquery", withExtension: "pb"),
         let data = try? Data.init(contentsOf: url)

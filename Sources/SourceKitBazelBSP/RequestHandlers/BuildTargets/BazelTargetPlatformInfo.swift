@@ -40,8 +40,6 @@ struct BazelTargetPlatformInfo {
 // Information about a target's Bazel configuration, used to determine
 // how a particular library should be compiled.
 struct BazelTargetConfigurationInfo {
-    let configurationID: UInt32
-
     /// The configuration name as stated in the aquery,
     /// e.g. darwin_arm64-dbg-macos-arm64-min15.0-applebin_macos-ST-d1334902beb6
     let configurationName: String
@@ -52,5 +50,4 @@ struct BazelTargetConfigurationInfo {
     let effectiveConfigurationName: String
 
     let minimumOsVersion: String
-    let action: Analysis_Action
 }

@@ -26,6 +26,7 @@ private let logger = makeFileLevelBSPLogger()
 struct AqueryResult: Hashable {
     let targets: [String: Analysis_Target]
     let actions: [UInt32: [Analysis_Action]]
+    let configurations: [UInt32: Analysis_Configuration]
 
     init(data: Data) throws {
         let results = try BazelProtobufBindings.parseActionGraph(data: data)
@@ -47,7 +48,11 @@ struct AqueryResult: Hashable {
             // We need to store all of them and find the correct variant later.
             result[action.targetID, default: []].append(action)
         }
+        let configurations: [UInt32: Analysis_Configuration] = results.configuration.reduce(into: [:]) { result, configuration in
+            result[configuration.id] = configuration
+        }
         self.targets = targets
         self.actions = actions
+        self.configurations = configurations
     }
 }

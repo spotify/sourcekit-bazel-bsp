@@ -66,7 +66,7 @@ This will result in a `.bsp/skbsp.json` file being added to your workspace. User
 
 #### After Integrating
 
-- Reload your workspace (`Cmd+Shift+P -> Reload Window`)
+- Reload your workspace (`Cmd+Shift+P -> Reload Window`) or restart the language server (`Cmd+Shift+P -> Swift: Restart LSP Server`)
 
 After following these steps, the `SourceKit Language Server` output tab (_Cmd+Shift+U_) should show up when opening Swift or Obj-C files, and indexing-related actions will start popping up at the bottom of the IDE after a while alongside a new `SourceKit-LSP: Indexing` output tab when working with those files.
 

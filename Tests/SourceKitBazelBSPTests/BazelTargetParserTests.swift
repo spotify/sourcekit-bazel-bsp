@@ -83,12 +83,10 @@ struct BazelTargetParserTests {
         #expect(expected == actual)
     }
 
-    // FIXME: Generate an updated aquery containing the other app types
-    // so that we can test the other cases as well.
     @Test
     func canParseTopLevelConfigInfo() throws {
         let aqueryResult = try AqueryResult(data: exampleAqueryOutput)
-        let config = try BazelQueryParser.topLevelConfigInfo(
+        var config = try BazelQueryParser.topLevelConfigInfo(
             ofTarget: "//HelloWorld:HelloWorld",
             withType: .iosApplication,
             in: aqueryResult
@@ -96,7 +94,45 @@ struct BazelTargetParserTests {
         #expect(config.configurationName == "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f")
         #expect(config.effectiveConfigurationName == "ios_sim_arm64-dbg-ios-sim_arm64-min17.0")
         #expect(config.minimumOsVersion == "17.0")
-        // In this case it's a BundleTreeApp as it's an app, but other types will differ here.
-        #expect(config.action.mnemonic == "BundleTreeApp")
+        config = try BazelQueryParser.topLevelConfigInfo(
+            ofTarget: "//HelloWorld:HelloWorldTests",
+            withType: .iosUnitTest,
+            in: aqueryResult
+        )
+        #expect(config.configurationName == "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f")
+        #expect(config.effectiveConfigurationName == "ios_sim_arm64-dbg-ios-sim_arm64-min17.0")
+        #expect(config.minimumOsVersion == "17.0")
+        config = try BazelQueryParser.topLevelConfigInfo(
+            ofTarget: "//HelloWorld:HelloWorldWatchApp",
+            withType: .watchosApplication,
+            in: aqueryResult
+        )
+        #expect(config.configurationName == "watchos_x86_64-dbg-watchos-x86_64-min7.0-applebin_watchos-ST-74f4ed91ef5d")
+        #expect(config.effectiveConfigurationName == "watchos_x86_64-dbg-watchos-x86_64-min7.0")
+        #expect(config.minimumOsVersion == "7.0")
+        config = try BazelQueryParser.topLevelConfigInfo(
+            ofTarget: "//HelloWorld:HelloWorldMacApp",
+            withType: .macosApplication,
+            in: aqueryResult
+        )
+        #expect(config.configurationName == "darwin_arm64-dbg-macos-arm64-min15.0-applebin_macos-ST-d1334902beb6")
+        #expect(config.effectiveConfigurationName == "darwin_arm64-dbg-macos-arm64-min15.0")
+        #expect(config.minimumOsVersion == "15.0")
+        config = try BazelQueryParser.topLevelConfigInfo(
+            ofTarget: "//HelloWorld:HelloWorldMacCLIApp",
+            withType: .macosCommandLineApplication,
+            in: aqueryResult
+        )
+        #expect(config.configurationName == "darwin_arm64-dbg-macos-arm64-min15.0-applebin_macos-ST-d1334902beb6")
+        #expect(config.effectiveConfigurationName == "darwin_arm64-dbg-macos-arm64-min15.0")
+        #expect(config.minimumOsVersion == "15.0")
+        config = try BazelQueryParser.topLevelConfigInfo(
+            ofTarget: "//HelloWorld:HelloWorldLib_ios_skbsp",
+            withType: .iosBuildTest,
+            in: aqueryResult
+        )
+        #expect(config.configurationName == "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f")
+        #expect(config.effectiveConfigurationName == "ios_sim_arm64-dbg-ios-sim_arm64-min17.0")
+        #expect(config.minimumOsVersion == "17.0")
     }
 }

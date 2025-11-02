@@ -203,7 +203,13 @@ final class BazelTargetCompilerArgsExtractor {
         // We need to now locate the one that matches the configuration from the parent action
         // we're using as a reference.
         var candidateActions = actions.filter {
-            $0.configurationID == platformInfo.topLevelParentConfig.configurationID
+            // FIXME: We need to search for the configuration _name_ because Bazel for some reason
+            // creates multiple config ids for build_test rules and I'm not sure why.
+            // This would be much faster if we could search by id directly.
+            guard let config = aquery.configurations[$0.configurationID] else {
+                return false
+            }
+            return config.mnemonic == platformInfo.topLevelParentConfig.configurationName
         }
         let contentBeingQueried: String
         switch strategy {

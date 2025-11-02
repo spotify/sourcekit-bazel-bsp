@@ -30,8 +30,8 @@ enum BazelQueryParserError: Error, LocalizedError {
     case parentTargetNotFound(String, String)
     case parentActionNotFound(String, UInt32)
     case multipleParentActions(String, String)
-    case noArguments(String, String)
-    case indexOutOfBounds(Int, [String])
+    case configurationNotFound(UInt32)
+    case indexOutOfBounds(Int, Int)
 
     var errorDescription: String? {
         switch self {
@@ -43,10 +43,10 @@ enum BazelQueryParserError: Error, LocalizedError {
             return "Parent action \(id) for parent \(parent) not found in the aquery output."
         case .multipleParentActions(let parent, let target):
             return "Multiple parent actions found for parent \(parent) of \(target). This is unexpected."
-        case .noArguments(let parent, let target):
-            return "No arguments found for parent \(parent) of \(target)."
-        case .indexOutOfBounds(let index, let array):
-            return "Index \(index) is out of bounds for array: \(array)"
+        case .configurationNotFound(let id):
+            return "Configuration \(id) not found in the aquery output."
+        case .indexOutOfBounds(let index, let line):
+            return "Index \(index) is out of bounds for array at line \(line)"
         }
     }
 }
@@ -199,7 +199,7 @@ extension BazelQueryParser {
     ) throws -> BazelTargetConfigurationInfo {
         // If the parent is a test target, we need to append __internal__.__test_bundle to the label to find it in the output.
         let effectiveParentLabel: String
-        if type.isTestRule {
+        if type.generatesTestBundle {
             effectiveParentLabel = target + ".__internal__.__test_bundle"
         } else {
             effectiveParentLabel = target
@@ -214,48 +214,33 @@ extension BazelQueryParser {
         guard parentActions.count == 1 else {
             throw BazelQueryParserError.multipleParentActions(effectiveParentLabel, target)
         }
+        // From the parent action, we can now fetch its configuration name.
+        // e.g. darwin_arm64-dbg-macos-arm64-min15.0-applebin_macos-ST-d1334902beb6
         let parentAction = parentActions[0]
         let configId = parentAction.configurationID
-        let parentArgs = parentAction.arguments
-        // The last argument for all of these actions is the output (bazel-out/a/b/c...).
-        // We will parse the "a/b/c" bit (the target configuration) out of that.
-        // e.g. darwin_arm64-dbg-macos-arm64-min15.0-applebin_macos-ST-d1334902beb6
-        guard let lastArgument = parentArgs.last else {
-            throw BazelQueryParserError.noArguments(effectiveParentLabel, target)
+        guard let fullConfig = aquery.configurations[configId]?.mnemonic else {
+            throw BazelQueryParserError.configurationNotFound(configId)
         }
-        let outputArg: String
-        switch type {
-        case .macosCommandLineApplication:
-            // In macOS CLI SignBinary actions, the last action is slightly different.
-            outputArg = try lastArgument.components(separatedBy: " ").getIndexThrowing(1)
-        default:
-            outputArg = lastArgument
-        }
-
-        let fullConfig = try outputArg.components(separatedBy: "/").getIndexThrowing(1)
         let configComponents = fullConfig.components(separatedBy: "-")
         // min15.0 -> 15.0
         let minTargetArg = String(try configComponents.getIndexThrowing(4).dropFirst(3))
-
         // To support compiling libraries directly, we need to additionally strip out
         // the transition and distinguisher parts of the configuration name, as those will not
         // be present when compiling directly.
         let configWithoutTransitionOrDistinguisher = configComponents.dropLast(3)
         let effectiveConfigurationName = configWithoutTransitionOrDistinguisher.joined(separator: "-")
         return BazelTargetConfigurationInfo(
-            configurationID: configId,
             configurationName: fullConfig,
             effectiveConfigurationName: effectiveConfigurationName,
             minimumOsVersion: minTargetArg,
-            action: parentAction
         )
     }
 }
 
-extension Array where Element == String {
-    fileprivate func getIndexThrowing(_ index: Int) throws -> Element {
+extension Array {
+    fileprivate func getIndexThrowing(_ index: Int, _ line: Int = #line) throws -> Element {
         guard index < count else {
-            throw BazelQueryParserError.indexOutOfBounds(index, self)
+            throw BazelQueryParserError.indexOutOfBounds(index, line)
         }
         return self[index]
     }

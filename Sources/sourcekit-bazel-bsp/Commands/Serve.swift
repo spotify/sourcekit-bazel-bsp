@@ -25,8 +25,6 @@ import SourceKitBazelBSP
 private let logger = makeFileLevelBSPLogger()
 
 struct Serve: ParsableCommand {
-    private static let defaultBuildTestPlatformPlaceholder = "(PLAT)"
-
     @Option(help: "The name of the Bazel CLI to invoke (e.g. 'bazelisk')")
     var bazelWrapper: String = "bazel"
 
