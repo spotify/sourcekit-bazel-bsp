@@ -48,7 +48,9 @@ struct AqueryResult: Hashable {
             // We need to store all of them and find the correct variant later.
             result[action.targetID, default: []].append(action)
         }
-        let configurations: [UInt32: Analysis_Configuration] = results.configuration.reduce(into: [:]) { result, configuration in
+        let configurations: [UInt32: Analysis_Configuration] = results.configuration.reduce(into: [:]) {
+            result,
+            configuration in
             result[configuration.id] = configuration
         }
         self.targets = targets
