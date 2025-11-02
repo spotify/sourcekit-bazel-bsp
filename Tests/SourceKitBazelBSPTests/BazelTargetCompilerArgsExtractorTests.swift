@@ -217,12 +217,13 @@ struct BazelTargetCompilerArgsExtractorTests {
             withStrategy: .swiftModule,
         )
         #expect(
-            result == expectedSwiftResult.map {
-                $0.replacingOccurrences(
-                    of: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0",
-                    with: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f"
-                )
-            }
+            result
+                == expectedSwiftResult.map {
+                    $0.replacingOccurrences(
+                        of: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0",
+                        with: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f"
+                    )
+                }
         )
     }
 }

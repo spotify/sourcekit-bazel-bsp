@@ -179,11 +179,10 @@ final class InitializeHandler {
                 // FIXME: It's possible to support this, just doing one thing at a time for simplicity.
                 logger.warning("Ignoring indexBuildBatchSize: Currently only supported for --compile-top-level.")
             }
-            if compileTopLevel == false {
-                return 1
-            } else {
+            guard compileTopLevel == false else {
                 return indexBuildBatchSize
             }
+            return 1
         }()
         return InitializeBuildResponse(
             displayName: "sourcekit-bazel-bsp",

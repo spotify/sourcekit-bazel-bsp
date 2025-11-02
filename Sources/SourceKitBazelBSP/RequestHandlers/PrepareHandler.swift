@@ -147,11 +147,10 @@ final class PrepareHandler {
         logger.info("Will build \(labelsToBuild.joined(separator: ", "), privacy: .public)")
 
         let extraArgsSuffix: String = {
-            if extraArgs.isEmpty {
-                return ""
-            } else {
+            guard extraArgs.isEmpty else {
                 return " \(extraArgs.joined(separator: " "))"
             }
+            return ""
         }()
 
         nonisolated(unsafe) let completion = completion
@@ -214,15 +213,14 @@ final class PrepareHandler {
         for platformInfo: [BazelTargetPlatformInfo],
         compileTopLevel: Bool
     ) -> String {
-        if compileTopLevel {
-            let targetLabels = Set(platformInfo.map { $0.topLevelParentLabel }).sorted()
-            let targetNames = targetLabels.joined(separator: ", ")
-            return "sourcekit-bazel-bsp: Building \(targetLabels.count) target(s): \(targetNames)"
-        } else {
+        guard compileTopLevel else {
             let targetLabels = platformInfo.map { $0.label }
             let targetNames = targetLabels.joined(separator: ", ")
             return "sourcekit-bazel-bsp: Building \(targetLabels.count) target(s): \(targetNames)"
         }
+        let targetLabels = Set(platformInfo.map { $0.topLevelParentLabel }).sorted()
+        let targetNames = targetLabels.joined(separator: ", ")
+        return "sourcekit-bazel-bsp: Building \(targetLabels.count) target(s): \(targetNames)"
     }
 }
 

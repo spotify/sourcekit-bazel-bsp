@@ -17,11 +17,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import BazelProtobufBindings
 import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 import Testing
-import BazelProtobufBindings
 
 @testable import SourceKitBazelBSP
 
@@ -160,70 +160,80 @@ struct PrepareHandlerTests {
     func providesCorrectFlagsForiOSTargets() {
         let handler = Self.makeHandler()
         let actualFlags = handler.buildArgs(topLevelParentRuleType: .iosApplication, minimumOsVersion: "15.0")
-        #expect(actualFlags == [
-            "--platforms=@build_bazel_apple_support//platforms:ios_arm64",
-            "--ios_multi_cpus=arm64",
-            "--apple_platform_type=ios",
-            "--apple_split_cpu=arm64",
-            "--ios_minimum_os=\"15.0\"",
-            "--cpu=ios_arm64",
-            "--minimum_os_version=\"15.0\"",
-        ])
+        #expect(
+            actualFlags == [
+                "--platforms=@build_bazel_apple_support//platforms:ios_arm64",
+                "--ios_multi_cpus=arm64",
+                "--apple_platform_type=ios",
+                "--apple_split_cpu=arm64",
+                "--ios_minimum_os=\"15.0\"",
+                "--cpu=ios_arm64",
+                "--minimum_os_version=\"15.0\"",
+            ]
+        )
     }
 
     func providesCorrectFlagsForWatchOSTargets() {
         let handler = Self.makeHandler()
         let actualFlags = handler.buildArgs(topLevelParentRuleType: .watchosApplication, minimumOsVersion: "15.0")
-        #expect(actualFlags == [
-            "--platforms=@build_bazel_apple_support//platforms:watchos_x86_64",
-            "--watchos_cpus=x86_64",
-            "--apple_platform_type=watchos",
-            "--apple_split_cpu=x86_64",
-            "--watchos_minimum_os=\"15.0\"",
-            "--cpu=watchos_x86_64",
-            "--minimum_os_version=\"15.0\""
-        ])
+        #expect(
+            actualFlags == [
+                "--platforms=@build_bazel_apple_support//platforms:watchos_x86_64",
+                "--watchos_cpus=x86_64",
+                "--apple_platform_type=watchos",
+                "--apple_split_cpu=x86_64",
+                "--watchos_minimum_os=\"15.0\"",
+                "--cpu=watchos_x86_64",
+                "--minimum_os_version=\"15.0\"",
+            ]
+        )
     }
 
     func providesCorrectFlagsForMacOSTargets() {
         let handler = Self.makeHandler()
         let actualFlags = handler.buildArgs(topLevelParentRuleType: .macosApplication, minimumOsVersion: "15.0")
-        #expect(actualFlags == [
-            "--platforms=@build_bazel_apple_support//platforms:macos_arm64",
-            "--macos_cpus=arm64",
-            "--apple_platform_type=macos",
-            "--apple_split_cpu=arm64",
-            "--macos_minimum_os=\"15.0\"",
-            "--cpu=darwin_arm64",
-            "--minimum_os_version=\"15.0\""
-        ])
+        #expect(
+            actualFlags == [
+                "--platforms=@build_bazel_apple_support//platforms:macos_arm64",
+                "--macos_cpus=arm64",
+                "--apple_platform_type=macos",
+                "--apple_split_cpu=arm64",
+                "--macos_minimum_os=\"15.0\"",
+                "--cpu=darwin_arm64",
+                "--minimum_os_version=\"15.0\"",
+            ]
+        )
     }
 
     func providesCorrectFlagsForTVOSTargets() {
         let handler = Self.makeHandler()
         let actualFlags = handler.buildArgs(topLevelParentRuleType: .tvosApplication, minimumOsVersion: "15.0")
-        #expect(actualFlags == [
-            "--platforms=@build_bazel_apple_support//platforms:tvos_sim_arm64",
-            "--tvos_cpus=sim_arm64",
-            "--apple_platform_type=tvos",
-            "--apple_split_cpu=sim_arm64",
-            "--tvos_minimum_os=\"15.0\"",
-            "--cpu=tvos_sim_arm64",
-            "--minimum_os_version=\"15.0\""
-        ])
+        #expect(
+            actualFlags == [
+                "--platforms=@build_bazel_apple_support//platforms:tvos_sim_arm64",
+                "--tvos_cpus=sim_arm64",
+                "--apple_platform_type=tvos",
+                "--apple_split_cpu=sim_arm64",
+                "--tvos_minimum_os=\"15.0\"",
+                "--cpu=tvos_sim_arm64",
+                "--minimum_os_version=\"15.0\"",
+            ]
+        )
     }
 
     func providesCorrectFlagsForVisionOSTargets() {
         let handler = Self.makeHandler()
         let actualFlags = handler.buildArgs(topLevelParentRuleType: .visionosApplication, minimumOsVersion: "15.0")
-        #expect(actualFlags == [
-            "--platforms=@build_bazel_apple_support//platforms:visionos_sim_arm64",
-            "--visionos_cpus=sim_arm64",
-            "--apple_platform_type=visionos",
-            "--apple_split_cpu=sim_arm64",
-            "--visionos_minimum_os=\"15.0\"",
-            "--cpu=visionos_sim_arm64",
-            "--minimum_os_version=\"15.0\""
-        ])
+        #expect(
+            actualFlags == [
+                "--platforms=@build_bazel_apple_support//platforms:visionos_sim_arm64",
+                "--visionos_cpus=sim_arm64",
+                "--apple_platform_type=visionos",
+                "--apple_split_cpu=sim_arm64",
+                "--visionos_minimum_os=\"15.0\"",
+                "--cpu=visionos_sim_arm64",
+                "--minimum_os_version=\"15.0\"",
+            ]
+        )
     }
 }
