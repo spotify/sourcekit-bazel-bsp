@@ -31,13 +31,10 @@
 - Download and install [the official Swift extension](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) for Cursor / VSCode.
   - Note: (Cursor) As of writing, you won't be able to do this directly via Cursor's Marketplace (you will find one there, but it's an old version). You will need to download the `.vsix` file from the [extension's releases](https://github.com/swiftlang/vscode-swift/releases) and install it manually.
 - On Cursor / VSCode, open a workspace containing the repository in question.
-- On the settings page for the Swift extension, enable `SourceKit-LSP: Background Indexing` at the **workspace level**. It **has** to be workspace settings; this specific setting is not supported at the folder level.
 - **(Optional)** Configure your workspace to use a custom `sourcekit-lsp` binary by placing the provided binary from the release archive at a place of your choice, running _Cmd+P_ on the IDE, typing `> Preferences: Open Workspace Settings (JSON)`, and adding the following entry to the JSON file: `"swift.sourcekit-lsp.serverPath": "(absolute path to the sourcekit-lsp binary to use)"`
   - This is not strictly necessary. However, as we currently make use of LSP features that are not yet shipped to Xcode, you may face performance and other usability issues when using the version that is shipped with Xcode. Consider using the version provided alongside sourcekit-bazel-bsp (or compiling your own) for the best experience.
 
-The next step is to integrate sourcekit-bazel-bsp with your project. There are currently two ways you can do it:
-
-#### Integrating via Bzlmod
+The next step is to integrate sourcekit-bazel-bsp with your project:
 
 - Add the following to your `MODULE.bazel` file:
 
@@ -60,16 +57,13 @@ setup_sourcekit_bsp(
 
 This will result in a `.bsp/skbsp.json` file being added to your workspace. Users should then re-run the above command whenever the configuration changes.
 
-#### Integrating Manually
-
-- Copy the `rules/bsp_config.json.tpl` template file from this repository to your desired repository's `.bsp/(name_of_your_choice).json`.
-- Edit the `argv` fields to match the details for your app / setup. You can see all available options by running `sourcekit-bazel-bsp serve --help`.
-
 #### After Integrating
 
-- Reload your workspace (`Cmd+Shift+P -> Reload Window`) or restart the language server (`Cmd+Shift+P -> Swift: Restart LSP Server`)
+- Either restart the language server (`Cmd+Shift+P -> Swift: Restart LSP Server`) or reload the entire window (`Cmd+Shift+P -> Reload Window`) if you don't see the previous option.
 
-After following these steps, the `SourceKit Language Server` output tab (_Cmd+Shift+U_) should show up when opening Swift or Obj-C files, and indexing-related actions will start popping up at the bottom of the IDE after a while alongside a new `SourceKit-LSP: Indexing` output tab when working with those files.
+After following these steps and opening a Swift file, the `SourceKit Language Server` output tab (_Cmd+Shift+U_) should eventually show up (this will take a couple of seconds if the Swift extension needs to be launched on that window), and indexing-related actions will start popping up at the bottom of the IDE after a while alongside a new `SourceKit-LSP: Indexing` output tab when working with those files.
+
+While a complete indexing run can take a very long time on large projects, keep in mind that you don't need one. As long as the individual target you're working with is indexed (which happens automatically as you start working on it, as the LSP prioritizes targets you're actively modifying), all of the usual indexing features will work as you'd expect.
 
 If you experience any trouble trying to get it to work, check out the [Example/ folder](./Example) for a test project with a pre-configured Bazel and `.bsp/` folder setup. The _Troubleshooting_ section below also contains instructions on how to debug sourcekit-bazel-bsp.
 

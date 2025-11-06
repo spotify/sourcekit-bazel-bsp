@@ -10,10 +10,10 @@ This is a simple **iOS** app that lets you see sourcekit-bazel-bsp in action. Th
 - On this folder, run:
   - `bazelisk run //HelloWorld:setup_sourcekit_bsp_example_project`
 - On Cursor, open a workspace **targeting this specific folder.**
-- On the settings page for the Swift extension, enable `SourceKit-LSP: Background Indexing` at the **workspace level**. It **has** to be workspace settings; this specific setting is not supported at the folder level.
 - (Optional) Follow the instructions from the main README regarding configuring a custom SourceKit-LSP binary.
-- Reload your workspace (`Cmd+Shift+P -> Reload Window`)
+- Either restart the language server (`Cmd+Shift+P -> Swift: Restart LSP Server`) or reload the entire window (`Cmd+Shift+P -> Reload Window`) if you don't see the previous option.
 - Open a Swift file to load the extension. It has to be a Swift file; as of writing this will not work if you open a Objective-C file (but they will work fine after the extension is loaded).
+- (If reloading the entire window) Wait for the Swift extension to launch. We've seen that this can take a couple of seconds depending on the version of your extension.
 
 After performing these steps, you should already be able to see the basic indexing features in action. It may take a minute or two the first time, but you can see the progress at the bottom of the IDE. You should also be able to see a new `SourceKit Language Server` option on the `Output` tab that shows sourcekit-lsp's internal logs, and after modifying a file for the first time an additional `SourceKit-LSP: Indexing` tab will pop up containing more detailed logs from both tools.
 
