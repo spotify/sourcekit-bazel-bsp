@@ -24,42 +24,53 @@ public enum TopLevelRuleType: String, CaseIterable, ExpressibleByArgument, Senda
     case iosApplication = "ios_application"
     case iosUnitTest = "ios_unit_test"
     case iosUiTest = "ios_ui_test"
+    case iosBuildTest = "ios_build_test"
     case watchosApplication = "watchos_application"
     case watchosUnitTest = "watchos_unit_test"
     case watchosUiTest = "watchos_ui_test"
+    case watchosBuildTest = "watchos_build_test"
     case macosApplication = "macos_application"
     case macosCommandLineApplication = "macos_command_line_application"
     case macosUnitTest = "macos_unit_test"
     case macosUiTest = "macos_ui_test"
+    case macosBuildTest = "macos_build_test"
     case tvosApplication = "tvos_application"
     case tvosUnitTest = "tvos_unit_test"
     case tvosUiTest = "tvos_ui_test"
+    case tvosBuildTest = "tvos_build_test"
     case visionosApplication = "visionos_application"
     case visionosUnitTest = "visionos_unit_test"
     case visionosUiTest = "visionos_ui_test"
+    case visionosBuildTest = "visionos_build_test"
 
     var platform: String {
         switch self {
         case .iosApplication: return "ios"
         case .iosUnitTest: return "ios"
         case .iosUiTest: return "ios"
+        case .iosBuildTest: return "ios"
         case .watchosApplication: return "watchos"
         case .watchosUnitTest: return "watchos"
         case .watchosUiTest: return "watchos"
+        case .watchosBuildTest: return "watchos"
         case .macosApplication: return "macos"
         case .macosCommandLineApplication: return "macos"
         case .macosUnitTest: return "macos"
         case .macosUiTest: return "macos"
+        case .macosBuildTest: return "macos"
         case .tvosApplication: return "tvos"
         case .tvosUnitTest: return "tvos"
         case .tvosUiTest: return "tvos"
+        case .tvosBuildTest: return "tvos"
         case .visionosApplication: return "visionos"
         case .visionosUnitTest: return "visionos"
         case .visionosUiTest: return "visionos"
+        case .visionosBuildTest: return "visionos"
         }
     }
 
-    var isTestRule: Bool {
+    /// Returns true if the top-level rule generates a __internal__.__test_bundle label.
+    var generatesTestBundle: Bool {
         switch self {
         case .iosUnitTest, .iosUiTest, .watchosUnitTest, .watchosUiTest, .macosUnitTest, .macosUiTest, .tvosUnitTest,
             .tvosUiTest, .visionosUnitTest, .visionosUiTest:
@@ -75,19 +86,105 @@ public enum TopLevelRuleType: String, CaseIterable, ExpressibleByArgument, Senda
         case .iosApplication: return "iphonesimulator"
         case .iosUnitTest: return "iphonesimulator"
         case .iosUiTest: return "iphonesimulator"
+        case .iosBuildTest: return "iphonesimulator"
         case .watchosApplication: return "watchsimulator"
         case .watchosUnitTest: return "watchsimulator"
         case .watchosUiTest: return "watchsimulator"
+        case .watchosBuildTest: return "watchsimulator"
         case .macosApplication: return "macosx"
         case .macosCommandLineApplication: return "macosx"
         case .macosUnitTest: return "macosx"
         case .macosUiTest: return "macosx"
+        case .macosBuildTest: return "macosx"
         case .tvosApplication: return "appletvsimulator"
         case .tvosUnitTest: return "appletvsimulator"
         case .tvosUiTest: return "appletvsimulator"
+        case .tvosBuildTest: return "appletvsimulator"
         case .visionosApplication: return "xrsimulator"
         case .visionosUnitTest: return "xrsimulator"
         case .visionosUiTest: return "xrsimulator"
+        case .visionosBuildTest: return "xrsimulator"
+        }
+    }
+
+    // FIXME: Not the best way to handle this as we need to eventually
+    // handle device builds as well
+    var cpu: String {
+        switch self {
+        case .iosApplication: return "sim_arm64"
+        case .iosUnitTest: return "sim_arm64"
+        case .iosUiTest: return "sim_arm64"
+        case .iosBuildTest: return "sim_arm64"
+        case .watchosApplication: return "x86_64"
+        case .watchosUnitTest: return "x86_64"
+        case .watchosUiTest: return "x86_64"
+        case .watchosBuildTest: return "x86_64"
+        case .macosApplication: return "arm64"
+        case .macosCommandLineApplication: return "arm64"
+        case .macosUnitTest: return "arm64"
+        case .macosUiTest: return "arm64"
+        case .macosBuildTest: return "arm64"
+        case .tvosApplication: return "sim_arm64"
+        case .tvosUnitTest: return "sim_arm64"
+        case .tvosUiTest: return "sim_arm64"
+        case .tvosBuildTest: return "sim_arm64"
+        case .visionosApplication: return "sim_arm64"
+        case .visionosUnitTest: return "sim_arm64"
+        case .visionosUiTest: return "sim_arm64"
+        case .visionosBuildTest: return "sim_arm64"
+        }
+    }
+
+    // Not the same as the platform (see macOS cases)
+    var cpuPrefix: String {
+        switch self {
+        case .iosApplication: return "ios"
+        case .iosUnitTest: return "ios"
+        case .iosUiTest: return "ios"
+        case .iosBuildTest: return "ios"
+        case .watchosApplication: return "watchos"
+        case .watchosUnitTest: return "watchos"
+        case .watchosUiTest: return "watchos"
+        case .watchosBuildTest: return "watchos"
+        case .macosApplication: return "darwin"
+        case .macosCommandLineApplication: return "darwin"
+        case .macosUnitTest: return "darwin"
+        case .macosUiTest: return "darwin"
+        case .macosBuildTest: return "darwin"
+        case .tvosApplication: return "tvos"
+        case .tvosUnitTest: return "tvos"
+        case .tvosUiTest: return "tvos"
+        case .tvosBuildTest: return "tvos"
+        case .visionosApplication: return "visionos"
+        case .visionosUnitTest: return "visionos"
+        case .visionosUiTest: return "visionos"
+        case .visionosBuildTest: return "visionos"
+        }
+    }
+
+    var cpuFlagName: String {
+        switch self {
+        case .iosApplication: return "multi_cpus"
+        case .iosUnitTest: return "multi_cpus"
+        case .iosUiTest: return "multi_cpus"
+        case .iosBuildTest: return "multi_cpus"
+        case .watchosApplication: return "cpus"
+        case .watchosUnitTest: return "cpus"
+        case .watchosUiTest: return "cpus"
+        case .watchosBuildTest: return "cpus"
+        case .macosApplication: return "cpus"
+        case .macosCommandLineApplication: return "cpus"
+        case .macosUnitTest: return "cpus"
+        case .macosUiTest: return "cpus"
+        case .macosBuildTest: return "cpus"
+        case .tvosApplication: return "cpus"
+        case .tvosUnitTest: return "cpus"
+        case .tvosUiTest: return "cpus"
+        case .tvosBuildTest: return "cpus"
+        case .visionosApplication: return "cpus"
+        case .visionosUnitTest: return "cpus"
+        case .visionosUiTest: return "cpus"
+        case .visionosBuildTest: return "cpus"
         }
     }
 }

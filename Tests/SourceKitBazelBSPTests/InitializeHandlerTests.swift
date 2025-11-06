@@ -34,9 +34,8 @@ struct InitializeHandlerTests {
             bazelWrapper: "mybazel",
             targets: ["//HelloWorld"],
             indexFlags: ["--config=index"],
-            buildTestSuffix: "_(PLAT)_skbsp",
-            buildTestPlatformPlaceholder: "(PLAT)",
-            filesToWatch: nil
+            filesToWatch: nil,
+            compileTopLevel: false
         )
 
         let fullRootUri = "file:///path/to/project"
@@ -90,9 +89,8 @@ struct InitializeHandlerTests {
             bazelWrapper: "mybazel",
             targets: ["//HelloWorld"],
             indexFlags: [],
-            buildTestSuffix: "_(PLAT)_skbsp",
-            buildTestPlatformPlaceholder: "(PLAT)",
-            filesToWatch: nil
+            filesToWatch: nil,
+            compileTopLevel: false
         )
 
         let fullRootUri = "file:///path/to/project"
@@ -132,9 +130,8 @@ struct InitializeHandlerTests {
             bazelWrapper: "mybazel",
             targets: ["//HelloWorld"],
             indexFlags: ["--config=index1", "--config=index2"],
-            buildTestSuffix: "_(PLAT)_skbsp",
-            buildTestPlatformPlaceholder: "(PLAT)",
-            filesToWatch: nil
+            filesToWatch: nil,
+            compileTopLevel: false
         )
 
         let fullRootUri = "file:///path/to/project"

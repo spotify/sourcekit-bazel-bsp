@@ -28,25 +28,22 @@ package struct BaseServerConfig: Equatable {
     let bazelWrapper: String
     let targets: [String]
     let indexFlags: [String]
-    let buildTestSuffix: String
-    let buildTestPlatformPlaceholder: String
     let filesToWatch: String?
     let indexBuildBatchSize: Int?
+    let compileTopLevel: Bool
 
     package init(
         bazelWrapper: String,
         targets: [String],
         indexFlags: [String],
-        buildTestSuffix: String,
-        buildTestPlatformPlaceholder: String,
         filesToWatch: String?,
+        compileTopLevel: Bool,
         indexBuildBatchSize: Int? = nil
     ) {
         self.bazelWrapper = bazelWrapper
         self.indexFlags = indexFlags
-        self.buildTestSuffix = buildTestSuffix
-        self.buildTestPlatformPlaceholder = buildTestPlatformPlaceholder
         self.filesToWatch = filesToWatch
+        self.compileTopLevel = compileTopLevel
         self.indexBuildBatchSize = indexBuildBatchSize
 
         // We need to post-process the target list provided by the user

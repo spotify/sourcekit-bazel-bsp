@@ -27,7 +27,22 @@ import Testing
 
 @Suite
 struct BazelTargetCompilerArgsExtractorTests {
-    private static func makeMockExtractor() -> BazelTargetCompilerArgsExtractor {
+
+    let aqueryResult: AqueryResult
+    let helloWorldConfig: BazelTargetConfigurationInfo
+
+    init() throws {
+        self.aqueryResult = try AqueryResult(data: exampleAqueryOutput)
+        self.helloWorldConfig = try BazelQueryParser.topLevelConfigInfo(
+            ofTarget: "//HelloWorld:HelloWorld",
+            withType: .iosApplication,
+            in: aqueryResult
+        )
+    }
+
+    private static func makeMockExtractor(
+        compileTopLevel: Bool = false
+    ) -> BazelTargetCompilerArgsExtractor {
         let mockRootUri = "/Users/user/Documents/demo-ios-project"
         let mockDevDir = "/Applications/Xcode.app/Contents/Developer"
         let mockOutputPath = "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out"
@@ -44,9 +59,8 @@ struct BazelTargetCompilerArgsExtractorTests {
                 bazelWrapper: "bazel",
                 targets: ["//HelloWorld"],
                 indexFlags: [],
-                buildTestSuffix: "_(PLAT)_skbsp",
-                buildTestPlatformPlaceholder: "(PLAT)",
-                filesToWatch: nil
+                filesToWatch: nil,
+                compileTopLevel: compileTopLevel
             ),
             rootUri: mockRootUri,
             outputBase: mockOutputBase,
@@ -71,9 +85,9 @@ struct BazelTargetCompilerArgsExtractorTests {
             fromAquery: aqueryResult,
             forTarget: BazelTargetPlatformInfo(
                 label: "//HelloWorld:HelloWorldLib",
-                buildTestLabel: "//HelloWorld:HelloWorldLib_ios_skbsp",
                 topLevelParentLabel: "//HelloWorld:HelloWorld",
-                topLevelParentRuleType: .iosApplication
+                topLevelParentRuleType: .iosApplication,
+                topLevelParentConfig: helloWorldConfig
             ),
             withStrategy: .swiftModule,
         )
@@ -89,9 +103,9 @@ struct BazelTargetCompilerArgsExtractorTests {
             fromAquery: aqueryResult,
             forTarget: BazelTargetPlatformInfo(
                 label: "//HelloWorld:TodoObjCSupport",
-                buildTestLabel: "//HelloWorld:TodoObjCSupport_ios_skbsp",
                 topLevelParentLabel: "//HelloWorld:HelloWorld",
-                topLevelParentRuleType: .iosApplication
+                topLevelParentRuleType: .iosApplication,
+                topLevelParentConfig: helloWorldConfig
             ),
             withStrategy: .objcImpl("HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.m"),
         )
@@ -108,9 +122,9 @@ struct BazelTargetCompilerArgsExtractorTests {
                 fromAquery: aqueryResult,
                 forTarget: BazelTargetPlatformInfo(
                     label: "//HelloWorld:TodoObjCSupport",
-                    buildTestLabel: "//HelloWorld:TodoObjCSupport_ios_skbsp",
                     topLevelParentLabel: "//HelloWorld:HelloWorld",
-                    topLevelParentRuleType: .iosApplication
+                    topLevelParentRuleType: .iosApplication,
+                    topLevelParentConfig: helloWorldConfig
                 ),
                 withStrategy: .objcImpl("HelloWorld/TodoObjCSupport/Sources/SomethingElse.m"),
             )
@@ -130,9 +144,9 @@ struct BazelTargetCompilerArgsExtractorTests {
             fromAquery: aqueryResult,
             forTarget: BazelTargetPlatformInfo(
                 label: "//HelloWorld:TodoObjCSupport",
-                buildTestLabel: "//HelloWorld:TodoObjCSupport_ios_skbsp",
                 topLevelParentLabel: "//HelloWorld:HelloWorld",
-                topLevelParentRuleType: .iosApplication
+                topLevelParentRuleType: .iosApplication,
+                topLevelParentConfig: helloWorldConfig
             ),
             withStrategy: .cHeader,
         )
@@ -173,21 +187,52 @@ struct BazelTargetCompilerArgsExtractorTests {
                 fromAquery: aqueryResult,
                 forTarget: BazelTargetPlatformInfo(
                     label: "//HelloWorld:SomethingElseLib",
-                    buildTestLabel: "//HelloWorld:SomethingElseLib_ios_skbsp",
                     topLevelParentLabel: "//HelloWorld:HelloWorld",
-                    topLevelParentRuleType: .iosApplication
+                    topLevelParentRuleType: .iosApplication,
+                    topLevelParentConfig: helloWorldConfig
                 ),
                 withStrategy: .swiftModule,
             )
         }
         #expect(error?.localizedDescription == "Target //HelloWorld:SomethingElseLib not found in the aquery output.")
     }
+
+    @Test
+    func compilingTopLevelKeepsFullConfigName() throws {
+        // If the base config has compileTopLevel to true, then the output is the same
+        // with the difference that we don't need to sanitize the config name.
+        let extractor = Self.makeMockExtractor(
+            compileTopLevel: true
+        )
+        let aqueryResult = try AqueryResult(data: exampleAqueryOutput)
+
+        let result = try extractor.extractCompilerArgs(
+            fromAquery: aqueryResult,
+            forTarget: BazelTargetPlatformInfo(
+                label: "//HelloWorld:HelloWorldLib",
+                topLevelParentLabel: "//HelloWorld:HelloWorld",
+                topLevelParentRuleType: .iosApplication,
+                topLevelParentConfig: helloWorldConfig
+            ),
+            withStrategy: .swiftModule,
+        )
+        #expect(
+            result
+                == expectedSwiftResult.map {
+                    $0.replacingOccurrences(
+                        of: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0",
+                        with: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f"
+                    )
+                }
+        )
+    }
 }
 
 // MARK: - Example inputs and expected results
 
 /// Example aquery output for the example app shipped with this repo.
-private let exampleAqueryOutput: Data = {
+/// bazelisk aquery "mnemonic('BundleTreeApp|CppCompile|ObjcCompile|SignBinary|SwiftCompile|TestRunner', deps(//HelloWorld:HelloWorld) union deps(//HelloWorld:HelloWorldTests) union deps(//HelloWorld:HelloWorldWatchApp) union deps(//HelloWorld:HelloWorldMacApp) union deps(//HelloWorld:HelloWorldMacCLIApp) union deps(//HelloWorld:HelloWorldLib_ios_skbsp)" --noinclude_artifacts --noinclude_artifacts --noinclude_aspects --output proto --features=-compiler_param_file --config=index_build
+let exampleAqueryOutput: Data = {
     guard let url = Bundle.module.url(forResource: "aquery", withExtension: "pb"),
         let data = try? Data.init(contentsOf: url)
     else { fatalError("aquery.pb is not found in Resources folder") }
@@ -206,11 +251,11 @@ let expectedSwiftResult: [String] = [
     "/Applications/Xcode.app/Contents/Developer=/PLACEHOLDER_DEVELOPER_DIR",
     "-emit-object",
     "-output-file-map",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin/HelloWorld/HelloWorldLib.output_file_map.json",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld/HelloWorldLib.output_file_map.json",
     "-Xfrontend",
     "-no-clang-module-breadcrumbs",
     "-emit-module-path",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin/HelloWorld/HelloWorldLib.swiftmodule",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld/HelloWorldLib.swiftmodule",
     "-enforce-exclusivity=checked",
     "-Xfrontend",
     "-const-gather-protocols-file",
@@ -228,12 +273,12 @@ let expectedSwiftResult: [String] = [
     "-file-compilation-dir",
     ".",
     "-module-cache-path",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin/_swift_module_cache",
-    "-I/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin/HelloWorld",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/_swift_module_cache",
+    "-I/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld",
     "-Xcc",
     "-iquote.",
     "-Xcc",
-    "-iquote/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin",
+    "-iquote/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin",
     "-Xcc",
     "-fmodule-map-file=/Users/user/Documents/demo-ios-project/HelloWorld/TodoObjCSupport/Sources/module.modulemap",
     "-Xfrontend",
@@ -299,10 +344,10 @@ let expectedObjCResult: [String] = [
     "-iquote",
     ".",
     "-iquote",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin",
     "-MD",
     "-MF",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin/HelloWorld/_objs/TodoObjCSupport/arc/SKDateDistanceCalculator.d",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld/_objs/TodoObjCSupport/arc/SKDateDistanceCalculator.d",
     "-DOS_IOS",
     "-fno-autolink",
     "-isysroot",
@@ -321,7 +366,7 @@ let expectedObjCResult: [String] = [
     "-g",
     "HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.m",
     "-o",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f/bin/HelloWorld/_objs/TodoObjCSupport/arc/SKDateDistanceCalculator.o",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld/_objs/TodoObjCSupport/arc/SKDateDistanceCalculator.o",
     "-index-store-path",
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/_global_index_store",
     "-working-directory",

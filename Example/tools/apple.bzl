@@ -41,7 +41,6 @@ def hello_swift_library(
             ],
         )
 
-
 def hello_objc_library(
     name,
     platforms,

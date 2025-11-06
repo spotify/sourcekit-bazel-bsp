@@ -9,13 +9,11 @@ def _setup_sourcekit_bsp_impl(ctx):
         bsp_config_argv.append(target)
     bsp_config_argv.append("--bazel-wrapper")
     bsp_config_argv.append(ctx.attr.bazel_wrapper)
-    bsp_config_argv.append("--build-test-suffix")
-    bsp_config_argv.append(ctx.attr.build_test_suffix)
-    bsp_config_argv.append("--build-test-platform-placeholder")
-    bsp_config_argv.append(ctx.attr.build_test_platform_placeholder)
     if ctx.attr.index_build_batch_size:
         bsp_config_argv.append("--index-build-batch-size")
         bsp_config_argv.append(ctx.attr.index_build_batch_size)
+    if ctx.attr.compile_top_level:
+        bsp_config_argv.append("--compile-top-level")
     for index_flag in ctx.attr.index_flags:
         bsp_config_argv.append("--index-flag")
         bsp_config_argv.append(index_flag)
@@ -98,17 +96,13 @@ setup_sourcekit_bsp = rule(
             doc = "A list of top-level rule types to discover targets for (e.g. 'ios_application', 'ios_unit_test'). Only applicable when not specifying targets directly. If not specified, all supported top-level rule types will be used for target discovery.",
             default = [],
         ),
-        "build_test_suffix": attr.string(
-            doc = "The expected suffix format for build_test targets. Use the value of `build_test_platform_placeholder` as a platform placeholder.",
-            default = "_(PLAT)_skbsp",
-        ),
-        "build_test_platform_placeholder": attr.string(
-            doc = "The expected platform placeholder for build_test targets.",
-            default = "(PLAT)",
-        ),
         "index_build_batch_size": attr.int(
-            doc = "The number of targets to prepare in parallel. If not specified, SourceKit-LSP will calculate an appropriate value based on the environment. Requires using the pre-built SourceKit-LSP binary from the release archive.",
+            doc = "The number of targets to prepare in parallel. If not specified, SourceKit-LSP will calculate an appropriate value based on the environment. Requires compile_top_level and using the pre-built SourceKit-LSP binary from the release archive.",
             mandatory = False,
-        )
+        ),
+        "compile_top_level": attr.bool(
+            doc = "Instead of attempting to build targets individually, build the top-level parent. If your project contains build_test targets for your individual libraries and you're passing them as the top-level targets for the BSP, you can use this flag to build those targets directly for better predictability and caching.",
+            default = False,
+        ),
     },
 )

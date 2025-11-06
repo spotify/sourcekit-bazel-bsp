@@ -25,6 +25,16 @@ import struct os.OSAllocatedUnfairLock
 
 private let logger = makeFileLevelBSPLogger()
 
+enum PrepareHandlerError: Error, LocalizedError {
+    case unexpectedBatching([String])
+
+    var errorDescription: String? {
+        switch self {
+        case .unexpectedBatching(let labels): return "Unexpected batching of targets: \(labels.joined(separator: ", "))"
+        }
+    }
+}
+
 /// Handles the `buildTarget/prepare` request.
 ///
 /// Builds the provided list of targets upon request.
@@ -80,18 +90,39 @@ final class PrepareHandler {
                     try targetStore.platformBuildLabelInfo(forBSPURI: $0.uri)
                 }
             }
-            let taskTitle: String = {
-                let targetLabels = platformInfo.map { $0.label }
-                let targetNames = targetLabels.joined(separator: ", ")
-                return "sourcekit-bazel-bsp: Building \(targetsToBuild.count) target(s): \(targetNames)"
-            }()
+            let taskTitle: String = makeTaskTitle(
+                for: platformInfo,
+                compileTopLevel: initializedConfig.baseConfig.compileTopLevel
+            )
             connection?.startWorkTask(
                 id: taskId,
                 title: taskTitle
             )
             didStartTask = true
+            let labelsToBuild: [String]
+            let extraArgs: [String]
+            if initializedConfig.baseConfig.compileTopLevel {
+                labelsToBuild = platformInfo.map { $0.topLevelParentLabel }
+                extraArgs = []  // Not applicable in this case
+            } else {
+                guard platformInfo.count == 1 else {
+                    // Should not happen as we force the batch size to 1 in this case,
+                    // but catching it just in case.
+                    throw PrepareHandlerError.unexpectedBatching(platformInfo.map { $0.label })
+                }
+                let infoToBuild = platformInfo[0]
+                labelsToBuild = [infoToBuild.label]
+                extraArgs = buildArgs(
+                    topLevelParentRuleType: infoToBuild.topLevelParentRuleType,
+                    minimumOsVersion: infoToBuild.topLevelParentConfig.minimumOsVersion
+                )
+            }
             nonisolated(unsafe) let reply = reply
-            try build(bazelLabels: platformInfo.map { $0.buildTestLabel }, id: id) { [connection] error in
+            try build(
+                bazelLabels: labelsToBuild,
+                extraArgs: extraArgs,
+                id: id
+            ) { [connection] error in
                 if let error = error {
                     connection?.finishTask(id: taskId, status: .error)
                     reply(.failure(error))
@@ -109,17 +140,25 @@ final class PrepareHandler {
 
     func build(
         bazelLabels labelsToBuild: [String],
+        extraArgs: [String],
         id: RequestID,
         completion: @escaping ((ResponseError?) -> Void)
     ) throws {
         logger.info("Will build \(labelsToBuild.joined(separator: ", "), privacy: .public)")
+
+        let extraArgsSuffix: String = {
+            guard extraArgs.isEmpty else {
+                return " \(extraArgs.joined(separator: " "))"
+            }
+            return ""
+        }()
 
         nonisolated(unsafe) let completion = completion
         try currentTaskLock.withLock { [commandRunner, initializedConfig] currentTask in
             let process = try commandRunner.bazelIndexAction(
                 baseConfig: initializedConfig.baseConfig,
                 outputBase: initializedConfig.outputBase,
-                cmd: "build \(labelsToBuild.joined(separator: " "))",
+                cmd: "build \(labelsToBuild.joined(separator: " "))\(extraArgsSuffix)",
                 rootUri: initializedConfig.rootUri,
                 additionalFlags: Self.additionalBuildFlags,
                 additionalStartupFlags: Self.additionalStartupFlags
@@ -144,6 +183,44 @@ final class PrepareHandler {
             }
             currentTask = (process, id)
         }
+    }
+
+    func buildArgs(
+        topLevelParentRuleType: TopLevelRuleType,
+        minimumOsVersion: String
+    ) -> [String] {
+        // As of writing, Bazel does not provides a "build X as if it were a child of Y" flag.
+        // This means that to compile individual libraries accurately, we need to replicate
+        // all the transitions that are applied by ios_application rules and friends.
+        // https://github.com/bazelbuild/rules_apple/blob/716568e34b158d67adf83b64d2cea5ea142b641f/apple/internal/transition_support.bzl#L30
+        let platform = topLevelParentRuleType.platform
+        let cpuPrefix = topLevelParentRuleType.cpuPrefix
+        let cpu = topLevelParentRuleType.cpu
+        let cpuFlag = topLevelParentRuleType.cpuFlagName
+        let minimumOsVersion = minimumOsVersion
+        return [
+            "--platforms=@build_bazel_apple_support//platforms:\(platform)_\(cpu)",
+            "--\(platform)_\(cpuFlag)=\(cpu)",
+            "--apple_platform_type=\(platform)",
+            "--apple_split_cpu=\(cpu)",
+            "--\(platform)_minimum_os=\"\(minimumOsVersion)\"",
+            "--cpu=\(cpuPrefix)_\(cpu)",
+            "--minimum_os_version=\"\(minimumOsVersion)\"",
+        ]
+    }
+
+    func makeTaskTitle(
+        for platformInfo: [BazelTargetPlatformInfo],
+        compileTopLevel: Bool
+    ) -> String {
+        guard compileTopLevel else {
+            let targetLabels = platformInfo.map { $0.label }
+            let targetNames = targetLabels.joined(separator: ", ")
+            return "sourcekit-bazel-bsp: Building \(targetLabels.count) target(s): \(targetNames)"
+        }
+        let targetLabels = Set(platformInfo.map { $0.topLevelParentLabel }).sorted()
+        let targetNames = targetLabels.joined(separator: ", ")
+        return "sourcekit-bazel-bsp: Building \(targetLabels.count) target(s): \(targetNames)"
     }
 }
 
