@@ -19,8 +19,9 @@
 
 ## Requirements
 
-- Swift 6.1+ toolchain (equivalent to Xcode 16.4+)
+- (To use the tool) Swift 6.1+ toolchain (equivalent to Xcode 16.4+)
   - Note that even though sourcekit-bazel-bsp itself is completely detached from Xcode, **you will still need to have Xcode installed on your machine to do any sort of actual Apple development.** This is because installing Xcode is currently the only way to get access to and manage the platform toolchains, so even though this tool allows you to break free from the Xcode IDE itself, you still need to have it around for toolchain reasons. In order to completely avoid Xcode, we would need Apple to detach it from the toolchains and all their related tooling.
+- (To compile the tool from source) Xcode 26
 
 ## Initial Setup Instructions
 

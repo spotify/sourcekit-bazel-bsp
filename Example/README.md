@@ -7,6 +7,7 @@ This is a simple **iOS** app that lets you see sourcekit-bazel-bsp in action. Th
 - Make sure you fulfill the toolchain requirements for sourcekit-bazel-bsp, available at the main README.
 - Install [bazelisk](https://github.com/bazelbuild/bazelisk) if you haven't already.
   - On macOS: `brew install bazelisk`
+  - Make sure you're using **Xcode 26** as this is what this project was developed with.
 - On this folder, run:
   - `bazelisk run //HelloWorld:setup_sourcekit_bsp_example_project`
 - On Cursor, open a workspace **targeting this specific folder.**
