@@ -94,6 +94,8 @@ struct BazelTargetParserTests {
         #expect(config.configurationName == "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f")
         #expect(config.effectiveConfigurationName == "ios_sim_arm64-dbg-ios-sim_arm64-min17.0")
         #expect(config.minimumOsVersion == "17.0")
+        #expect(config.platform == "ios")
+        #expect(config.cpuArch == "sim_arm64")
         config = try BazelQueryParser.topLevelConfigInfo(
             ofTarget: "//HelloWorld:HelloWorldTests",
             withType: .iosUnitTest,
@@ -102,6 +104,8 @@ struct BazelTargetParserTests {
         #expect(config.configurationName == "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f")
         #expect(config.effectiveConfigurationName == "ios_sim_arm64-dbg-ios-sim_arm64-min17.0")
         #expect(config.minimumOsVersion == "17.0")
+        #expect(config.platform == "ios")
+        #expect(config.cpuArch == "sim_arm64")
         config = try BazelQueryParser.topLevelConfigInfo(
             ofTarget: "//HelloWorld:HelloWorldWatchApp",
             withType: .watchosApplication,
@@ -110,6 +114,8 @@ struct BazelTargetParserTests {
         #expect(config.configurationName == "watchos_x86_64-dbg-watchos-x86_64-min7.0-applebin_watchos-ST-74f4ed91ef5d")
         #expect(config.effectiveConfigurationName == "watchos_x86_64-dbg-watchos-x86_64-min7.0")
         #expect(config.minimumOsVersion == "7.0")
+        #expect(config.platform == "watchos")
+        #expect(config.cpuArch == "x86_64")
         config = try BazelQueryParser.topLevelConfigInfo(
             ofTarget: "//HelloWorld:HelloWorldMacApp",
             withType: .macosApplication,
@@ -118,6 +124,8 @@ struct BazelTargetParserTests {
         #expect(config.configurationName == "darwin_arm64-dbg-macos-arm64-min15.0-applebin_macos-ST-d1334902beb6")
         #expect(config.effectiveConfigurationName == "darwin_arm64-dbg-macos-arm64-min15.0")
         #expect(config.minimumOsVersion == "15.0")
+        #expect(config.platform == "darwin")
+        #expect(config.cpuArch == "arm64")
         config = try BazelQueryParser.topLevelConfigInfo(
             ofTarget: "//HelloWorld:HelloWorldMacCLIApp",
             withType: .macosCommandLineApplication,
@@ -126,6 +134,8 @@ struct BazelTargetParserTests {
         #expect(config.configurationName == "darwin_arm64-dbg-macos-arm64-min15.0-applebin_macos-ST-d1334902beb6")
         #expect(config.effectiveConfigurationName == "darwin_arm64-dbg-macos-arm64-min15.0")
         #expect(config.minimumOsVersion == "15.0")
+        #expect(config.platform == "darwin")
+        #expect(config.cpuArch == "arm64")
         config = try BazelQueryParser.topLevelConfigInfo(
             ofTarget: "//HelloWorld:HelloWorldLib_ios_skbsp",
             withType: .iosBuildTest,
@@ -134,5 +144,7 @@ struct BazelTargetParserTests {
         #expect(config.configurationName == "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f")
         #expect(config.effectiveConfigurationName == "ios_sim_arm64-dbg-ios-sim_arm64-min17.0")
         #expect(config.minimumOsVersion == "17.0")
+        #expect(config.platform == "ios")
+        #expect(config.cpuArch == "sim_arm64")
     }
 }

@@ -159,7 +159,11 @@ struct PrepareHandlerTests {
 
     func providesCorrectFlagsForiOSTargets() {
         let handler = Self.makeHandler()
-        let actualFlags = handler.buildArgs(topLevelParentRuleType: .iosApplication, minimumOsVersion: "15.0")
+        let actualFlags = handler.buildArgs(
+            minimumOsVersion: "15.0",
+            platform: "ios",
+            cpuArch: "arm64"
+        )
         #expect(
             actualFlags == [
                 "--platforms=@build_bazel_apple_support//platforms:ios_arm64",
@@ -175,7 +179,11 @@ struct PrepareHandlerTests {
 
     func providesCorrectFlagsForWatchOSTargets() {
         let handler = Self.makeHandler()
-        let actualFlags = handler.buildArgs(topLevelParentRuleType: .watchosApplication, minimumOsVersion: "15.0")
+        let actualFlags = handler.buildArgs(
+            minimumOsVersion: "15.0",
+            platform: "watchos",
+            cpuArch: "x86_64"
+        )
         #expect(
             actualFlags == [
                 "--platforms=@build_bazel_apple_support//platforms:watchos_x86_64",
@@ -191,7 +199,11 @@ struct PrepareHandlerTests {
 
     func providesCorrectFlagsForMacOSTargets() {
         let handler = Self.makeHandler()
-        let actualFlags = handler.buildArgs(topLevelParentRuleType: .macosApplication, minimumOsVersion: "15.0")
+        let actualFlags = handler.buildArgs(
+            minimumOsVersion: "15.0",
+            platform: "darwin",
+            cpuArch: "arm64"
+        )
         #expect(
             actualFlags == [
                 "--platforms=@build_bazel_apple_support//platforms:macos_arm64",
@@ -207,7 +219,11 @@ struct PrepareHandlerTests {
 
     func providesCorrectFlagsForTVOSTargets() {
         let handler = Self.makeHandler()
-        let actualFlags = handler.buildArgs(topLevelParentRuleType: .tvosApplication, minimumOsVersion: "15.0")
+        let actualFlags = handler.buildArgs(
+            minimumOsVersion: "15.0",
+            platform: "tvos",
+            cpuArch: "sim_arm64"
+        )
         #expect(
             actualFlags == [
                 "--platforms=@build_bazel_apple_support//platforms:tvos_sim_arm64",
@@ -223,7 +239,11 @@ struct PrepareHandlerTests {
 
     func providesCorrectFlagsForVisionOSTargets() {
         let handler = Self.makeHandler()
-        let actualFlags = handler.buildArgs(topLevelParentRuleType: .visionosApplication, minimumOsVersion: "15.0")
+        let actualFlags = handler.buildArgs(
+            minimumOsVersion: "15.0",
+            platform: "visionos",
+            cpuArch: "sim_arm64"
+        )
         #expect(
             actualFlags == [
                 "--platforms=@build_bazel_apple_support//platforms:visionos_sim_arm64",

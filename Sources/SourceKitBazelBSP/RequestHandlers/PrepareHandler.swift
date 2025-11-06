@@ -113,8 +113,9 @@ final class PrepareHandler {
                 let infoToBuild = platformInfo[0]
                 labelsToBuild = [infoToBuild.label]
                 extraArgs = buildArgs(
-                    topLevelParentRuleType: infoToBuild.topLevelParentRuleType,
-                    minimumOsVersion: infoToBuild.topLevelParentConfig.minimumOsVersion
+                    minimumOsVersion: infoToBuild.topLevelParentConfig.minimumOsVersion,
+                    platform: infoToBuild.topLevelParentConfig.platform,
+                    cpuArch: infoToBuild.topLevelParentConfig.cpuArch,
                 )
             }
             nonisolated(unsafe) let reply = reply
@@ -186,25 +187,37 @@ final class PrepareHandler {
     }
 
     func buildArgs(
-        topLevelParentRuleType: TopLevelRuleType,
-        minimumOsVersion: String
+        minimumOsVersion: String,
+        platform: String,
+        cpuArch: String
     ) -> [String] {
         // As of writing, Bazel does not provides a "build X as if it were a child of Y" flag.
         // This means that to compile individual libraries accurately, we need to replicate
         // all the transitions that are applied by ios_application rules and friends.
         // https://github.com/bazelbuild/rules_apple/blob/716568e34b158d67adf83b64d2cea5ea142b641f/apple/internal/transition_support.bzl#L30
-        let platform = topLevelParentRuleType.platform
-        let cpuPrefix = topLevelParentRuleType.cpuPrefix
-        let cpu = topLevelParentRuleType.cpu
-        let cpuFlag = topLevelParentRuleType.cpuFlagName
-        let minimumOsVersion = minimumOsVersion
+        let friendlyPlatName: String = {
+            // Special case: macOS is sometimes referred to as Darwin
+            // in the infra, so we need to handle that here. Not an issue for the
+            // other platforms.
+            if platform == "darwin" {
+                return "macos"
+            }
+            return platform
+        }()
+        let cpuFlagName: String = {
+            // Special case 2: This flag is different for iOS.
+            if platform == "ios" {
+                return "multi_cpus"
+            }
+            return "cpus"
+        }()
         return [
-            "--platforms=@build_bazel_apple_support//platforms:\(platform)_\(cpu)",
-            "--\(platform)_\(cpuFlag)=\(cpu)",
-            "--apple_platform_type=\(platform)",
-            "--apple_split_cpu=\(cpu)",
-            "--\(platform)_minimum_os=\"\(minimumOsVersion)\"",
-            "--cpu=\(cpuPrefix)_\(cpu)",
+            "--platforms=@build_bazel_apple_support//platforms:\(friendlyPlatName)_\(cpuArch)",
+            "--\(friendlyPlatName)_\(cpuFlagName)=\(cpuArch)",
+            "--apple_platform_type=\(friendlyPlatName)",
+            "--apple_split_cpu=\(cpuArch)",
+            "--\(friendlyPlatName)_minimum_os=\"\(minimumOsVersion)\"",
+            "--cpu=\(platform)_\(cpuArch)",
             "--minimum_os_version=\"\(minimumOsVersion)\"",
         ]
     }

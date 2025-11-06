@@ -224,6 +224,11 @@ extension BazelQueryParser {
         let configComponents = fullConfig.components(separatedBy: "-")
         // min15.0 -> 15.0
         let minTargetArg = String(try configComponents.getIndexThrowing(4).dropFirst(3))
+        // The first component contains the platform and arch info.
+        // e.g darwin_arm64 -> (darwin, arm64)
+        let cpuComponents = try configComponents.getIndexThrowing(0).split(separator: "_", maxSplits: 1)
+        let platform = try cpuComponents.getIndexThrowing(0)
+        let cpuArch = try cpuComponents.getIndexThrowing(1)
         // To support compiling libraries directly, we need to additionally strip out
         // the transition and distinguisher parts of the configuration name, as those will not
         // be present when compiling directly.
@@ -233,6 +238,8 @@ extension BazelQueryParser {
             configurationName: fullConfig,
             effectiveConfigurationName: effectiveConfigurationName,
             minimumOsVersion: minTargetArg,
+            platform: String(platform),
+            cpuArch: String(cpuArch),
         )
     }
 }
