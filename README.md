@@ -29,6 +29,7 @@
 - Make sure your Bazel project is using compatible versions of all iOS-related Bazel rulesets (available on each release's description) and is configured to generate Swift/Obj-C indexing data and debug symbols, either by default or under a specific config.
   - Detailed information around configuring Bazel flags is currently WIP, but you can currently check out the [example project](./Example) for an example.
 - Download and install [the official Swift extension](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) for Cursor / VSCode.
+  - Note: As of writing, you won't be able to do this directly via Cursor's Marketplace. You will need to download the `.vsix` file from the [extension's releases](https://github.com/swiftlang/vscode-swift/releases) and install it manually.
 - On Cursor / VSCode, open a workspace containing the repository in question.
 - On the settings page for the Swift extension, enable `SourceKit-LSP: Background Indexing` at the **workspace level**. It **has** to be workspace settings; this specific setting is not supported at the folder level.
 - **(Optional)** Configure your workspace to use a custom `sourcekit-lsp` binary by placing the provided binary from the release archive at a place of your choice, running _Cmd+P_ on the IDE, typing `> Preferences: Open Workspace Settings (JSON)`, and adding the following entry to the JSON file: `"swift.sourcekit-lsp.serverPath": "(absolute path to the sourcekit-lsp binary to use)"`
