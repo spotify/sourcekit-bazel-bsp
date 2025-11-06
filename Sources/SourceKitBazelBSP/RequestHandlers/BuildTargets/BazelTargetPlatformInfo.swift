@@ -28,10 +28,6 @@ struct BazelTargetPlatformInfo {
     let topLevelParentRuleType: TopLevelRuleType
     let topLevelParentConfig: BazelTargetConfigurationInfo
 
-    var platform: String {
-        topLevelParentRuleType.platform
-    }
-
     var platformSdkName: String {
         topLevelParentRuleType.sdkName
     }
@@ -50,4 +46,6 @@ struct BazelTargetConfigurationInfo {
     let effectiveConfigurationName: String
 
     let minimumOsVersion: String
+    let platform: String
+    let cpuArch: String
 }
