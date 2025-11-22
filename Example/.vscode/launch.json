@@ -7,6 +7,7 @@
             "preLaunchTask": "_launch_helloworld",
             "debuggerRoot": "${workspaceFolder}",
             "attachCommands": [
+                "command script import '${workspaceFolder}/scripts/lldb_inject_settings.py",
                 "process connect connect://localhost:6667",
             ],
             "internalConsoleOptions": "openOnSessionStart",

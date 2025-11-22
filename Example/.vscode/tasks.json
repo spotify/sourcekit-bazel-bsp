@@ -49,6 +49,22 @@
       "isBackground": true,
       "problemMatcher": [
         {
+          "owner": "swift",
+          "source": "swift",
+          "fileLocation": [
+            "relative",
+            "${workspaceFolder}"
+          ],
+          "pattern": {
+            "regexp": "^(.+?):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.*)$",
+            "file": 1,
+            "line": 2,
+            "column": 3,
+            "severity": 4,
+            "message": 5
+          }
+        },
+        {
           "pattern": [
             {
               "regexp": "\\b\\B",
@@ -66,17 +82,6 @@
       ],
       "runOptions": {
         "instanceLimit": 1
-      }
-    },
-    {
-      "label": "Stream SourceKitBazelBSP Logs",
-      "type": "shell",
-      "command": "log stream --process sourcekit-bazel-bsp --debug",
-      "problemMatcher": [],
-      "isBackground": false,
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
       }
     }
   ]

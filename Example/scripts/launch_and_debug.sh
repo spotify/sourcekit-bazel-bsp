@@ -2,28 +2,25 @@
 
 set -e
 
-# We don't use bazelisk run because it does a bunch of things we don't want in this case.
-# Instead, we have our own script for launching the simulator and lldb.
-# Ideally we should upstream these changes back to rules_apple since they should be useful for everyone.
+# When asking Bazel to launch a simulator, we need to intercept
+# the launched process' PID to be able to debug it later on.
+# We do this by asking it to write this info to a file.
+# These two paths are also hardcoded in the lldb_inject_settings.py script.
+pid_json=/tmp/lldb-bridge/launch_info
+output_base_path=/tmp/lldb-bridge/output_base
 
-echo "Building..."
-bazelisk build //HelloWorld
-chmod -R 777 ./bazel-bin/HelloWorld
+rm ${pid_json} > /dev/null 2>&1 || true
+rm ${output_base_path} > /dev/null 2>&1 || true
 
-tmp_file=$(pwd)/bazel-bin/HelloWorld/pid.txt
-rm ${tmp_file} > /dev/null 2>&1 || true
-touch ${tmp_file}
-cp ./scripts/HelloWorld ./bazel-bin/HelloWorld/HelloWorld
+# lldb_inject_settings.py reads this to to run some necessary lldb commands in advance.
+bazelisk info output_base > ${output_base_path}
 
-pushd ./bazel-bin
-python3 ./HelloWorld/HelloWorld --wait-for-debugger --stdout=$(tty) --stderr=$(tty) > ${tmp_file}
-popd
+BAZEL_APPLE_PREFER_PERSISTENT_SIMS=1 \
+BAZEL_APPLE_LAUNCH_INFO_PATH=${pid_json} \
+BAZEL_SIMCTL_LAUNCH_FLAGS="--wait-for-debugger --stdout=$(tty) --stderr=$(tty)" \
+bazelisk run //HelloWorld:HelloWorld
 
-# Get pid from the tmp_file
-echo "$(cat "${tmp_file}" | awk -F': ' '{print $2}')" > ${tmp_file}
-# Ugly hack to remove the newline from the file
-pid=$(tr -d '\n' < ${tmp_file})
-echo "Launched app's pid: ${pid}"
+pid=$(jq -r '.pid' "${pid_json}")
 
 xcode_path=$(xcode-select -p)
 debugserver_path="${xcode_path}/../SharedFrameworks/LLDB.framework/Versions/A/Resources/debugserver"
