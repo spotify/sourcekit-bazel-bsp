@@ -1,6 +1,7 @@
 {
     "swift.sourcekit-lsp.backgroundIndexing": "on",
     "swift.sourcekit-lsp.trace.server": "messages",
+    "swift.sourcekit-lsp.serverPath":  "/Users/mostafa.essam/Library/Developer/Xcode/DerivedData/sourcekit-lsp-hjlrhelrwpehrpezdvulxehkrvsc/Build/Products/Debug/sourcekit-lsp",
     "terminal.integrated.profiles.osx": {
         "zsh": {
             "path": "/bin/zsh",

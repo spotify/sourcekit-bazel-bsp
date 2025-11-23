@@ -81,9 +81,10 @@ final class TargetSourcesHandler {
 
         if srcPath.hasPrefix(workspaceRoot) {
             // Workspace file -> single execroot location Bazel copies to.
-            // We need to tell the lsp about the path of this file in execution root to later it maps it again to original Workspace path.
+            // We need to tell the LSP about the path of each file in execution root to later help it mapping it again to original Workspace path.
             let relativePath = trimmedRelativePath(fullPath: srcPath, base: workspaceRoot)
-            destinations.append(DocumentURI(filePath: execRoot + "/" + relativePath, isDirectory: true))
+            let destination = DocumentURI(filePath: execRoot + "/" + relativePath, isDirectory: true)
+            destinations.append(destination)
         }
 
         return destinations.isEmpty ? nil : destinations
