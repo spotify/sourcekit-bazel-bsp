@@ -66,6 +66,50 @@ final class TargetSourcesHandler {
         var result: [SourceItem] = []
         for src in targetSrcs {
             let srcString = src.stringValue
+            let copyDestinations: [DocumentURI]?
+            if let srcPath = src.fileURL?.path {
+                var destinations: [DocumentURI] = []
+
+                let workspaceRoot = initializedConfig.rootUri
+                let execRoot = initializedConfig.executionRoot
+
+                func trimmedRelativePath(fullPath: String, base: String) -> String {
+                    var relativePath = fullPath.dropFirst(base.count)
+                    if relativePath.first == "/" {
+                        relativePath = relativePath.dropFirst()
+                    }
+                    return String(relativePath)
+                }
+
+                if srcPath.hasPrefix(workspaceRoot) {
+                    // Workspace file -> single execroot location Bazel copies to.
+                    let rel = trimmedRelativePath(fullPath: srcPath, base: workspaceRoot)
+                    destinations.append(DocumentURI(filePath: execRoot + "/" + rel, isDirectory: false))
+                } else if srcPath.hasPrefix(execRoot) {
+                    // Execroot copy -> map back to the workspace location.
+                    let rel = trimmedRelativePath(fullPath: srcPath, base: execRoot)
+                    let workspacePath = URL(fileURLWithPath: workspaceRoot).appendingPathComponent(rel).path
+                    destinations.append(DocumentURI(filePath: workspacePath, isDirectory: false))
+                }
+
+                // Deduplicate while preserving order.
+                var seen: Set<String> = []
+                let unique = destinations.filter { dest in
+                    let value = dest.stringValue
+                    if seen.contains(value) { return false }
+                    seen.insert(value)
+                    return true
+                }
+
+                copyDestinations = unique.isEmpty ? nil : unique
+                if let copyDestinations {
+                    let paths = copyDestinations.map { $0.stringValue }.joined(separator: ", ")
+                    if #available(iOS 14.0, *) {
+                    }
+                }
+            } else {
+                copyDestinations = nil
+            }
             let kind: SourceKitSourceItemKind
             if srcString.hasSuffix("h") {
                 kind = .header
@@ -89,7 +133,8 @@ final class TargetSourcesHandler {
                     data: SourceKitSourceItemData(
                         language: language,
                         kind: kind,
-                        outputPath: nil  // FIXME: Related to the same flag on initialize?
+                        outputPath: nil,  // FIXME: Related to the same flag on initialize?
+                        copyDestinations: copyDestinations
                     ).encodeToLSPAny()
                 )
             )
