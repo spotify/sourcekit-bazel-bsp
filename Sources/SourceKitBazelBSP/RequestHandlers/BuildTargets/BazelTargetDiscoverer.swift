@@ -1,11 +1,15 @@
 import Foundation
 
 public enum BazelTargetDiscovererError: LocalizedError, Equatable {
+    case noRulesProvided
     case noTargetsDiscovered
+    case noLocationsProvided
 
     public var errorDescription: String? {
         switch self {
+        case .noRulesProvided: return "No rules provided!"
         case .noTargetsDiscovered: return "No targets discovered!"
+        case .noLocationsProvided: return "No locations provided!"
         }
     }
 }
@@ -23,14 +27,22 @@ public enum BazelTargetDiscoverer {
     public static func discoverTargets(
         for rules: [TopLevelRuleType] = TopLevelRuleType.allCases,
         bazelWrapper: String = "bazel",
+        locations: [String] = [],
         commandRunner: CommandRunner? = nil
     ) throws -> [String] {
+        guard !rules.isEmpty else {
+            throw BazelTargetDiscovererError.noRulesProvided
+        }
+
+        guard !locations.isEmpty else {
+            throw BazelTargetDiscovererError.noLocationsProvided
+        }
+
         let commandRunner = commandRunner ?? ShellCommandRunner()
 
-        let query = rules.map {
-            "kind(\($0.rawValue), ...)"
-        }
-        .joined(separator: " + ")
+        let kindsQuery = "\"" + rules.map { $0.rawValue }.joined(separator: "|") + "\""
+        let locationsQuery = locations.joined(separator: " union ")
+        let query = "kind(\(kindsQuery), \(locationsQuery))"
 
         let cmd = "\(bazelWrapper) query '\(query)' --output label"
 
