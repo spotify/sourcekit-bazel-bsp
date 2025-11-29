@@ -123,16 +123,12 @@ final class PrepareHandler {
                 bazelLabels: labelsToBuild,
                 extraArgs: extraArgs,
                 id: id
-            ) { [weak self, connection] error in
+            ) { [connection] error in
                 if let error = error {
                     connection?.finishTask(id: taskId, status: .error)
                     reply(.failure(error))
                 }
                 connection?.finishTask(id: taskId, status: .ok)
-
-                // Notify sourcekit-lsp that the targets have changed after successful preparation
-                self?.notifyTargetsDidChange(targetsToBuild, connection: connection)
-
                 reply(.success(VoidResponse()))
             }
         } catch {
@@ -238,22 +234,6 @@ final class PrepareHandler {
         let targetLabels = Set(platformInfo.map { $0.topLevelParentLabel }).sorted()
         let targetNames = targetLabels.joined(separator: ", ")
         return "sourcekit-bazel-bsp: Building \(targetLabels.count) target(s): \(targetNames)"
-    }
-
-    private func notifyTargetsDidChange(
-        _ targets: [BuildTargetIdentifier],
-        connection: LSPConnection?
-    ) {
-        connection?.send(OnBuildTargetDidChangeNotification(
-            changes: targets.map { target in
-                BuildTargetEvent(
-                    target: target,
-                    kind: .changed,
-                    dataKind: nil,
-                    data: nil
-                )
-            }
-        ))
     }
 }
 

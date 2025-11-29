@@ -37,7 +37,7 @@ final class TargetSourcesHandler {
 
     func buildTargetSources(
         _ request: BuildTargetSourcesRequest,
-        _ id: RequestID
+        _: RequestID
     ) throws -> BuildTargetSourcesResponse {
         let targets = request.targets
         logger.info("Fetching sources for \(targets.count, privacy: .public) targets")
