@@ -20,7 +20,7 @@
 import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
-import LanguageServerProtocolJSONRPC
+import LanguageServerProtocolTransport
 
 private let logger = makeFileLevelBSPLogger()
 
@@ -130,7 +130,7 @@ package final class SourceKitBazelBSPServer {
     package func run(parkThread: Bool = true) {
         logger.info("Connecting to sourcekit-lsp...")
 
-        connection.start(
+        connection.startJSONRPC(
             receiveHandler: handler,
             closeHandler: {
                 logger.info("Connection closed, exiting.")

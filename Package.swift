@@ -17,6 +17,12 @@ let package = Package(
     ],
     dependencies: [
         .package(
+            url:
+            "https://github.com/swiftlang/swift-tools-protocols",
+            revision: "f86b413a803761408e5e718912c46d75a340801b"
+        ),
+
+        .package(
             url: "https://github.com/apple/swift-argument-parser",
             revision: "1.5.0"
         ),
@@ -48,12 +54,16 @@ let package = Package(
             dependencies: [
                 "BazelProtobufBindings",
                 .product(
-                    name: "BuildServerProtocol",
-                    package: "sourcekit-lsp"
+                    name: "LanguageServerProtocolTransport",
+                    package: "swift-tools-protocols"
                 ),
                 .product(
-                    name: "LSPBindings",
-                    package: "sourcekit-lsp"
+                    name: "BuildServerProtocol",
+                    package: "swift-tools-protocols"
+                ),
+                .product(
+                    name: "ToolsProtocolsSwiftExtensions",
+                    package: "swift-tools-protocols"
                 ),
                 .product(
                     name: "ArgumentParser",

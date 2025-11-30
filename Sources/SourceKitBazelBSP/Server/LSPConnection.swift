@@ -20,7 +20,7 @@
 import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
-import LanguageServerProtocolJSONRPC
+import LanguageServerProtocolTransport
 
 package protocol LSPTaskLogger: AnyObject {
     func startWorkTask(id: TaskId, title: String)
@@ -30,15 +30,22 @@ package protocol LSPTaskLogger: AnyObject {
 /// Extends the original sourcekit-lsp `Connection` type to include JSONRPCConnection's start method
 /// and task logging utilities.
 package protocol LSPConnection: Connection, LSPTaskLogger, AnyObject {
-    func start(receiveHandler: MessageHandler, closeHandler: @escaping @Sendable () async -> Void)
+    func startJSONRPC(receiveHandler: MessageHandler, closeHandler: @escaping @Sendable () async -> Void)
 }
 
 extension JSONRPCConnection: LSPConnection {
+    package func startJSONRPC(
+        receiveHandler: any LanguageServerProtocol.MessageHandler,
+        closeHandler: @escaping @Sendable () async -> Void
+    ) {
+        self.start(receiveHandler: receiveHandler, closeHandler: closeHandler as nonisolated(nonsending) @Sendable () async -> Void)
+    }
+
     package func startWorkTask(id: TaskId, title: String) {
         send(TaskStartNotification(taskId: id, data: WorkDoneProgressTask(title: title).encodeToLSPAny()))
     }
 
     package func finishTask(id: TaskId, status: StatusCode) {
-        send(TaskFinishNotification(taskId: id, status: .ok, ))
+        send(TaskFinishNotification(taskId: id, status: status))
     }
 }

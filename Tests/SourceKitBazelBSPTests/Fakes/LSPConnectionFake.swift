@@ -19,17 +19,16 @@
 
 import BuildServerProtocol
 import LanguageServerProtocol
-import LanguageServerProtocolJSONRPC
+import LanguageServerProtocolTransport
 
 @testable import SourceKitBazelBSP
 
 final class LSPConnectionFake: LSPConnection {
-
     nonisolated(unsafe) private(set) var startCalled = false
     nonisolated(unsafe) private(set) var startReceivedHandler: MessageHandler?
     nonisolated(unsafe) private(set) var sentNotifications: [any NotificationType] = []
 
-    func start(receiveHandler: MessageHandler, closeHandler: @escaping @Sendable () async -> Void) {
+    func startJSONRPC(receiveHandler: MessageHandler, closeHandler: @escaping @Sendable () async -> Void) {
         startCalled = true
         startReceivedHandler = receiveHandler
     }

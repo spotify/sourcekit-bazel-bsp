@@ -20,7 +20,7 @@
 import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
-import LanguageServerProtocolJSONRPC
+import LanguageServerProtocolTransport
 import Testing
 
 @testable import SourceKitBazelBSP
