@@ -204,10 +204,10 @@ final class InitializeHandler {
             data: SourceKitInitializeBuildResponseData(
                 indexDatabasePath: initializedConfig.indexDatabasePath,
                 indexStorePath: initializedConfig.indexStorePath,
-                multiTargetPreparation: MultiTargetPreparationSupport(
-                    supported: true,
-                    batchSize: batchSize
-                ),
+//                multiTargetPreparation: MultiTargetPreparationSupport(
+//                    supported: true,
+//                    batchSize: batchSize
+//                ),
                 outputPathsProvider: nil,
                 prepareProvider: true,
                 sourceKitOptionsProvider: true,

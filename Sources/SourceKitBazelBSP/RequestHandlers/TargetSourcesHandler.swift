@@ -27,7 +27,6 @@ private let logger = makeFileLevelBSPLogger()
 ///
 /// Returns the sources for the provided target based on previously gathered information.
 final class TargetSourcesHandler {
-
     private let initializedConfig: InitializedServerConfig
     private let targetStore: BazelTargetStore
 
@@ -38,7 +37,7 @@ final class TargetSourcesHandler {
 
     func buildTargetSources(
         _ request: BuildTargetSourcesRequest,
-        _ id: RequestID
+        _: RequestID
     ) throws -> BuildTargetSourcesResponse {
         let targets = request.targets
         logger.info("Fetching sources for \(targets.count, privacy: .public) targets")
@@ -62,10 +61,40 @@ final class TargetSourcesHandler {
         return BuildTargetSourcesResponse(items: srcs)
     }
 
+    private func computeCopyDestinations(for src: URI) -> [DocumentURI]? {
+        guard let srcPath = src.fileURL?.path else {
+            return nil
+        }
+
+        var destinations: [DocumentURI] = []
+
+        let workspaceRoot = initializedConfig.rootUri
+        let execRoot = initializedConfig.executionRoot
+
+        func trimmedRelativePath(fullPath: String, base: String) -> String {
+            var relativePath = fullPath.dropFirst(base.count)
+            if relativePath.first == "/" {
+                relativePath = relativePath.dropFirst()
+            }
+            return String(relativePath)
+        }
+
+        if srcPath.hasPrefix(workspaceRoot) {
+            // Workspace file -> single execroot location Bazel copies to.
+            // We need to tell the LSP about the path of each file in execution root to later help it mapping it again to original Workspace path.
+            let relativePath = trimmedRelativePath(fullPath: srcPath, base: workspaceRoot)
+            let destination = DocumentURI(filePath: execRoot + "/" + relativePath, isDirectory: false)
+            destinations.append(destination)
+        }
+
+        return destinations.isEmpty ? nil : destinations
+    }
+
     func convertToSourceItems(_ targetSrcs: [URI]) -> [SourceItem] {
         var result: [SourceItem] = []
         for src in targetSrcs {
             let srcString = src.stringValue
+            let copyDestinations = computeCopyDestinations(for: src)
             let kind: SourceKitSourceItemKind
             if srcString.hasSuffix("h") {
                 kind = .header
@@ -84,12 +113,13 @@ final class TargetSourcesHandler {
                 SourceItem(
                     uri: src,
                     kind: .file,
-                    generated: false,  // FIXME: Need to handle this properly
+                    generated: false, // FIXME: Need to handle this properly
                     dataKind: .sourceKit,
                     data: SourceKitSourceItemData(
                         language: language,
                         kind: kind,
-                        outputPath: nil  // FIXME: Related to the same flag on initialize?
+                        outputPath: nil, // FIXME: Related to the same flag on initialize?
+                        copyDestinations: copyDestinations
                     ).encodeToLSPAny()
                 )
             )

@@ -17,12 +17,21 @@ let package = Package(
     ],
     dependencies: [
         .package(
+            url:
+            "https://github.com/swiftlang/swift-tools-protocols",
+            revision: "f86b413a803761408e5e718912c46d75a340801b"
+        ),
+
+        .package(
             url: "https://github.com/apple/swift-argument-parser",
             revision: "1.5.0"
         ),
         .package(
-            url: "https://github.com/rockbruno/sourcekit-lsp",
-            revision: "c052baae81ec6532bb2f939a21acc4650fb1dc86"
+            url: "https://github.com/swiftlang/sourcekit-lsp",
+            revision: "0e061c5c1075152bc2e6187679a11b81d0c3e326" // latest main commit November 29, 2025
+            // TODO: Ideally it would be better to upstream these changes to sourceKit-lsp
+            // url: "https://github.com/rockbruno/sourcekit-lsp",
+            // revision: "c052baae81ec6532bb2f939a21acc4650fb1dc86"
         ),
         .package(
             url: "https://github.com/apple/swift-protobuf.git",
@@ -45,17 +54,21 @@ let package = Package(
             dependencies: [
                 "BazelProtobufBindings",
                 .product(
-                    name: "BuildServerProtocol",
-                    package: "sourcekit-lsp"
+                    name: "LanguageServerProtocolTransport",
+                    package: "swift-tools-protocols"
                 ),
                 .product(
-                    name: "LSPBindings",
-                    package: "sourcekit-lsp"
+                    name: "BuildServerProtocol",
+                    package: "swift-tools-protocols"
+                ),
+                .product(
+                    name: "ToolsProtocolsSwiftExtensions",
+                    package: "swift-tools-protocols"
                 ),
                 .product(
                     name: "ArgumentParser",
                     package: "swift-argument-parser"
-                )
+                ),
             ],
         ),
         .testTarget(
@@ -71,7 +84,7 @@ let package = Package(
         .target(
             name: "BazelProtobufBindings",
             dependencies: [
-                .product(name: "SwiftProtobuf", package: "swift-protobuf")
+                .product(name: "SwiftProtobuf", package: "swift-protobuf"),
             ],
             exclude: [
                 "README.md",
@@ -87,6 +100,6 @@ let package = Package(
                 .copy("Resources/actions.pb"),
                 .copy("Resources/streamdeps.pb"),
             ],
-        )
+        ),
     ]
 )
