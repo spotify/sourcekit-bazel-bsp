@@ -49,7 +49,8 @@ package struct BaseServerConfig: Equatable {
         // We need to post-process the target list provided by the user
         // because the queries will always return the "full" label.
         // e.g: "//foo/bar" -> "//foo/bar:bar"
-        self.targets = targets.map { $0.toFullLabel() }
+        // We need to also de-dupe them if the user passed wildcards in Serve.swift.
+        self.targets = Set(targets.map { $0.toFullLabel() }).sorted()
     }
 }
 

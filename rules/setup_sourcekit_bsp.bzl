@@ -77,7 +77,7 @@ setup_sourcekit_bsp = rule(
         ),
         # We avoid using label_list here to not trigger unnecessary bazel dependency graph checks.
         "targets": attr.string_list(
-            doc = "The *top level* Bazel applications or test targets that this should serve a BSP for. It's best to keep this list small if possible for performance reasons. If not specified, the server will try to discover top-level targets automatically",
+            doc = "The *top level* Bazel applications or test targets that this should serve a BSP for. Wildcards are supported (e.g. //foo/...). It's best to keep this list small if possible for performance reasons. If not specified, the server will try to discover top-level targets automatically",
             mandatory = True,
         ),
         "bazel_wrapper": attr.string(
