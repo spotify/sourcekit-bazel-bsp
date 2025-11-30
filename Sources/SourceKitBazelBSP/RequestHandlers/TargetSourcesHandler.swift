@@ -61,33 +61,33 @@ final class TargetSourcesHandler {
         return BuildTargetSourcesResponse(items: srcs)
     }
 
-    private func computeCopyDestinations(for src: URI) -> [DocumentURI]? {
+    /// The path sourcekit-lsp has is the "real" path of the file,
+    /// but Bazel works by copying them over to the execroot.
+    /// This method calculates this fake path so that sourcekit-lsp can
+    /// map the file back to the original workspace path for features like jump to definition.
+    func computeCopyDestinations(for src: URI) -> [DocumentURI]? {
         guard let srcPath = src.fileURL?.path else {
             return nil
         }
 
-        var destinations: [DocumentURI] = []
+        let rootUri = initializedConfig.rootUri
 
-        let workspaceRoot = initializedConfig.rootUri
+        guard srcPath.hasPrefix(rootUri) else {
+            return nil
+        }
+
         let execRoot = initializedConfig.executionRoot
 
-        func trimmedRelativePath(fullPath: String, base: String) -> String {
-            var relativePath = fullPath.dropFirst(base.count)
-            if relativePath.first == "/" {
-                relativePath = relativePath.dropFirst()
-            }
-            return String(relativePath)
+        var relativePath = srcPath.dropFirst(rootUri.count)
+        // Not sure how much we can assume about rootUri, so adding this as an edge-case check
+        if relativePath.first == "/" {
+            relativePath = relativePath.dropFirst()
         }
 
-        if srcPath.hasPrefix(workspaceRoot) {
-            // Workspace file -> single execroot location Bazel copies to.
-            // We need to tell the LSP about the path of each file in execution root to later help it mapping it again to original Workspace path.
-            let relativePath = trimmedRelativePath(fullPath: srcPath, base: workspaceRoot)
-            let destination = DocumentURI(filePath: execRoot + "/" + relativePath, isDirectory: false)
-            destinations.append(destination)
-        }
-
-        return destinations.isEmpty ? nil : destinations
+        let newPath = execRoot + "/" + String(relativePath)
+        return [
+            DocumentURI(filePath: newPath, isDirectory: false)
+        ]
     }
 
     func convertToSourceItems(_ targetSrcs: [URI]) -> [SourceItem] {
@@ -118,7 +118,7 @@ final class TargetSourcesHandler {
                     data: SourceKitSourceItemData(
                         language: language,
                         kind: kind,
-                        outputPath: nil,  // FIXME: Related to the same flag on initialize?
+                        outputPath: nil,
                         copyDestinations: copyDestinations
                     ).encodeToLSPAny()
                 )
