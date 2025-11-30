@@ -28,7 +28,7 @@ final class LSPConnectionFake: LSPConnection {
     nonisolated(unsafe) private(set) var startReceivedHandler: MessageHandler?
     nonisolated(unsafe) private(set) var sentNotifications: [any NotificationType] = []
 
-    func startJSONRPC(receiveHandler: MessageHandler, closeHandler: @escaping @Sendable () async -> Void) {
+    func start(receiveHandler: MessageHandler, closeHandler: @escaping @Sendable () async -> Void) {
         startCalled = true
         startReceivedHandler = receiveHandler
     }

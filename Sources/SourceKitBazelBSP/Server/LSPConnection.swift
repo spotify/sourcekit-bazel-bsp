@@ -30,17 +30,10 @@ package protocol LSPTaskLogger: AnyObject {
 /// Extends the original sourcekit-lsp `Connection` type to include JSONRPCConnection's start method
 /// and task logging utilities.
 package protocol LSPConnection: Connection, LSPTaskLogger, AnyObject {
-    func startJSONRPC(receiveHandler: MessageHandler, closeHandler: @escaping @Sendable () async -> Void)
+    func start(receiveHandler: MessageHandler, closeHandler: nonisolated(nonsending) @escaping @Sendable () async -> Void)
 }
 
 extension JSONRPCConnection: LSPConnection {
-    package func startJSONRPC(
-        receiveHandler: any LanguageServerProtocol.MessageHandler,
-        closeHandler: @escaping @Sendable () async -> Void
-    ) {
-        self.start(receiveHandler: receiveHandler, closeHandler: closeHandler as nonisolated(nonsending) @Sendable () async -> Void)
-    }
-
     package func startWorkTask(id: TaskId, title: String) {
         send(TaskStartNotification(taskId: id, data: WorkDoneProgressTask(title: title).encodeToLSPAny()))
     }

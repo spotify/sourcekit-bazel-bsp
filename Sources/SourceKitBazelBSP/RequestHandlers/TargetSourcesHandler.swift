@@ -113,12 +113,12 @@ final class TargetSourcesHandler {
                 SourceItem(
                     uri: src,
                     kind: .file,
-                    generated: false, // FIXME: Need to handle this properly
+                    generated: false,  // FIXME: Need to handle this properly
                     dataKind: .sourceKit,
                     data: SourceKitSourceItemData(
                         language: language,
                         kind: kind,
-                        outputPath: nil, // FIXME: Related to the same flag on initialize?
+                        outputPath: nil,  // FIXME: Related to the same flag on initialize?
                         copyDestinations: copyDestinations
                     ).encodeToLSPAny()
                 )

@@ -108,7 +108,7 @@ package final class SourceKitBazelBSPServer {
     ) {
         let connection = JSONRPCConnection(
             name: "sourcekit-lsp",
-            protocol: BuildServerProtocol.bspRegistry,
+            protocol: MessageRegistry.bspProtocol,
             inFD: inputHandle,
             outFD: outputHandle
         )
@@ -130,7 +130,7 @@ package final class SourceKitBazelBSPServer {
     package func run(parkThread: Bool = true) {
         logger.info("Connecting to sourcekit-lsp...")
 
-        connection.startJSONRPC(
+        connection.start(
             receiveHandler: handler,
             closeHandler: {
                 logger.info("Connection closed, exiting.")
