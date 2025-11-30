@@ -24,10 +24,7 @@ import Testing
 
 @Suite
 struct BazelTargetParserTests {
-    /// Tests that BazelQueryParser correctly processes protobuf query results.
-    /// The test uses real protobuf data from streamdeps.pb to ensure the parser handles
-    @Test("With given ServerConfig, ensure target parser output is correct")
-    func testBazelQueryParser() throws {
+    func canParseCqueryResult() throws {
         let config = BaseServerConfig(
             bazelWrapper: "bazel",
             targets: ["//HelloWorld:HelloWorld"],
@@ -53,11 +50,11 @@ struct BazelTargetParserTests {
         let querier = BazelTargetQuerier(commandRunner: runner)
         let toolchainPath = "/path/to/toolchain"
         let command =
-            "bazel --output_base=/path/to/output/base query \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library|source file|swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output streamed_proto"
+            "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library|source file|swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output streamed_proto"
 
         let dependencyKinds: Set<String> = ["objc_library", "source file", "swift_library"]
 
-        runner.setResponse(for: command, cwd: rootUri, response: mockProtobuf)
+        runner.setResponse(for: command, cwd: rootUri, response: exampleCqueryOutput)
 
         let targets = try querier.queryTargets(
             config: initializedConfig,

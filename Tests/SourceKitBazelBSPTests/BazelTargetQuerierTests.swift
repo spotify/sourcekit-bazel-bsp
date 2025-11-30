@@ -52,8 +52,8 @@ struct BazelTargetQuerierTests {
         )
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base query \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"source file|swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output streamed_proto --config=test"
-        runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: mockProtobuf)
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"source file|swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output proto --config=test"
+        runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: exampleCqueryOutput)
 
         let kinds: Set<String> = ["source file", "swift_library"]
         let result = try querier.queryTargets(
@@ -95,8 +95,8 @@ struct BazelTargetQuerierTests {
         )
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base query \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld //Tests:Tests)) in   $topLevelTargets   union   kind(\"objc_library|swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output streamed_proto --config=test"
-        runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: mockProtobuf)
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld //Tests:Tests)) in   $topLevelTargets   union   kind(\"objc_library|swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output proto --config=test"
+        runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: exampleCqueryOutput)
 
         let kinds: Set<String> = ["objc_library", "swift_library"]
         let result = try querier.queryTargets(
@@ -148,15 +148,15 @@ struct BazelTargetQuerierTests {
 
         runnerMock.setResponse(
             for:
-                "bazel --output_base=/path/to/output/base query \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output streamed_proto",
+                "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output proto",
             cwd: mockRootUri,
-            response: mockProtobuf
+            response: exampleCqueryOutput
         )
         runnerMock.setResponse(
             for:
-                "bazel --output_base=/path/to/output/base query \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output streamed_proto",
+                "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output proto",
             cwd: mockRootUri,
-            response: mockProtobuf
+            response: exampleCqueryOutput
         )
 
         try run(dependencyKinds: kinds)
@@ -177,7 +177,6 @@ struct BazelTargetQuerierTests {
         #expect(runnerMock.commands.count == 2)
     }
 
-    @Test("With given ServerConfig, ensure query is correct")
     func executeCorrectBazelCommandProto() throws {
         let runner = CommandRunnerFake()
         let querier = BazelTargetQuerier(commandRunner: runner)
@@ -203,15 +202,9 @@ struct BazelTargetQuerierTests {
         )
 
         let command =
-            "bazel --output_base=/path/to/output/base query \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library|source file|swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output streamed_proto"
-        guard let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
-            let data = try? Data(contentsOf: url)
-        else {
-            Issue.record("Failed get streamdeps.pb")
-            return
-        }
+            "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library|source file|swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output proto"
 
-        runner.setResponse(for: command, cwd: rootUri, response: data)
+        runner.setResponse(for: command, cwd: rootUri, response: exampleCqueryOutput)
 
         let dependencyKinds: Set<String> = ["objc_library", "source file", "swift_library"]
 
@@ -233,11 +226,9 @@ struct BazelTargetQuerierTests {
     }
 }
 
-let mockProtobuf: Data = {
-    guard let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
-        let data = try? Data(contentsOf: url)
-    else {
-        fatalError("Failed get streamdeps.pb")
-    }
+let exampleCqueryOutput: Data = {
+    guard let url = Bundle.module.url(forResource: "cquery", withExtension: "pb"),
+        let data = try? Data.init(contentsOf: url)
+    else { fatalError("cquery.pb is not found in Resources folder") }
     return data
 }()

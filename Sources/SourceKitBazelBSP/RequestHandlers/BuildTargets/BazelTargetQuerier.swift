@@ -25,13 +25,11 @@ private let logger = makeFileLevelBSPLogger()
 enum BazelTargetQuerierError: Error, LocalizedError {
     case noKinds
     case noTargets
-    case invalidQueryOutput
 
     var errorDescription: String? {
         switch self {
         case .noKinds: return "A list of kinds is necessary to query targets"
         case .noTargets: return "A list of targets is necessary to query targets"
-        case .invalidQueryOutput: return "Query output is not valid XML"
         }
     }
 }
@@ -94,7 +92,9 @@ final class BazelTargetQuerier {
             return cached
         }
 
-        let cmd = "query '\(topLevelTargetsQuery)' --notool_deps --noimplicit_deps --output streamed_proto"
+        // We use cquery here because we are interested on what's actually compiled.
+        // Also, this shares more analysis cache compared to the regular query.
+        let cmd = "cquery '\(topLevelTargetsQuery)' --notool_deps --noimplicit_deps --output proto"
         let output: Data = try commandRunner.bazelIndexAction(
             baseConfig: config.baseConfig,
             outputBase: config.outputBase,
@@ -102,9 +102,9 @@ final class BazelTargetQuerier {
             rootUri: config.rootUri
         )
 
-        guard let targets = try? BazelProtobufBindings.parseQueryTargets(data: output) else {
-            throw BazelTargetQuerierError.invalidQueryOutput
-        }
+        let result = try BazelProtobufBindings.parseCqueryResult(data: output)
+
+        let targets = result.results.map { $0.target }
 
         logger.debug("Parsed \(targets.count, privacy: .public) targets for cache key: \(cacheKey, privacy: .public)")
         queryCache[cacheKey] = targets
@@ -140,7 +140,9 @@ final class BazelTargetQuerier {
             return cached
         }
 
-        let cmd = "query \"kind('\(kindsFilter)', \(depsQuery))\" --output graph"
+        // We use cquery here because we are interested on what's actually compiled.
+        // Also, this shares more analysis cache compared to the regular query.
+        let cmd = "cquery \"kind('\(kindsFilter)', \(depsQuery))\" --output graph"
         let output: String = try commandRunner.bazelIndexAction(
             baseConfig: config.baseConfig,
             outputBase: config.outputBase,
@@ -155,12 +157,14 @@ final class BazelTargetQuerier {
         for line in rawGraph {
             let parts = line.components(separatedBy: "\"")
             // Example line:
-            //   "//path/to/target" -> "//path/to/target2\n//path/to/target3"
+            //   "//path/to/target (abc)" -> "//path/to/target2 (abc)\n//path/to/target3 (abc)"
             guard parts.count == 5 else {
                 continue
             }
-            let source = parts[1]
-            let targets = parts[3].components(separatedBy: "\n")
+            let source = parts[1].components(separatedBy: " (")[0]
+            let targets = parts[3].components(separatedBy: "\n").map {
+                $0.components(separatedBy: " (")[0]
+            }
             graph[source, default: []].append(contentsOf: targets)
         }
 
