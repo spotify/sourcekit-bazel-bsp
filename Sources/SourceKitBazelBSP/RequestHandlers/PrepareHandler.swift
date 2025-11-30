@@ -102,7 +102,9 @@ final class PrepareHandler {
             let labelsToBuild: [String]
             let extraArgs: [String]
             if initializedConfig.baseConfig.compileTopLevel {
-                labelsToBuild = platformInfo.map { $0.topLevelParentLabel }
+                // We might get repeat labels in this case, so we need to dedupe them.
+                let topLevelLabelsToBuild = Set(platformInfo.map { $0.topLevelParentLabel })
+                labelsToBuild = topLevelLabelsToBuild.sorted()
                 extraArgs = []  // Not applicable in this case
             } else {
                 guard platformInfo.count == 1 else {
