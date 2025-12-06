@@ -19,7 +19,7 @@ let package = Package(
         .package(
             url:
             "https://github.com/swiftlang/swift-tools-protocols",
-            revision: "f86b413a803761408e5e718912c46d75a340801b"
+            revision: "88612c51de4cbf636a6b948c64ea5ebd55b8a0ad"
         ),
 
         .package(
@@ -27,15 +27,8 @@ let package = Package(
             revision: "1.5.0"
         ),
         .package(
-            url: "https://github.com/swiftlang/sourcekit-lsp",
-            revision: "0e061c5c1075152bc2e6187679a11b81d0c3e326" // latest main commit November 29, 2025
-            // TODO: Ideally it would be better to upstream these changes to sourceKit-lsp
-            // url: "https://github.com/rockbruno/sourcekit-lsp",
-            // revision: "c052baae81ec6532bb2f939a21acc4650fb1dc86"
-        ),
-        .package(
             url: "https://github.com/apple/swift-protobuf.git",
-            revision: "102a647b573f60f73afdce5613a51d71349fe507"
+            revision: "1.33.3"
         ),
     ],
     targets: [
@@ -78,7 +71,7 @@ let package = Package(
             ],
             resources: [
                 .copy("Resources/aquery.pb"),
-                .copy("Resources/streamdeps.pb"),
+                .copy("Resources/cquery.pb"),
             ],
         ),
         .target(
@@ -98,7 +91,6 @@ let package = Package(
             dependencies: ["BazelProtobufBindings"],
             resources: [
                 .copy("Resources/actions.pb"),
-                .copy("Resources/streamdeps.pb"),
             ],
         ),
     ]

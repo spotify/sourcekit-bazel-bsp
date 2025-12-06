@@ -107,31 +107,4 @@ struct BazelProtobufBindingsTests {
 
         #expect(actual == expected)
     }
-
-    @Test
-    func decodesStreamProto() throws {
-        guard let url = Bundle.module.url(forResource: "streamdeps", withExtension: "pb"),
-            let data = try? Data(contentsOf: url)
-        else {
-            Issue.record("Failed get streamdeps.pb")
-            return
-        }
-
-        let targets = try BazelProtobufBindings.parseQueryTargets(data: data)
-
-        let actual =
-            targets
-            .filter({ $0.rule.ruleClass == "swift_library" })
-            .map(\.rule.name)
-            .sorted()
-
-        let expected = [
-            "//HelloWorld:ExpandedTemplate",
-            "//HelloWorld:GeneratedDummy",
-            "//HelloWorld:HelloWorldLib",
-            "//HelloWorld:TodoModels",
-        ].sorted()
-
-        #expect(actual == expected)
-    }
 }
