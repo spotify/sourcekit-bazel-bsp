@@ -18,3 +18,5 @@
 user.bazelrc
 /.bsp/skbsp.json
 /.bsp/sourcekit-bazel-bsp
+/.sourcekit-lsp/config.json
+/.vscode/settings.json
