@@ -30,7 +30,9 @@ enum PrepareHandlerError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .unexpectedBatching: return "Your sourcekit-lsp instance appears to be configured for batching, but the BSP currently only supports this when passing --compile-top-level. To fix this, either disable batching or enable --compile-top-level for the BSP."
+        case .unexpectedBatching:
+            return
+                "Your sourcekit-lsp instance appears to be configured for batching, but the BSP currently only supports this when passing --compile-top-level. To fix this, either disable batching or enable --compile-top-level for the BSP."
         }
     }
 }
