@@ -36,7 +36,7 @@ def _setup_sourcekit_bsp_impl(ctx):
 
     # sourcekit-lsp setup bits
     lsp_config_json = {
-        "backgroundIndexing": "true",
+        "backgroundIndexing": True,
         "backgroundPreparationMode": "build",
         "defaultWorkspaceType": "buildServer",
         "buildServerWorkspaceRequestsTimeout": 999, # Temporary while we don't follow the recommendation of returning from buildTargets as fast as possible + use notifications
