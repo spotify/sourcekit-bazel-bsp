@@ -67,6 +67,7 @@ struct Serve: ParsableCommand {
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
+        let indexFlags = indexFlag.map { "--" + $0 }
         let targets: [String]
         if !target.isEmpty {
             var expandedTargets = [String]()
@@ -83,7 +84,8 @@ struct Serve: ParsableCommand {
                     contentsOf: try expandWildcardTargets(
                         bazelWrapper: bazelWrapper,
                         targets: targetsToExpand,
-                        topLevelRuleToDiscover: topLevelRuleToDiscover
+                        topLevelRuleToDiscover: topLevelRuleToDiscover,
+                        indexFlags: indexFlags
                     )
                 )
             }
@@ -94,14 +96,15 @@ struct Serve: ParsableCommand {
             targets = try expandWildcardTargets(
                 bazelWrapper: bazelWrapper,
                 targets: ["..."],
-                topLevelRuleToDiscover: topLevelRuleToDiscover
+                topLevelRuleToDiscover: topLevelRuleToDiscover,
+                indexFlags: indexFlags
             )
         }
 
         let config = BaseServerConfig(
             bazelWrapper: bazelWrapper,
             targets: targets,
-            indexFlags: indexFlag.map { "--" + $0 },
+            indexFlags: indexFlags,
             filesToWatch: filesToWatch,
             compileTopLevel: compileTopLevel,
             indexBuildBatchSize: indexBuildBatchSize
@@ -116,7 +119,8 @@ struct Serve: ParsableCommand {
     private func expandWildcardTargets(
         bazelWrapper: String,
         targets: [String],
-        topLevelRuleToDiscover: [TopLevelRuleType]
+        topLevelRuleToDiscover: [TopLevelRuleType],
+        indexFlags: [String]
     ) throws -> [String] {
         let targetsString = targets.joined(separator: ", ")
         logger.warning(
@@ -132,7 +136,8 @@ struct Serve: ParsableCommand {
             return try BazelTargetDiscoverer.discoverTargets(
                 for: rulesToUse,
                 bazelWrapper: bazelWrapper,
-                locations: targets
+                locations: targets,
+                additionalFlags: indexFlags
             )
         } catch {
             logger.error(
