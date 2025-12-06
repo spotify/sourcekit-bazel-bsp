@@ -56,7 +56,7 @@ package final class SourceKitBazelBSPServer {
         // workspace/buildTargets
         let targetStore = BazelTargetStoreImpl(initializedConfig: initializedConfig)
         let buildTargetsHandler = BuildTargetsHandler(targetStore: targetStore, connection: connection)
-        registry.register(syncRequestHandler: buildTargetsHandler.workspaceBuildTargets)
+        registry.register(requestHandler: buildTargetsHandler.workspaceBuildTargets)
 
         // workspace/waitForBuildSystemUpdates
         let waitUpdatesHandler = WaitUpdatesHandler(targetStore: targetStore, connection: connection)
