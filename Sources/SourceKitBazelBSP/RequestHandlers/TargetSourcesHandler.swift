@@ -65,6 +65,8 @@ final class TargetSourcesHandler {
     /// but Bazel works by copying them over to the execroot.
     /// This method calculates this fake path so that sourcekit-lsp can
     /// map the file back to the original workspace path for features like jump to definition.
+    /// FIXME: SourceKit-LSP has a config for defining this statically, but I couldn't figure out
+    /// how to make it work. If we do, we can drop this logic and the FIXME at BuildTargetsHandler.swift.
     func computeCopyDestinations(for src: URI) -> [DocumentURI]? {
         guard let srcPath = src.fileURL?.path else {
             return nil
