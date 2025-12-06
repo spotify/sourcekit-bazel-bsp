@@ -220,38 +220,8 @@ setup_sourcekit_bsp(
     index_flags = [
         "config=index_build",
     ],
-    targets = [
-        "//HelloWorld:HelloWorld",
-		"//HelloWorld:HelloWorldTests",
-		"//HelloWorld:HelloWorldWatchApp",
-		"//HelloWorld:HelloWorldWatchTests",
-		"//HelloWorld:HelloWorldMacApp",
-		"//HelloWorld:HelloWorldMacTests",
-		"//HelloWorld:HelloWorldMacCLIApp",
-    ],
-)
-
-# Variant that uses build_test targets directly, for test reasons
-
-setup_sourcekit_bsp(
-    name = "setup_sourcekit_bsp_example_project_build_tests",
-    bazel_wrapper = "bazelisk",
-    files_to_watch = [
-        "HelloWorld/**/*.swift",
-        "HelloWorld/**/*.h",
-        "HelloWorld/**/*.m"
-    ],
-    index_flags = [
-        "config=index_build",
-    ],
     compile_top_level = True,
     targets = [
-        "//HelloWorld:HelloWorldLib_ios_skbsp",
-		"//HelloWorld:HelloWorldTestsLib_ios_skbsp",
-		"//HelloWorld:WatchAppLib_watchos_skbsp",
-		"//HelloWorld:WatchAppTestsLib_watchos_skbsp",
-		"//HelloWorld:MacAppLib_macos_skbsp",
-		"//HelloWorld:MacAppTestsLib_macos_skbsp",
-		"//HelloWorld:MacCLIAppLib_macos_skbsp",
+        "//HelloWorld/...",
     ],
 )

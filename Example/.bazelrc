@@ -1,7 +1,7 @@
 common --ios_simulator_device="iPhone 16 Pro"
 common --ios_simulator_version="18.4"
 
-# All of the following are Debug/Index setup configs inspired by the recommended rules_xcodeproj templates
+# All of the following are Debug/Index setup configs inspired by the default rules_xcodeproj template
 
 common --verbose_failures
 common --cache_computed_file_digests=500000
@@ -17,11 +17,11 @@ common --features=swift.index_while_building
 common --features=swift.use_global_index_store
 common --features=swift.use_global_module_cache
 common --features=swift.emit_swiftsourceinfo
+common --nolegacy_important_outputs
 build --noworker_sandboxing
 build --spawn_strategy=remote,worker,local
 
 # Only for BSP builds
 common:index_build --experimental_convenience_symlinks=ignore
 common:index_build --bes_backend= --bes_results_url=
-common:index_build --nolegacy_important_outputs
 common:index_build --show_result=0
