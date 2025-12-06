@@ -288,7 +288,7 @@ let expectedSwiftResult: [String] = [
     "-file-prefix-map",
     "/Applications/Xcode.app/Contents/Developer=DEVELOPER_DIR",
     "-index-store-path",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/_global_index_store",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld/HelloWorldLib.indexstore",
     "-index-ignore-system-modules",
     "-enable-bare-slash-regex",
     "-Xfrontend",
@@ -367,8 +367,6 @@ let expectedObjCResult: [String] = [
     "HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.m",
     "-o",
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld/_objs/TodoObjCSupport/arc/SKDateDistanceCalculator.o",
-    "-index-store-path",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/_global_index_store",
     "-working-directory",
     "/Users/user/Documents/demo-ios-project",
 ]

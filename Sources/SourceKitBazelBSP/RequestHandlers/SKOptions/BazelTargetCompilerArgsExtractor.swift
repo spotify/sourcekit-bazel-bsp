@@ -381,26 +381,12 @@ extension BazelTargetCompilerArgsExtractor {
         // Handle remaining necessary adjustments for indexing.
         switch strategy {
         case .objcImpl, .cImpl:
-            compilerArguments.append("-index-store-path")
-            compilerArguments.append(config.indexStorePath)
             compilerArguments.append("-working-directory")
             compilerArguments.append(config.rootUri)
-        case .swiftModule:
-            // For Swift, swap the index store arg with the global cache.
-            // Bazel handles this a bit differently internally, which is why
-            // we need to do this.
-            _editArg("-index-store-path", config.indexStorePath, &compilerArguments)
-        case .cHeader:
+        case .swiftModule, .cHeader:
             break
         }
 
         return compilerArguments
-    }
-
-    private func _editArg(_ arg: String, _ new: String, _ lines: inout [String]) {
-        guard let idx = lines.firstIndex(of: arg) else {
-            return
-        }
-        lines[idx + 1] = new
     }
 }
