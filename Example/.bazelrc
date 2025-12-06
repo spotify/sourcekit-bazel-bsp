@@ -13,8 +13,6 @@ common --features=apple.swizzle_absolute_xcttestsourcelocation
 common --features=oso_prefix_is_pwd
 common --features=relative_ast_path
 common --features=swift.cacheable_swiftmodules
-common --features=swift.index_while_building
-common --features=swift.use_global_index_store
 common --features=swift.use_global_module_cache
 common --features=swift.emit_swiftsourceinfo
 common --nolegacy_important_outputs
