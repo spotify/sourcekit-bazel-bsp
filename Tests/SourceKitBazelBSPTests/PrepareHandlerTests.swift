@@ -28,7 +28,7 @@ import Testing
 @Suite
 struct PrepareHandlerTests {
 
-    static func makeHandler() -> PrepareHandler {
+    static func makeHandler() -> (PrepareHandler, CommandRunnerFake, BaseServerConfig, String) {
         let commandRunner = CommandRunnerFake()
         let connection = LSPConnectionFake()
 
@@ -51,52 +51,27 @@ struct PrepareHandlerTests {
             sdkRootPaths: ["iphonesimulator": "bar"]
         )
 
-        return PrepareHandler(
-            initializedConfig: initializedConfig,
-            targetStore: BazelTargetStoreImpl(initializedConfig: initializedConfig),
-            commandRunner: commandRunner,
-            connection: connection
+        return (
+            PrepareHandler(
+                initializedConfig: initializedConfig,
+                targetStore: BazelTargetStoreImpl(initializedConfig: initializedConfig),
+                commandRunner: commandRunner,
+                connection: connection
+            ), commandRunner, baseConfig, initializedConfig.rootUri
         )
     }
 
     @Test
     func buildExecutesCorrectBazelCommand() throws {
-        let commandRunner = CommandRunnerFake()
-        let connection = LSPConnectionFake()
-
-        let rootUri = "/path/to/project"
-        let baseConfig = BaseServerConfig(
-            bazelWrapper: "bazel",
-            targets: ["//HelloWorld"],
-            indexFlags: ["--config=index"],
-            filesToWatch: nil,
-            compileTopLevel: false
-        )
-
-        let initializedConfig = InitializedServerConfig(
-            baseConfig: baseConfig,
-            rootUri: rootUri,
-            outputBase: "/tmp/output_base",
-            outputPath: "/tmp/output_path",
-            devDir: "/Applications/Xcode.app/Contents/Developer",
-            devToolchainPath: "/a/b/XcodeDefault.xctoolchain/",
-            executionRoot: "/tmp/output_path/execoot/_main",
-            sdkRootPaths: ["iphonesimulator": "bar"]
-        )
+        let (handler, commandRunner, _, rootUri) = Self.makeHandler()
 
         let expectedCommand =
             "bazel --output_base=/tmp/output_base --preemptible build //HelloWorld:HelloWorld --foo --remote_download_regex=\'.*\\.indexstore/.*|.*\\.(a|cfg|c|C|cc|cl|cpp|cu|cxx|c++|def|h|H|hh|hpp|hxx|h++|hmap|ilc|inc|inl|ipp|tcc|tlh|tli|tpp|m|modulemap|mm|pch|swift|swiftdoc|swiftmodule|swiftsourceinfo|yaml)$\' --config=index"
         commandRunner.setResponse(for: expectedCommand, cwd: rootUri, response: "")
 
-        let handler = PrepareHandler(
-            initializedConfig: initializedConfig,
-            targetStore: BazelTargetStoreImpl(initializedConfig: initializedConfig),
-            commandRunner: commandRunner,
-            connection: connection
-        )
-
         let semaphore = DispatchSemaphore(value: 0)
-        try handler.build(bazelLabels: baseConfig.targets, extraArgs: ["--foo"], id: RequestID.number(1)) { error in
+        try handler.build(bazelLabels: [["//HelloWorld:HelloWorld"]], extraArgs: [["--foo"]], id: RequestID.number(1)) {
+            error in
             #expect(error == nil)
             semaphore.signal()
         }
@@ -110,41 +85,14 @@ struct PrepareHandlerTests {
     }
 
     func buildWithMultipleTargets() throws {
-        let commandRunner = CommandRunnerFake()
-        let connection = LSPConnectionFake()
-
-        let baseConfig = BaseServerConfig(
-            bazelWrapper: "bazel",
-            targets: ["//HelloWorld", "//HelloWorld2"],
-            indexFlags: ["--config=index"],
-            filesToWatch: nil,
-            compileTopLevel: false
-        )
-
-        let initializedConfig = InitializedServerConfig(
-            baseConfig: baseConfig,
-            rootUri: "/path/to/project",
-            outputBase: "/tmp/output_base",
-            outputPath: "/tmp/output_path",
-            devDir: "/Applications/Xcode.app/Contents/Developer",
-            devToolchainPath: "/a/b/XcodeDefault.xctoolchain/",
-            executionRoot: "/tmp/output_path/execroot/_main",
-            sdkRootPaths: ["iphonesimulator": "bar"]
-        )
+        let (handler, commandRunner, baseConfig, rootUri) = Self.makeHandler()
 
         let expectedCommand =
             "bazel --output_base=/tmp/output_base --preemptible build //HelloWorld:HelloWorld //HelloWorld2:HelloWorld2 --remote_download_regex=\'.*\\.indexstore/.*|.*\\.(a|cfg|c|C|cc|cl|cpp|cu|cxx|c++|def|h|H|hh|hpp|hxx|h++|hmap|ilc|inc|inl|ipp|tcc|tlh|tli|tpp|m|modulemap|mm|pch|swift|swiftdoc|swiftmodule|swiftsourceinfo|yaml)$\' --config=index"
         commandRunner.setResponse(for: expectedCommand, response: "Build completed")
 
-        let handler = PrepareHandler(
-            initializedConfig: initializedConfig,
-            targetStore: BazelTargetStoreImpl(initializedConfig: initializedConfig),
-            commandRunner: commandRunner,
-            connection: connection
-        )
-
         let semaphore = DispatchSemaphore(value: 0)
-        try handler.build(bazelLabels: baseConfig.targets, extraArgs: [], id: RequestID.number(1)) { error in
+        try handler.build(bazelLabels: [baseConfig.targets], extraArgs: [[]], id: RequestID.number(1)) { error in
             #expect(error == nil)
             semaphore.signal()
         }
@@ -154,11 +102,36 @@ struct PrepareHandlerTests {
         let ranCommands = commandRunner.commands
         #expect(ranCommands.count == 1)
         #expect(ranCommands[0].command == expectedCommand)
-        #expect(ranCommands[0].cwd == "/path/to/project")
+        #expect(ranCommands[0].cwd == rootUri)
+    }
+
+    func buildWithMutipleInvocations() throws {
+        let (handler, commandRunner, _, rootUri) = Self.makeHandler()
+
+        let expectedCommand =
+            "bazel --output_base=/tmp/output_base --preemptible build //HelloWorld:HelloWorld --foo --remote_download_regex=\'.*\\.indexstore/.*|.*\\.(a|cfg|c|C|cc|cl|cpp|cu|cxx|c++|def|h|H|hh|hpp|hxx|h++|hmap|ilc|inc|inl|ipp|tcc|tlh|tli|tpp|m|modulemap|mm|pch|swift|swiftdoc|swiftmodule|swiftsourceinfo|yaml)$\' --config=index && bazel --output_base=/tmp/output_base --preemptible build //HelloWorld2:HelloWorld2 --bar --remote_download_regex=\'.*\\.indexstore/.*|.*\\.(a|cfg|c|C|cc|cl|cpp|cu|cxx|c++|def|h|H|hh|hpp|hxx|h++|hmap|ilc|inc|inl|ipp|tcc|tlh|tli|tpp|m|modulemap|mm|pch|swift|swiftdoc|swiftmodule|swiftsourceinfo|yaml)$\' --config=index"
+        commandRunner.setResponse(for: expectedCommand, response: "Build completed")
+
+        let semaphore = DispatchSemaphore(value: 0)
+        try handler.build(
+            bazelLabels: [["//HelloWorld:HelloWorld"], ["//HelloWorld2:HelloWorld2"]],
+            extraArgs: [["--foo"], ["--bar"]],
+            id: RequestID.number(1)
+        ) { error in
+            #expect(error == nil)
+            semaphore.signal()
+        }
+
+        #expect(semaphore.wait(timeout: .now() + 1) == .success)
+
+        let ranCommands = commandRunner.commands
+        #expect(ranCommands.count == 1)
+        #expect(ranCommands[0].command == expectedCommand)
+        #expect(ranCommands[0].cwd == rootUri)
     }
 
     func providesCorrectFlagsForiOSTargets() {
-        let handler = Self.makeHandler()
+        let handler = Self.makeHandler().0
         let actualFlags = handler.buildArgs(
             minimumOsVersion: "15.0",
             platform: "ios",
@@ -178,7 +151,7 @@ struct PrepareHandlerTests {
     }
 
     func providesCorrectFlagsForWatchOSTargets() {
-        let handler = Self.makeHandler()
+        let handler = Self.makeHandler().0
         let actualFlags = handler.buildArgs(
             minimumOsVersion: "15.0",
             platform: "watchos",
@@ -198,7 +171,7 @@ struct PrepareHandlerTests {
     }
 
     func providesCorrectFlagsForMacOSTargets() {
-        let handler = Self.makeHandler()
+        let handler = Self.makeHandler().0
         let actualFlags = handler.buildArgs(
             minimumOsVersion: "15.0",
             platform: "darwin",
@@ -218,7 +191,7 @@ struct PrepareHandlerTests {
     }
 
     func providesCorrectFlagsForTVOSTargets() {
-        let handler = Self.makeHandler()
+        let handler = Self.makeHandler().0
         let actualFlags = handler.buildArgs(
             minimumOsVersion: "15.0",
             platform: "tvos",
@@ -238,7 +211,7 @@ struct PrepareHandlerTests {
     }
 
     func providesCorrectFlagsForVisionOSTargets() {
-        let handler = Self.makeHandler()
+        let handler = Self.makeHandler().0
         let actualFlags = handler.buildArgs(
             minimumOsVersion: "15.0",
             platform: "visionos",

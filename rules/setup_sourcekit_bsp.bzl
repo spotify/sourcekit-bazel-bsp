@@ -43,8 +43,6 @@ def _setup_sourcekit_bsp_impl(ctx):
         "buildSettingsTimeout": 999, # Temporary while we don't follow the recommendation of returning from buildTargets as fast as possible + use notifications
     }
     if ctx.attr.index_build_batch_size:
-        if not ctx.attr.compile_top_level:
-            fail("index_build_batch_size is currently only supported when compile_top_level is true.")
         lsp_config_json["preparationBatchingStrategy"] = {
             "strategy": "fixedTargetBatchSize",
             "batchSize": ctx.attr.index_build_batch_size
@@ -120,7 +118,7 @@ setup_sourcekit_bsp = rule(
             default = [],
         ),
         "index_build_batch_size": attr.int(
-            doc = "The number of targets to prepare in parallel. Requires compile_top_level and using the pre-built SourceKit-LSP binary from the release archive.",
+            doc = "The number of targets to prepare in parallel. If not provided, will default to 1.",
             mandatory = False,
         ),
         "compile_top_level": attr.bool(

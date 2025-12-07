@@ -220,7 +220,6 @@ setup_sourcekit_bsp(
     index_flags = [
         "config=index_build",
     ],
-    compile_top_level = True,
     index_build_batch_size = 10,
     targets = [
         "//HelloWorld/...",

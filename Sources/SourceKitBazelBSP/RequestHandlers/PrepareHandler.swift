@@ -25,18 +25,6 @@ import struct os.OSAllocatedUnfairLock
 
 private let logger = makeFileLevelBSPLogger()
 
-enum PrepareHandlerError: Error, LocalizedError {
-    case unexpectedBatching
-
-    var errorDescription: String? {
-        switch self {
-        case .unexpectedBatching:
-            return
-                "Your sourcekit-lsp instance appears to be configured for batching, but the BSP currently only supports this when passing --compile-top-level. To fix this, either disable batching or enable --compile-top-level for the BSP."
-        }
-    }
-}
-
 /// Handles the `buildTarget/prepare` request.
 ///
 /// Builds the provided list of targets upon request.
@@ -101,24 +89,29 @@ final class PrepareHandler {
                 title: taskTitle
             )
             didStartTask = true
-            let labelsToBuild: [String]
-            let extraArgs: [String]
+            let labelsToBuild: [[String]]
+            let extraArgs: [[String]]
             if initializedConfig.baseConfig.compileTopLevel {
                 // We might get repeat labels in this case, so we need to dedupe them.
                 let topLevelLabelsToBuild = Set(platformInfo.map { $0.topLevelParentLabel })
-                labelsToBuild = topLevelLabelsToBuild.sorted()
-                extraArgs = []  // Not applicable in this case
+                labelsToBuild = [topLevelLabelsToBuild.sorted()]
+                extraArgs = [[]]  // Not applicable in this case
             } else {
-                guard platformInfo.count == 1 else {
-                    throw PrepareHandlerError.unexpectedBatching
+                // When passing arguments manually, we might be asked to prepare targets
+                // pertaining to different platforms or min-SDK versions. To enable this,
+                // we split the request into multiple Bazel invocations if needed.
+                var argsToLabelsMap: [[String]: [String]] = [:]
+                for labelToBuild in platformInfo {
+                    let args = buildArgs(
+                        minimumOsVersion: labelToBuild.topLevelParentConfig.minimumOsVersion,
+                        platform: labelToBuild.topLevelParentConfig.platform,
+                        cpuArch: labelToBuild.topLevelParentConfig.cpuArch,
+                    )
+                    argsToLabelsMap[args, default: []].append(labelToBuild.label)
                 }
-                let infoToBuild = platformInfo[0]
-                labelsToBuild = [infoToBuild.label]
-                extraArgs = buildArgs(
-                    minimumOsVersion: infoToBuild.topLevelParentConfig.minimumOsVersion,
-                    platform: infoToBuild.topLevelParentConfig.platform,
-                    cpuArch: infoToBuild.topLevelParentConfig.cpuArch,
-                )
+                let asTuple = argsToLabelsMap.map { ($0.key, $0.value) }
+                labelsToBuild = asTuple.map { $0.1 }
+                extraArgs = asTuple.map { $0.0 }
             }
             nonisolated(unsafe) let reply = reply
             try build(
@@ -142,26 +135,38 @@ final class PrepareHandler {
     }
 
     func build(
-        bazelLabels labelsToBuild: [String],
-        extraArgs: [String],
+        bazelLabels labelsToBuild: [[String]],
+        extraArgs: [[String]],
         id: RequestID,
         completion: @escaping ((ResponseError?) -> Void)
     ) throws {
-        logger.info("Will build \(labelsToBuild.joined(separator: ", "), privacy: .public)")
+        if labelsToBuild.count == 1 {
+            logger.info("Will build \(labelsToBuild[0].joined(separator: ", "), privacy: .public)")
+        } else {
+            logger.info(
+                "Will build \(labelsToBuild.flatMap { $0 }.joined(separator: ", "), privacy: .public) over \(labelsToBuild.count, privacy: .public) invocations"
+            )
+        }
 
-        let extraArgsSuffix: String = {
-            guard extraArgs.isEmpty else {
-                return " \(extraArgs.joined(separator: " "))"
-            }
-            return ""
-        }()
+        nonisolated(unsafe) var cmds = [String]()
+        for i in 0..<labelsToBuild.count {
+            let labels = labelsToBuild[i]
+            let args = extraArgs[i]
+            let extraArgsSuffix: String = {
+                guard args.isEmpty else {
+                    return " \(args.joined(separator: " "))"
+                }
+                return ""
+            }()
+            cmds.append("build \(labels.joined(separator: " "))\(extraArgsSuffix)")
+        }
 
         nonisolated(unsafe) let completion = completion
         try currentTaskLock.withLock { [commandRunner, initializedConfig] currentTask in
-            let process = try commandRunner.bazelIndexAction(
+            let process = try commandRunner.chainedBazelIndexActions(
                 baseConfig: initializedConfig.baseConfig,
                 outputBase: initializedConfig.outputBase,
-                cmd: "build \(labelsToBuild.joined(separator: " "))\(extraArgsSuffix)",
+                cmds: cmds,
                 rootUri: initializedConfig.rootUri,
                 additionalFlags: Self.additionalBuildFlags,
                 additionalStartupFlags: Self.additionalStartupFlags

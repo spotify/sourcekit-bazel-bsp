@@ -67,6 +67,23 @@ extension CommandRunner {
         additionalFlags: [String] = [],
         additionalStartupFlags: [String] = []
     ) throws -> RunningProcess {
+        let cmdString = cmdForBazelIndexAction(
+            baseConfig: baseConfig,
+            outputBase: outputBase,
+            cmd: cmd,
+            additionalFlags: additionalFlags,
+            additionalStartupFlags: additionalStartupFlags
+        )
+        return try bazel(baseConfig: baseConfig, rootUri: rootUri, cmd: cmdString)
+    }
+
+    private func cmdForBazelIndexAction(
+        baseConfig: BaseServerConfig,
+        outputBase: String,
+        cmd: String,
+        additionalFlags: [String] = [],
+        additionalStartupFlags: [String] = []
+    ) -> String {
         let indexFlags = baseConfig.indexFlags
         let additionalFlags = additionalFlags.map { " \($0)" }
         let flagsString: String
@@ -81,8 +98,7 @@ extension CommandRunner {
         } else {
             startupFlagsString = " " + additionalStartupFlags.joined(separator: " ")
         }
-        let cmd = "--output_base=\(outputBase)\(startupFlagsString) \(cmd)\(flagsString)"
-        return try bazel(baseConfig: baseConfig, rootUri: rootUri, cmd: cmd)
+        return "--output_base=\(outputBase)\(startupFlagsString) \(cmd)\(flagsString)"
     }
 
     /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.
@@ -103,6 +119,28 @@ extension CommandRunner {
             additionalStartupFlags: additionalStartupFlags
         )
         return try process.result()
+    }
+
+    /// Variant of bazelIndexAction(_:) that chains multiple invocations together.
+    func chainedBazelIndexActions(
+        baseConfig: BaseServerConfig,
+        outputBase: String,
+        cmds: [String],
+        rootUri: String,
+        additionalFlags: [String] = [],
+        additionalStartupFlags: [String] = []
+    ) throws -> RunningProcess {
+        let cmdString = cmds.map {
+            baseConfig.bazelWrapper + " "
+                + cmdForBazelIndexAction(
+                    baseConfig: baseConfig,
+                    outputBase: outputBase,
+                    cmd: $0,
+                    additionalFlags: additionalFlags,
+                    additionalStartupFlags: additionalStartupFlags
+                )
+        }.joined(separator: " && ")
+        return try run(cmdString, cwd: rootUri)
     }
 }
 
