@@ -31,6 +31,8 @@ final class BuildTargetsHandler {
     private let targetStore: BazelTargetStore
     private weak var connection: LSPConnection?
 
+    private var isFirstTime = true
+
     init(targetStore: BazelTargetStore, connection: LSPConnection? = nil) {
         self.targetStore = targetStore
         self.connection = connection
@@ -38,12 +40,16 @@ final class BuildTargetsHandler {
 
     func workspaceBuildTargets(
         _ request: WorkspaceBuildTargetsRequest,
-        _ id: RequestID
-    ) throws -> WorkspaceBuildTargetsResponse {
+        _ id: RequestID,
+        _ reply: @escaping (Result<WorkspaceBuildTargetsResponse, Error>) -> Void
+    ) {
         let taskId = TaskId(id: "buildTargets-\(id.description)")
         connection?.startWorkTask(id: taskId, title: "sourcekit-bazel-bsp: Processing the build graph...")
         do {
+            nonisolated(unsafe) var shouldDispatchNotification = false
             let result = try targetStore.stateLock.withLockUnchecked {
+                shouldDispatchNotification = isFirstTime
+                isFirstTime = false
                 return try targetStore.fetchTargets()
             }
             logger.debug("Found \(result.count, privacy: .public) targets")
@@ -53,10 +59,19 @@ final class BuildTargetsHandler {
                 result.map { $0.id.uri.stringValue }.joined(separator: ", "),
             )
             connection?.finishTask(id: taskId, status: .ok)
-            return WorkspaceBuildTargetsResponse(targets: result)
+            reply(.success(WorkspaceBuildTargetsResponse(targets: result)))
+            // If this is the first time we're responding to buildTargets, send an empty notification.
+            // This triggers sourcekit-lsp to calculate the file mappings which enables jump-to-definition to work.
+            // We only need to do this because we're replying to this request incorrectly.
+            // We should also be able to drop this if we figure out how to make the actual LSP --index-prefix-map flag work.
+            // See https://github.com/spotify/sourcekit-bazel-bsp/issues/102
+            if shouldDispatchNotification {
+                let notification = OnBuildTargetDidChangeNotification(changes: [])
+                connection?.send(notification)
+            }
         } catch {
             connection?.finishTask(id: taskId, status: .error)
-            throw error
+            reply(.failure(error))
         }
     }
 }
