@@ -52,12 +52,6 @@ struct Serve: ParsableCommand {
     )
     var topLevelRuleToDiscover: [TopLevelRuleType] = []
 
-    @Option(
-        help:
-            "The number of targets to prepare in parallel. If not specified, SourceKit-LSP will calculate an appropriate value based on the environment. Requires --compile-top-level and using the pre-built SourceKit-LSP binary from the release archive.",
-    )
-    var indexBuildBatchSize: Int? = nil
-
     @Flag(
         help:
             "Instead of attempting to build targets individually, build the top-level parent. If your project contains build_test targets for your individual libraries and you're passing them as the top-level targets for the BSP, you can use this flag to build those targets directly for better predictability and caching."
@@ -106,8 +100,7 @@ struct Serve: ParsableCommand {
             targets: targets,
             indexFlags: indexFlags,
             filesToWatch: filesToWatch,
-            compileTopLevel: compileTopLevel,
-            indexBuildBatchSize: indexBuildBatchSize
+            compileTopLevel: compileTopLevel
         )
 
         logger.debug("Initializing BSP with targets: \(targets)")

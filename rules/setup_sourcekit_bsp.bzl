@@ -1,5 +1,10 @@
 def _setup_sourcekit_bsp_impl(ctx):
+    # Config of the BSP itself, a.k.a .bsp/skbsp.json
     rendered_bsp_config = ctx.actions.declare_file("skbsp.json")
+    # Configs for sourcekit-lsp, a.k.a .sourcekit-lsp/config.json
+    rendered_lsp_config = ctx.actions.declare_file("config.json")
+
+    # BSP setup bits
     bsp_config_argv = [
         ".bsp/sourcekit-bazel-bsp",
         "serve",
@@ -9,9 +14,6 @@ def _setup_sourcekit_bsp_impl(ctx):
         bsp_config_argv.append(target)
     bsp_config_argv.append("--bazel-wrapper")
     bsp_config_argv.append(ctx.attr.bazel_wrapper)
-    if ctx.attr.index_build_batch_size:
-        bsp_config_argv.append("--index-build-batch-size")
-        bsp_config_argv.append(ctx.attr.index_build_batch_size)
     if ctx.attr.compile_top_level:
         bsp_config_argv.append("--compile-top-level")
     for index_flag in ctx.attr.index_flags:
@@ -31,6 +33,25 @@ def _setup_sourcekit_bsp_impl(ctx):
             "%argv%": ",\n        ".join(["\"%s\"" % arg for arg in bsp_config_argv]),
         },
     )
+
+    # sourcekit-lsp setup bits
+    lsp_config_json = {
+        "backgroundIndexing": True,
+        "backgroundPreparationMode": "build",
+        "defaultWorkspaceType": "buildServer",
+        "buildServerWorkspaceRequestsTimeout": 999, # Temporary while we don't follow the recommendation of returning from buildTargets as fast as possible + use notifications
+        "buildSettingsTimeout": 999, # Temporary while we don't follow the recommendation of returning from buildTargets as fast as possible + use notifications
+    }
+    if ctx.attr.index_build_batch_size:
+        if not ctx.attr.compile_top_level:
+            fail("index_build_batch_size is currently only supported when compile_top_level is true.")
+        lsp_config_json["preparationBatchingStrategy"] = {
+            "strategy": "fixedTargetBatchSize",
+            "batchSize": ctx.attr.index_build_batch_size
+        }
+    ctx.actions.write(rendered_lsp_config, json.encode(lsp_config_json))
+
+    # Generating the script that ties everything together
     executable = ctx.actions.declare_file("setup_sourcekit_bsp.sh")
     ctx.actions.expand_template(
         template = ctx.file._setup_sourcekit_bsp_script,
@@ -38,6 +59,7 @@ def _setup_sourcekit_bsp_impl(ctx):
         output = executable,
         substitutions = {
             "%bsp_config_path%": rendered_bsp_config.short_path,
+            "%lsp_config_path%": rendered_lsp_config.short_path,
             "%sourcekit_bazel_bsp_path%": ctx.executable.sourcekit_bazel_bsp.short_path,
         },
     )
@@ -45,6 +67,7 @@ def _setup_sourcekit_bsp_impl(ctx):
         files = [
             ctx.executable.sourcekit_bazel_bsp,
             rendered_bsp_config,
+            rendered_lsp_config,
         ],
     )
     return DefaultInfo(
@@ -97,7 +120,7 @@ setup_sourcekit_bsp = rule(
             default = [],
         ),
         "index_build_batch_size": attr.int(
-            doc = "The number of targets to prepare in parallel. If not specified, SourceKit-LSP will calculate an appropriate value based on the environment. Requires compile_top_level and using the pre-built SourceKit-LSP binary from the release archive.",
+            doc = "The number of targets to prepare in parallel. Requires compile_top_level and using the pre-built SourceKit-LSP binary from the release archive.",
             mandatory = False,
         ),
         "compile_top_level": attr.bool(

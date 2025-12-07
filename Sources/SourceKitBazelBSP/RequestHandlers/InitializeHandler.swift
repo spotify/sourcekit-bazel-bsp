@@ -172,18 +172,6 @@ final class InitializeHandler {
         } else {
             watchers = nil
         }
-        let batchSize: Int? = {
-            let compileTopLevel = initializedConfig.baseConfig.compileTopLevel
-            let indexBuildBatchSize = initializedConfig.baseConfig.indexBuildBatchSize
-            if compileTopLevel == false && indexBuildBatchSize != nil {
-                // FIXME: It's possible to support this, just doing one thing at a time for simplicity.
-                logger.warning("Ignoring indexBuildBatchSize: Currently only supported for --compile-top-level.")
-            }
-            guard compileTopLevel == false else {
-                return indexBuildBatchSize
-            }
-            return 1
-        }()
         return InitializeBuildResponse(
             displayName: "sourcekit-bazel-bsp",
             version: sourcekitBazelBSPVersion,
@@ -204,11 +192,6 @@ final class InitializeHandler {
             data: SourceKitInitializeBuildResponseData(
                 indexDatabasePath: initializedConfig.indexDatabasePath,
                 indexStorePath: initializedConfig.indexStorePath,
-                // Commented out on purpose while we get batching working upstream
-                //                multiTargetPreparation: MultiTargetPreparationSupport(
-                //                    supported: true,
-                //                    batchSize: batchSize
-                //                ),
                 outputPathsProvider: nil,
                 prepareProvider: true,
                 sourceKitOptionsProvider: true,

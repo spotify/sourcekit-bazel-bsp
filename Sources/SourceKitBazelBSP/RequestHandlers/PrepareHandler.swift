@@ -26,11 +26,13 @@ import struct os.OSAllocatedUnfairLock
 private let logger = makeFileLevelBSPLogger()
 
 enum PrepareHandlerError: Error, LocalizedError {
-    case unexpectedBatching([String])
+    case unexpectedBatching
 
     var errorDescription: String? {
         switch self {
-        case .unexpectedBatching(let labels): return "Unexpected batching of targets: \(labels.joined(separator: ", "))"
+        case .unexpectedBatching:
+            return
+                "Your sourcekit-lsp instance appears to be configured for batching, but the BSP currently only supports this when passing --compile-top-level. To fix this, either disable batching or enable --compile-top-level for the BSP."
         }
     }
 }
@@ -108,9 +110,7 @@ final class PrepareHandler {
                 extraArgs = []  // Not applicable in this case
             } else {
                 guard platformInfo.count == 1 else {
-                    // Should not happen as we force the batch size to 1 in this case,
-                    // but catching it just in case.
-                    throw PrepareHandlerError.unexpectedBatching(platformInfo.map { $0.label })
+                    throw PrepareHandlerError.unexpectedBatching
                 }
                 let infoToBuild = platformInfo[0]
                 labelsToBuild = [infoToBuild.label]
