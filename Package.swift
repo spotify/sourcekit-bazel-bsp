@@ -24,7 +24,7 @@ let package = Package(
 
         .package(
             url: "https://github.com/apple/swift-argument-parser",
-            revision: "1.5.0"
+            revision: "1.6.2"
         ),
         .package(
             url: "https://github.com/apple/swift-protobuf.git",
