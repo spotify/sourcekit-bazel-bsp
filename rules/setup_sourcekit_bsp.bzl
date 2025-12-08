@@ -47,7 +47,7 @@ def _setup_sourcekit_bsp_impl(ctx):
             "strategy": "fixedTargetBatchSize",
             "batchSize": ctx.attr.index_build_batch_size
         }
-    ctx.actions.write(rendered_lsp_config, json.encode(lsp_config_json))
+    ctx.actions.write(rendered_lsp_config, json.encode_indent(lsp_config_json, indent = "  "))
 
     # Generating the script that ties everything together
     executable = ctx.actions.declare_file("setup_sourcekit_bsp.sh")
