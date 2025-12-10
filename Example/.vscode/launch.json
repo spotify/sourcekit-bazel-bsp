@@ -1,19 +1,22 @@
 {
-    "configurations": [
-        {
-            "name": "Debug HelloWorld",
-            "type": "lldb-dap",
-            "request": "attach",
-            "preLaunchTask": "_launch_helloworld",
-            "debuggerRoot": "${workspaceFolder}",
-            "attachCommands": [
-                "process connect connect://localhost:6667",
-            ],
-            "internalConsoleOptions": "openOnSessionStart",
-            "timeout": 1000,
-        },
-    ],
-    "options": {
-        "console": "integratedTerminal",
+  "configurations": [
+    {
+      "name": "Debug HelloWorld",
+      "type": "lldb-dap",
+      "request": "attach",
+      "preLaunchTask": "_launch_helloworld",
+      "debuggerRoot": "${workspaceFolder}",
+      "attachCommands": [
+        "command script import '${workspaceFolder}/scripts/lldb_attach.py'"
+      ],
+      "terminateCommands": [
+        "command script import '${workspaceFolder}/scripts/lldb_kill_app.py'"
+      ],
+      "internalConsoleOptions": "openOnSessionStart",
+      "timeout": 9999
     }
+  ],
+  "options": {
+    "console": "integratedTerminal",
+  }
 }

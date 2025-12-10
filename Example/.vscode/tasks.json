@@ -13,7 +13,24 @@
         "kind": "build",
         "isDefault": true
       },
-      "problemMatcher": [],
+      "problemMatcher": [
+        {
+          "owner": "swift",
+          "source": "swift",
+          "fileLocation": [
+            "relative",
+            "${workspaceFolder}"
+          ],
+          "pattern": {
+            "regexp": "^(.+?):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.*)$",
+            "file": 1,
+            "line": 2,
+            "column": 3,
+            "severity": 4,
+            "message": 5
+          }
+        },
+      ],
       "runOptions": {
         "instanceLimit": 1
       }
@@ -30,7 +47,24 @@
         "kind": "test",
         "isDefault": true
       },
-      "problemMatcher": [],
+      "problemMatcher": [
+        {
+          "owner": "swift",
+          "source": "swift",
+          "fileLocation": [
+            "relative",
+            "${workspaceFolder}"
+          ],
+          "pattern": {
+            "regexp": "^(.+?):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.*)$",
+            "file": 1,
+            "line": 2,
+            "column": 3,
+            "severity": 4,
+            "message": 5
+          }
+        },
+      ],
       "runOptions": {
         "instanceLimit": 1
       }
@@ -41,13 +75,34 @@
     {
       "label": "_launch_helloworld",
       "type": "shell",
-      "command": "./scripts/launch_and_debug.sh",
+      "command": "./scripts/lldb_launch_and_debug.sh",
+      "options": {
+        "env": {
+          "BAZEL_LABEL_TO_RUN": "//HelloWorld:HelloWorld"
+        }
+      },
       "presentation": {
         "reveal": "always"
       },
       "hide": true,
       "isBackground": true,
       "problemMatcher": [
+        {
+          "owner": "swift",
+          "source": "swift",
+          "fileLocation": [
+            "relative",
+            "${workspaceFolder}"
+          ],
+          "pattern": {
+            "regexp": "^(.+?):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.*)$",
+            "file": 1,
+            "line": 2,
+            "column": 3,
+            "severity": 4,
+            "message": 5
+          }
+        },
         {
           "pattern": [
             {
@@ -59,24 +114,13 @@
           ],
           "background": {
             "activeOnStart": true,
-            "beginsPattern": "^.*Building....*",
-            "endsPattern": "^.*Listening to port 6667 for a connection from .*"
+            "beginsPattern": "^.*Building .*",
+            "endsPattern": "^.*Launched with PID: .*"
           }
         }
       ],
       "runOptions": {
         "instanceLimit": 1
-      }
-    },
-    {
-      "label": "Stream SourceKitBazelBSP Logs",
-      "type": "shell",
-      "command": "log stream --process sourcekit-bazel-bsp --debug",
-      "problemMatcher": [],
-      "isBackground": false,
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
       }
     }
   ]

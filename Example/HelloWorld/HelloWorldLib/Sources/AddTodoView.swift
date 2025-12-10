@@ -96,6 +96,7 @@ struct AddTodoView: View {
             }
             .navigationBarHidden(true)
             .onAppear {
+                print("AddTodoView onAppear")
                 isTextFieldFocused = true
             }
             .onSubmit {
@@ -111,5 +112,7 @@ struct AddTodoView: View {
         todoManager.addTodoItem(title: trimmedTitle)
         todoTitle = ""
         isPresented = false
+
+        print("Added task: \(trimmedTitle)")
     }
 }
