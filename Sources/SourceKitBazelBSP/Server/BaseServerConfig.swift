@@ -30,6 +30,7 @@ package struct BaseServerConfig: Equatable {
     let indexFlags: [String]
     let filesToWatch: String?
     let compileTopLevel: Bool
+    let topLevelRulesToDiscover: [TopLevelRuleType]
 
     package init(
         bazelWrapper: String,
@@ -37,11 +38,13 @@ package struct BaseServerConfig: Equatable {
         indexFlags: [String],
         filesToWatch: String?,
         compileTopLevel: Bool,
+        topLevelRulesToDiscover: [TopLevelRuleType],
     ) {
         self.bazelWrapper = bazelWrapper
         self.indexFlags = indexFlags
         self.filesToWatch = filesToWatch
         self.compileTopLevel = compileTopLevel
+        self.topLevelRulesToDiscover = topLevelRulesToDiscover
 
         // We need to post-process the target list provided by the user
         // because the queries will always return the "full" label.

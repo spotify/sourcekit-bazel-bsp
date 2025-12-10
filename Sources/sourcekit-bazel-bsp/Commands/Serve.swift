@@ -61,6 +61,12 @@ struct Serve: ParsableCommand {
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
+        let rulesToUse: [TopLevelRuleType]
+        if !topLevelRuleToDiscover.isEmpty {
+            rulesToUse = topLevelRuleToDiscover
+        } else {
+            rulesToUse = TopLevelRuleType.allCases
+        }
         let indexFlags = indexFlag.map { "--" + $0 }
         let targets: [String]
         if !target.isEmpty {
@@ -78,7 +84,7 @@ struct Serve: ParsableCommand {
                     contentsOf: try expandWildcardTargets(
                         bazelWrapper: bazelWrapper,
                         targets: targetsToExpand,
-                        topLevelRuleToDiscover: topLevelRuleToDiscover,
+                        topLevelRuleToDiscover: rulesToUse,
                         indexFlags: indexFlags
                     )
                 )
@@ -90,7 +96,7 @@ struct Serve: ParsableCommand {
             targets = try expandWildcardTargets(
                 bazelWrapper: bazelWrapper,
                 targets: ["..."],
-                topLevelRuleToDiscover: topLevelRuleToDiscover,
+                topLevelRuleToDiscover: rulesToUse,
                 indexFlags: indexFlags
             )
         }
@@ -100,7 +106,8 @@ struct Serve: ParsableCommand {
             targets: targets,
             indexFlags: indexFlags,
             filesToWatch: filesToWatch,
-            compileTopLevel: compileTopLevel
+            compileTopLevel: compileTopLevel,
+            topLevelRulesToDiscover: rulesToUse
         )
 
         logger.debug("Initializing BSP with targets: \(targets)")
@@ -119,18 +126,13 @@ struct Serve: ParsableCommand {
         logger.warning(
             "Will expand wildcard targets (\(targetsString, privacy: .public)). This can cause the BSP to perform poorly if we find too many targets. Prefer passing explicit targets via --targets if possible."
         )
-        let rulesToUse: [TopLevelRuleType]
-        if !topLevelRuleToDiscover.isEmpty {
-            rulesToUse = topLevelRuleToDiscover
-        } else {
-            rulesToUse = TopLevelRuleType.allCases
-        }
         do {
             return try BazelTargetDiscoverer.discoverTargets(
-                for: rulesToUse,
+                for: topLevelRuleToDiscover,
                 bazelWrapper: bazelWrapper,
                 locations: targets,
-                additionalFlags: indexFlags
+                additionalFlags: indexFlags,
+                processInfoPath: ProcessInfo.processInfo.arguments.first ?? ""
             )
         } catch {
             logger.error(
