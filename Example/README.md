@@ -1,6 +1,6 @@
-# Example (Cursor)
+# Example (Cursor/VSCode)
 
-This is a simple **iOS** app that lets you see sourcekit-bazel-bsp in action. This example and instructions were designed specifically for **Cursor**, but might also work for VSCode.
+This is a simple **iOS** app that lets you see sourcekit-bazel-bsp in action. This example and instructions were designed specifically for **Cursor**, but should also work for VSCode.
 
 ## Initial Setup Instructions
 
@@ -10,9 +10,8 @@ This is a simple **iOS** app that lets you see sourcekit-bazel-bsp in action. Th
   - Make sure you're using **Xcode 26** as this is what this project was developed with.
 - On this folder, run:
   - `bazelisk run //HelloWorld:setup_sourcekit_bsp_example_project`
-- On Cursor, open a workspace **targeting this specific folder.**
 - (Optional) Follow the instructions from the main README regarding configuring a custom SourceKit-LSP binary.
-- Either restart the language server (`Cmd+Shift+P -> Swift: Restart LSP Server`) or reload the entire window (`Cmd+Shift+P -> Reload Window`) if you don't see the previous option.
+- Follow the instructions from the main README regarding either opening or reloading a workspace targeting this folder.
 - Open a Swift file to load the extension. It has to be a Swift file; as of writing this will not work if you open a Objective-C file (but they will work fine after the extension is loaded).
 - (If reloading the entire window) Wait for the Swift extension to launch. We've seen that this can take a couple of seconds depending on the version of your extension.
 
