@@ -27,23 +27,20 @@
 
 ### Cursor / VSCode
 
-- Make sure your Bazel project is using compatible versions of all iOS-related Bazel rulesets (available on each release's description) and is configured to generate Swift/Obj-C indexing data and debug symbols, either by default or under a specific config.
-  - Detailed information around configuring Bazel flags is currently WIP, but you can currently check out the [example project](./Example) for an example.
-- Download and install [the official Swift extension](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) for Cursor / VSCode.
-  - Note: (Cursor) As of writing, you won't be able to do this directly via Cursor's Marketplace (you will find one there, but it's an old version). You will need to download the `.vsix` file from the [extension's releases](https://github.com/swiftlang/vscode-swift/releases) and install it manually.
-- On Cursor / VSCode, open a workspace containing the repository in question.
-- **(Optional)** Configure your workspace to use a custom `sourcekit-lsp` binary by placing the provided binary from the release archive at a place of your choice, running _Cmd+P_ on the IDE, typing `> Preferences: Open Workspace Settings (JSON)`, and adding the following entry to the JSON file: `"swift.sourcekit-lsp.serverPath": "(absolute path to the sourcekit-lsp binary to use)"`
-  - This is not strictly necessary. However, as we currently make use of LSP features that are not yet shipped to Xcode, you may face performance and other usability issues when using the version that is shipped with Xcode. Consider using the version provided alongside sourcekit-bazel-bsp (or compiling your own) for the best experience.
+- Download and install the official [Swift](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) and [LLDB-DAP](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.lldb-dap) extensions.
+  - Note: (Cursor) As of writing, you won't be able to install these extensions directly from Cursor's Marketplace. You will need to download the `.vsix` files by finding them in VSCode and right clicking the extension -> `Download VSIX`. You can then install the extensions by installing the Cursor CLI and running `cursor --install-extension (vsix_path)`.
+- **(Optional)** Configure your workspace to use a custom `sourcekit-lsp` binary by placing the provided binary from the release archive (or compiling/providing one of your own) at a place of your choice, creating a `.vscode/settings.json` JSON file at the root of your repository, and adding the following entry to it: `"swift.sourcekit-lsp.serverPath": "(absolute path to the sourcekit-lsp binary to use)"`
+  - This is not strictly necessary. However, as we currently make use of LSP features that are not yet shipped with Xcode, you may face performance and other usability issues when using the version that is shipped with Xcode. Consider using the version provided alongside sourcekit-bazel-bsp (or compiling/providing your own) for the best experience.
 
 The next step is to integrate sourcekit-bazel-bsp with your project:
 
-- Add the following to your `MODULE.bazel` file:
+- Add sourcekit-bazel-bsp as a dependency on your `MODULE.bazel` file:
 
 ```python
 bazel_dep(name = "sourcekit_bazel_bsp", version = "0.4.0", repo_name = "sourcekit_bazel_bsp")
 ```
 
-- Define a `setup_sourcekit_bsp` rule in a BUILD.bazel file in the root of your workspace and [configure it](rules/setup_sourcekit_bsp.bzl#L48) for your desired setup:
+- Define a `setup_sourcekit_bsp` rule in a BUILD.bazel file of your choice and [configure it](rules/setup_sourcekit_bsp.bzl#L77) for your desired setup:
 
 ```python
 load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl")
@@ -56,11 +53,11 @@ setup_sourcekit_bsp(
 
 - Run `bazel run {path to the rule, e.g //:setup_sourcekit_bsp}`.
 
-This will result in a `.bsp/skbsp.json` file being added to your workspace. Users should then re-run the above command whenever the configuration changes.
+This will result in the necessary configuration files being added to your repository. Users should then re-run the above command whenever the rule's parameters changes.
 
 #### After Integrating
 
-- Either restart the language server (`Cmd+Shift+P -> Swift: Restart LSP Server`) or reload the entire window (`Cmd+Shift+P -> Reload Window`) if you don't see the previous option.
+- On the IDE, open a workspace containing the repository in question. If you already had one open, either restart the language server (`Cmd+Shift+P -> Swift: Restart LSP Server`) or reload the entire window (`Cmd+Shift+P -> Reload Window`) if you don't see the previous option.
 
 After following these steps and opening a Swift file, the `SourceKit Language Server` output tab (_Cmd+Shift+U_) should eventually show up (this will take a couple of seconds if the Swift extension needs to be launched on that window), and indexing-related actions will start popping up at the bottom of the IDE after a while alongside a new `SourceKit-LSP: Indexing` output tab when working with those files.
 
