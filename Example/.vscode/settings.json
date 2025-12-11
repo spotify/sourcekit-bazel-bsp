@@ -1,0 +1,5 @@
+{
+    "swift.disableSwiftPackageManagerIntegration": true,
+    "swift.autoGenerateLaunchConfigurations": false,
+    "swift.disableAutoResolve": true
+}
