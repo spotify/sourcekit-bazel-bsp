@@ -21,7 +21,7 @@ After performing these steps, you should already be able to see the basic indexi
 
 - To run a regular build: Cmd+Shift+B -> `Build HelloWorld`
 - To run a debug build, launch the simulator and attach `lldb`: Cmd+Shift+D -> `Debug HelloWorld (Example)`
-  - This requires a **iOS 18.4 iPhone 16 Pro** simulator installed as this is what the example project is currently configured for. Make sure you have one available, as otherwise the build will fail.
+  - This requires a **iOS 18.6 iPhone 16 Pro** simulator installed as this is what the example project is currently configured for. Make sure you have one available, as otherwise the build will fail.
 - To test: Cmd+Shift+P -> `Run Test Task` -> `Test HelloWorldTests`
 
 ## Considerations
