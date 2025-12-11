@@ -28,7 +28,8 @@
 ### Cursor / VSCode
 
 - Download and install the official [Swift](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) and [LLDB-DAP](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.lldb-dap) extensions.
-  - Note: (Cursor) As of writing, you won't be able to install these extensions directly from Cursor's Marketplace. You will need to download the `.vsix` files by finding them in VSCode and right clicking the extension -> `Download VSIX`. You can then install the extensions by installing the Cursor CLI and running `cursor --install-extension (vsix_path)`.
+  - We recommend disabling the SwiftPM integration (in the Swift extension's settings) as that can interfere with the BSP.
+  - Note: (Cursor) As of writing, you won't be able to install these extensions directly from Cursor's Marketplace. You will need to download the `.vsix` files separatedly and install them by either dragging them into Cursor or using the Cursor CLI. One way to obtain the `.vsix` files is by finding the extensions in **VSCode** and right clicking them -> `Download VSIX`.
 - **(Optional)** Configure your workspace to use a custom `sourcekit-lsp` binary by placing the provided binary from the release archive (or compiling/providing one of your own) at a place of your choice, creating a `.vscode/settings.json` JSON file at the root of your repository, and adding the following entry to it: `"swift.sourcekit-lsp.serverPath": "(absolute path to the sourcekit-lsp binary to use)"`
   - This is not strictly necessary. However, as we currently make use of LSP features that are not yet shipped with Xcode, you may face performance and other usability issues when using the version that is shipped with Xcode. Consider using the version provided alongside sourcekit-bazel-bsp (or compiling/providing your own) for the best experience.
 
