@@ -48,7 +48,7 @@ struct Serve: ParsableCommand {
     @Option(
         parsing: .singleValue,
         help:
-            "A top-level rule type to discover targets for (e.g. 'ios_application', 'ios_unit_test'). Can be specified multiple times. Only applicable when not passing --target directly. If not specified, all supported top-level rule types will be used for target discovery."
+            "A top-level rule type to discover targets for (e.g. 'ios_application', 'ios_unit_test'). Can be specified multiple times. If not specified, all supported top-level rule types will be used for target discovery."
     )
     var topLevelRuleToDiscover: [TopLevelRuleType] = []
 
@@ -132,7 +132,6 @@ struct Serve: ParsableCommand {
                 bazelWrapper: bazelWrapper,
                 locations: targets,
                 additionalFlags: indexFlags,
-                processInfoPath: ProcessInfo.processInfo.arguments.first ?? ""
             )
         } catch {
             logger.error(

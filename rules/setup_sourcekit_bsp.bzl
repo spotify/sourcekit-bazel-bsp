@@ -114,7 +114,7 @@ setup_sourcekit_bsp = rule(
             default = [],
         ),
         "top_level_rules_to_discover": attr.string_list(
-            doc = "A list of top-level rule types to discover targets for (e.g. 'ios_application', 'ios_unit_test'). Only applicable when not specifying targets directly. If not specified, all supported top-level rule types will be used for target discovery.",
+            doc = "A list of top-level rule types to discover targets for (e.g. 'ios_application', 'ios_unit_test'). If not specified, all supported top-level rule types will be used for target discovery.",
             default = [],
         ),
         "index_build_batch_size": attr.int(

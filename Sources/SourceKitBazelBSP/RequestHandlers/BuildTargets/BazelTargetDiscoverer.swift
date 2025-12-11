@@ -1,7 +1,5 @@
 import Foundation
 
-private let logger = makeFileLevelBSPLogger()
-
 public enum BazelTargetDiscovererError: LocalizedError, Equatable {
     case noRulesProvided
     case noTargetsDiscovered
@@ -32,7 +30,6 @@ public enum BazelTargetDiscoverer {
         bazelWrapper: String = "bazel",
         locations: [String] = [],
         additionalFlags: [String] = [],
-        processInfoPath: String?,
         commandRunner: CommandRunner? = nil
     ) throws -> [String] {
         guard !rules.isEmpty else {
@@ -48,20 +45,6 @@ public enum BazelTargetDiscoverer {
         // FIXME: This has a lot of overlap with the Bazel utilities in CommandRunner, but we cannot
         // use them because this logic runs before the actual initialize code that builds all necessary info.
         // So we're duplicating a bunch of this logic here as a result.
-        let cwd: String? = {
-            if let processInfoPath, processInfoPath.hasSuffix("/.bsp/sourcekit-bazel-bsp") {
-                // Remove the suffix to find out the true root of the workspace.
-                // It's not safe to run `bazel info workspace` here because for some reason
-                // it sometimes returns the wrong folder. Not sure if it's the Swift extension
-                // causing that or Cursor, but it ended up being safer to look at the actual process's path.
-                return URL(fileURLWithPath: processInfoPath)
-                    .deletingLastPathComponent()
-                    .deletingLastPathComponent()
-                    .path
-            } else {
-                return nil
-            }
-        }()
         let kindsQuery = "\"" + rules.map { $0.rawValue }.joined(separator: "|") + "\""
         let locationsQuery = locations.joined(separator: " union ")
         let query = "kind(\(kindsQuery), \(locationsQuery))"
@@ -73,7 +56,7 @@ public enum BazelTargetDiscoverer {
         }()
         let cmd = "\(bazelWrapper) cquery '\(query)'\(additionalFlagsString) --output label"
 
-        let output: String = try commandRunner.run(cmd, cwd: cwd)
+        let output: String = try commandRunner.run(cmd)
 
         let discoveredTargets =
             output

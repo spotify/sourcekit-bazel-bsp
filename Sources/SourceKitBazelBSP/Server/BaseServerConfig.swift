@@ -38,7 +38,7 @@ package struct BaseServerConfig: Equatable {
         indexFlags: [String],
         filesToWatch: String?,
         compileTopLevel: Bool,
-        topLevelRulesToDiscover: [TopLevelRuleType],
+        topLevelRulesToDiscover: [TopLevelRuleType] = TopLevelRuleType.allCases,
     ) {
         self.bazelWrapper = bazelWrapper
         self.indexFlags = indexFlags
