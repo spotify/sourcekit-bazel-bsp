@@ -40,7 +40,7 @@ protocol BazelTargetStore: AnyObject {
 }
 
 enum BazelTargetStoreError: Error, LocalizedError {
-    case noTopLevelTargets
+    case noTopLevelTargets([TopLevelRuleType])
     case unsupportedTargetType(target: String, type: String, supportedTypes: [TopLevelRuleType])
     case unknownBSPURI(URI)
     case unableToMapBazelLabelToParents(String)
@@ -50,10 +50,10 @@ enum BazelTargetStoreError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .noTopLevelTargets:
+        case .noTopLevelTargets(let rules):
             return """
                 No top-level targets found in the store for query of kind: \
-                \(TopLevelRuleType.allCases.map { $0.rawValue }.joined(separator: ", "))
+                \(rules.map { $0.rawValue }.joined(separator: ", "))
                 """
         case .unsupportedTargetType(let target, let type, let supportedTypes):
             return """
@@ -208,7 +208,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
             return cachedTargets
         }
 
-        let topLevelRuleTypes = TopLevelRuleType.allCases
+        let topLevelRuleTypes = initializedConfig.baseConfig.topLevelRulesToDiscover
         let topLevelRuleKinds = Set(topLevelRuleTypes.map(\.rawValue))
 
         // Query all the targets we are interested in one invocation:
@@ -247,7 +247,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         }
 
         guard !topLevelTargetLabels.isEmpty else {
-            throw BazelTargetStoreError.noTopLevelTargets
+            throw BazelTargetStoreError.noTopLevelTargets(topLevelRuleTypes)
         }
 
         logger.debug("Queried top-level targets: \(topLevelTargetLabels.joined(separator: " "), privacy: .public)")
