@@ -12,7 +12,7 @@
 - [x] All of the usual indexing features such as code completion, jump to definition, error annotations and so on, for both Swift and Obj-C (via the official [sourcekit-lsp](https://github.com/swiftlang/sourcekit-lsp))
 - [x] (Cursor / VSCode): Building and launching, all from within the IDE and directly via Bazel (no project generation required!)
 - [x] (Cursor / VSCode): Full `lldb` integration, allowing debugging from within the IDE just like Xcode (via [lldb-dap](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.lldb-dap), automatically provided by the official Swift extension)
-- [ ] (Cursor / VSCode): Simulator selection from within the IDE
+- [x] (Cursor / VSCode): Simulator selection from within the IDE
 - [ ] (Cursor / VSCode): Automatic generation of build, launch, and debug tasks
 - [ ] (Cursor / VSCode): Test explorer & ability to run tests from within the IDE by clicking the tests individually, similarly to Xcode
 - [ ] Automatic index and build graph updates when adding / deleting files and targets (in other words, allowing the user to make heavy changes to the project without needing to restart the IDE)
