@@ -1,10 +1,23 @@
 #!/bin/bash
 
-set -e
+source "scripts/lldb_build_common.sh"
 
-echo "Building ${BAZEL_LABEL_TO_RUN}..."
+echo "Starting launch task..."
 
-WORKSPACE_ROOT=$(pwd)
+function emit_launcher_error() {
+  echo "launcher_error in ${BASH_SOURCE[0]}: ${1}"
+  exit 1
+}
+
+# Read information regarding the user's selected simulator.
+SIMULATOR_INFO_FILE=${WORKSPACE_ROOT}/.bsp/skbsp_generated/simulator_info.txt
+SIMULATOR_INFO=""
+if [ -f "${SIMULATOR_INFO_FILE}" ]; then
+  SIMULATOR_INFO=$(cat "${SIMULATOR_INFO_FILE}")
+  echo "Will use simulator: ${SIMULATOR_INFO}"
+else
+  emit_launcher_error "No simulator selected! You need to first run the 'Select Simulator for Apple Development' task before being able to run this script."
+fi
 
 # When asking Bazel to launch a simulator, we need to intercept
 # the launched process' PID to be able to debug it later on.
@@ -24,20 +37,32 @@ cat > ${BAZEL_INFO_JSON} <<EOF
 }
 EOF
 
-ADDITIONAL_FLAGS=()
-ADDITIONAL_FLAGS+=("--keep_going")
-ADDITIONAL_FLAGS+=("--color=yes")
 # We need --remote_download_regex because the files that lldb needs won't usually be downloaded by Bazel
 # when using flags like --remote_download_toplevel and the such.
 ADDITIONAL_FLAGS+=("--remote_download_regex=.*\.indexstore/.*|.*\.(a|cfg|c|C|cc|cl|cpp|cu|cxx|c++|def|h|H|hh|hpp|hxx|h++|hmap|ilc|inc|inl|ipp|tcc|tlh|tli|tpp|m|modulemap|mm|pch|swift|swiftdoc|swiftmodule|swiftsourceinfo|yaml)$")
+ADDITIONAL_FLAGS+=("--@build_bazel_rules_apple//apple/build_settings:ios_device=${SIMULATOR_INFO}")
 
 BAZEL_APPLE_PREFER_PERSISTENT_SIMS=1 \
-BAZEL_APPLE_LAUNCH_INFO_PATH=${LAUNCH_INFO_JSON} \
+BAZEL_APPLE_LAUNCH_INFO_PATH="${LAUNCH_INFO_JSON}" \
 BAZEL_SIMCTL_LAUNCH_FLAGS="--wait-for-debugger --stdout=$(tty) --stderr=$(tty)" \
-bazelisk run "${BAZEL_LABEL_TO_RUN}" "${ADDITIONAL_FLAGS[@]}"
+run_bazel "run"
+
+# Remove the default lldbinit file created by rules_xcodeproj if it exists.
+# This prevents Xcode details from leaking over to our builds.
+# It's safe to delete this because rules_xcodeproj creates it on every build.
+RULES_XCODEPROJ_LLDBINIT_FILE=${HOME}/.lldbinit-rules_xcodeproj
+if [ -f "${RULES_XCODEPROJ_LLDBINIT_FILE}" ]; then
+  echo "Removing rules_xcodeproj's lldbinit file..."
+  rm -f "${RULES_XCODEPROJ_LLDBINIT_FILE}" || true
+fi
 
 PID=$(jq -r '.pid' "${LAUNCH_INFO_JSON}")
 
+if [ -z "${PID}" ]; then
+  emit_launcher_error "No PID found in ${LAUNCH_INFO_JSON}"
+fi
+
+# Note: This string is hardcoded in tasks.json file to launch LLDB-DAP.
 echo "Launched with PID: ${PID}"
 
 # Keep the terminal alive until the app is killed.
