@@ -2,55 +2,33 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Build HelloWorld",
+      "label": "Select Simulator for Apple Development",
       "type": "shell",
-      "command": "bazelisk",
-      "args": [
-        "build",
-        "//HelloWorld"
-      ],
-      "group": {
-        "kind": "build",
-        "isDefault": true
+      "command": "./scripts/select_simulator.sh",
+      "presentation": {
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated"
       },
-      "problemMatcher": [
-        {
-          "owner": "swift",
-          "source": "swift",
-          "fileLocation": [
-            "relative",
-            "${workspaceFolder}"
-          ],
-          "pattern": {
-            "regexp": "^(.+?):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.*)$",
-            "file": 1,
-            "line": 2,
-            "column": 3,
-            "severity": 4,
-            "message": 5
-          }
-        },
-      ],
-      "runOptions": {
-        "instanceLimit": 1
-      }
+      "problemMatcher": []
     },
     {
-      "label": "Test HelloWorldTests",
+      "label": "Build HelloWorld",
       "type": "shell",
-      "command": "bazelisk",
-      "args": [
-        "test",
-        "//HelloWorld:HelloWorldTests"
-      ],
+      "command": "./scripts/lldb_build.sh",
+      "options": {
+        "env": {
+          "BAZEL_LABEL_TO_RUN": "//HelloWorld:HelloWorld",
+          "BAZEL_EXTRA_BUILD_FLAGS": "",
+        }
+      },
       "group": {
-        "kind": "test",
-        "isDefault": true
+        "kind": "build",
       },
       "problemMatcher": [
         {
-          "owner": "swift",
-          "source": "swift",
+          "owner": "bazelisk",
+          "source": "bazelisk",
           "fileLocation": [
             "relative",
             "${workspaceFolder}"
@@ -62,12 +40,9 @@
             "column": 3,
             "severity": 4,
             "message": 5
-          }
+          },
         },
       ],
-      "runOptions": {
-        "instanceLimit": 1
-      }
     },
     // Hidden never-ending task that handles the launch / debugging bits for Cmd+Shift+D.
     // The problemMatcher field defines when the task is effectively ready to be debugged
@@ -78,7 +53,9 @@
       "command": "./scripts/lldb_launch_and_debug.sh",
       "options": {
         "env": {
-          "BAZEL_LABEL_TO_RUN": "//HelloWorld:HelloWorld"
+          "BAZEL_LABEL_TO_RUN": "//HelloWorld:HelloWorld",
+          "BAZEL_EXTRA_BUILD_FLAGS": "",
+          "BAZEL_LAUNCH_ARGS": ""
         }
       },
       "presentation": {
@@ -88,40 +65,49 @@
       "isBackground": true,
       "problemMatcher": [
         {
-          "owner": "swift",
-          "source": "swift",
+          "owner": "bazelisk",
+          "source": "bazelisk",
           "fileLocation": [
             "relative",
             "${workspaceFolder}"
           ],
           "pattern": {
-            "regexp": "^(.+?):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.*)$",
-            "file": 1,
-            "line": 2,
-            "column": 3,
-            "severity": 4,
-            "message": 5
+              "regexp": "launcher_error in (.*): (.*)",
+              "kind": "file",
+              "file": 1,
+              "message": 2,
+          },
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": "^Starting launch task\\.\\.\\.$",
+            "endsPattern": "^.*Launched with PID: .*"
           }
         },
         {
-          "pattern": [
-            {
-              "regexp": "\\b\\B",
-              "file": 1,
-              "location": 2,
-              "message": 3
-            }
+          "owner": "bazelisk",
+          "source": "bazelisk",
+          "fileLocation": [
+            "relative",
+            "${workspaceFolder}"
           ],
+          "pattern": {
+              "regexp": "^(.+?):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "severity": 4,
+              "message": 5
+          },
           "background": {
             "activeOnStart": true,
-            "beginsPattern": "^.*Building .*",
+            "beginsPattern": "^Starting launch task\\.\\.\\.$",
             "endsPattern": "^.*Launched with PID: .*"
           }
-        }
+        },
       ],
       "runOptions": {
         "instanceLimit": 1
       }
-    }
+    },
   ]
 }
