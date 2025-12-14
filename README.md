@@ -5,7 +5,7 @@
 > [!IMPORTANT]
 > sourcekit-bazel-bsp is designed specifically for projects that use the [Bazel build system](https://bazel.build/) under the hood. It will not work for regular Xcode projects. For Xcode, check out projects like [xcode-build-server](https://github.com/SolaWing/xcode-build-server) (unrelated to this project and Spotify).
 
-<img width="1462" alt="Cursor running iOS" src="./Example/img/readme.png">
+https://github.com/user-attachments/assets/ca5a448d-03b1-4f8e-9de1-e403cc08953c
 
 ## Features
 
