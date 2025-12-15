@@ -129,6 +129,7 @@ package final class SourceKitBazelBSPServer {
     /// we get a shutdown request from sourcekit-lsp.
     package func run(parkThread: Bool = true) {
         logger.info("Connecting to sourcekit-lsp...")
+        extensionLogger.notice("BSP server starting...")
 
         connection.start(
             receiveHandler: handler,
@@ -144,6 +145,7 @@ package final class SourceKitBazelBSPServer {
         }
 
         logger.info("Connection established, parking thread.")
+        extensionLogger.notice("BSP server connected to sourcekit-lsp ✓")
 
         // Park the thread by sleeping for 10 years.
         // All request handling is done on other threads and sourcekit-bazel-bsp exits by calling `_Exit` when it receives a

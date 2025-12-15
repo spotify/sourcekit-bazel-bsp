@@ -39,6 +39,11 @@ jobs:
         run: |
           cd Example
           bazelisk test //HelloWorld:HelloWorldTests
+      - name: Build VSCode extension
+        run: |
+          cd vscode-extension
+          npm install
+          npm run compile
       - name: Build release source archive
         run: make release_source_archive
       - uses: actions/upload-artifact@v4

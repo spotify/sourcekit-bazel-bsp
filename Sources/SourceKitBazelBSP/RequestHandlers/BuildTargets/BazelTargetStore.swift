@@ -181,6 +181,9 @@ final class BazelTargetStoreImpl: BazelTargetStore {
             logger.warning(
                 "Target \(uri.description, privacy: .public) has multiple top-level parents; will pick the first one: \(parentToUse, privacy: .public)"
             )
+            extensionLogger.warning(
+                "Target \(uri.description, privacy: .public) has multiple top-level parents; will pick the first one: \(parentToUse, privacy: .public)"
+            )
         }
         let rule = try topLevelRuleType(forBazelLabel: parentToUse)
         let config = try topLevelConfigInfo(forBazelLabel: parentToUse)
