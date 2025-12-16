@@ -38,6 +38,8 @@ struct InitializedServerConfig: Equatable {
     }
 
     var indexStorePath: String {
+        // This is the same path hardcoded by rules_swift
+        // when the global index store feature is enabled.
         outputPath + "/_global_index_store"
     }
 }
