@@ -224,4 +224,5 @@ setup_sourcekit_bsp(
     targets = [
         "//HelloWorld/...",
     ],
+    no_extra_output_base = True,
 )

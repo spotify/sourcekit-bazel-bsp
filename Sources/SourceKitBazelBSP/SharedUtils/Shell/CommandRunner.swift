@@ -85,20 +85,21 @@ extension CommandRunner {
         additionalStartupFlags: [String] = []
     ) -> String {
         let indexFlags = baseConfig.indexFlags
-        let additionalFlags = additionalFlags.map { " \($0)" }
-        let flagsString: String
-        if indexFlags.isEmpty {
-            flagsString = additionalFlags.joined(separator: "")
-        } else {
-            flagsString = (additionalFlags + indexFlags.map { " \($0)" }).joined(separator: "")
+        var components: [String] = []
+        if !baseConfig.noExtraOutputBase {
+            components.append("--output_base=\(outputBase)")
         }
-        let startupFlagsString: String
-        if additionalStartupFlags.isEmpty {
-            startupFlagsString = ""
-        } else {
-            startupFlagsString = " " + additionalStartupFlags.joined(separator: " ")
+        if !additionalStartupFlags.isEmpty {
+            components.append(contentsOf: additionalStartupFlags)
         }
-        return "--output_base=\(outputBase)\(startupFlagsString) \(cmd)\(flagsString)"
+        components.append(cmd)
+        if !additionalFlags.isEmpty {
+            components.append(contentsOf: additionalFlags)
+        }
+        if !indexFlags.isEmpty {
+            components.append(contentsOf: indexFlags)
+        }
+        return components.joined(separator: " ")
     }
 
     /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.
