@@ -27,6 +27,7 @@ struct InitializedServerConfig: Equatable {
     let outputBase: String
     let outputPath: String
     let devDir: String
+    let xcodeVersion: String
     let devToolchainPath: String
     let executionRoot: String
     let sdkRootPaths: [String: String]

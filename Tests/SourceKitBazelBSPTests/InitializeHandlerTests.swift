@@ -44,6 +44,7 @@ struct InitializeHandlerTests {
         let outputPath = "/_bazel_user/abc123-sourcekit-bazel-bsp/execroot/_main/bazel-out"
         let executionRoot = "/_bazel_user/abc123-sourcekit-bazel-bsp/execroot/_main"
         let devDir = "/Applications/Xcode.app/Contents/Developer"
+        let xcodeVersion: String = "17B100"
         let toolchain = "/a/b/Toolchains/XcodeDefault.xctoolchain/"
 
         commandRunner.setResponse(for: "mybazel info output_base", cwd: rootUri, response: outputBase)
@@ -58,6 +59,10 @@ struct InitializeHandlerTests {
             response: executionRoot
         )
         commandRunner.setResponse(for: "xcode-select --print-path", response: devDir)
+        commandRunner.setResponse(
+            for: "xcodebuild -version | grep 'Build version' | awk '{print $3}'",
+            response: xcodeVersion
+        )
         commandRunner.setResponse(for: "xcrun --find swift", response: toolchain + "usr/bin/swift")
         commandRunner.setResponse(for: "xcrun --sdk iphonesimulator --show-sdk-path", response: "sdkiossim")
 
@@ -75,6 +80,7 @@ struct InitializeHandlerTests {
                     outputBase: outputBase + "-sourcekit-bazel-bsp",
                     outputPath: outputPath,
                     devDir: devDir,
+                    xcodeVersion: xcodeVersion,
                     devToolchainPath: toolchain,
                     executionRoot: executionRoot,
                     sdkRootPaths: ["iphonesimulator": "sdkiossim"]
@@ -98,6 +104,7 @@ struct InitializeHandlerTests {
         let outputBase = "/_bazel_user/abc123"
         let outputPath = "/_bazel_user/abc123-sourcekit-bazel-bsp/execroot/_main/bazel-out"
         let toolchain = "/a/b/Toolchains/XcodeDefault.xctoolchain/"
+        let xcodeVersion: String = "17B100"
 
         commandRunner.setResponse(for: "mybazel info output_base", cwd: rootUri, response: outputBase)
         commandRunner.setResponse(
@@ -113,6 +120,10 @@ struct InitializeHandlerTests {
         commandRunner.setResponse(for: "xcrun --find swift", response: toolchain + "usr/bin/swift")
         commandRunner.setResponse(for: "xcode-select --print-path", response: "foo")
         commandRunner.setResponse(for: "xcrun --sdk iphonesimulator --show-sdk-path", response: "bar")
+        commandRunner.setResponse(
+            for: "xcodebuild -version | grep 'Build version' | awk '{print $3}'",
+            response: xcodeVersion
+        )
 
         let handler = InitializeHandler(baseConfig: baseConfig, commandRunner: commandRunner)
 
@@ -139,6 +150,7 @@ struct InitializeHandlerTests {
         let outputBase = "/_bazel_user/abc123"
         let outputPath = "/_bazel_user/abc123-sourcekit-bazel-bsp/execroot/_main/bazel-out"
         let toolchain = "/a/b/Toolchains/XcodeDefault.xctoolchain/"
+        let xcodeVersion: String = "17B100"
 
         commandRunner.setResponse(for: "mybazel info output_base", cwd: rootUri, response: outputBase)
         commandRunner.setResponse(
@@ -156,6 +168,10 @@ struct InitializeHandlerTests {
         commandRunner.setResponse(for: "xcrun --find swift", response: toolchain + "usr/bin/swift")
         commandRunner.setResponse(for: "xcode-select --print-path", response: "foo")
         commandRunner.setResponse(for: "xcrun --sdk iphonesimulator --show-sdk-path", response: "bar")
+        commandRunner.setResponse(
+            for: "xcodebuild -version | grep 'Build version' | awk '{print $3}'",
+            response: xcodeVersion
+        )
 
         let handler = InitializeHandler(baseConfig: baseConfig, commandRunner: commandRunner)
 

@@ -42,6 +42,7 @@ struct TargetSourcesHandlerTests {
             outputBase: "/tmp/output_base",
             outputPath: "/tmp/output_path",
             devDir: "/Applications/Xcode.app/Contents/Developer",
+            xcodeVersion: "17B100",
             devToolchainPath: "/a/b/XcodeDefault.xctoolchain/",
             executionRoot: "/tmp/output_path/execroot/_main",
             sdkRootPaths: ["iphonesimulator": "bar"]

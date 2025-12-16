@@ -54,6 +54,7 @@ struct BazelTargetCompilerArgsExtractorTests {
         let mockSdkRootPaths = [
             "iphonesimulator": iosSimSdk
         ]
+        let mockXcodeVersion = "17B100"
         let config = InitializedServerConfig(
             baseConfig: BaseServerConfig(
                 bazelWrapper: "bazel",
@@ -66,6 +67,7 @@ struct BazelTargetCompilerArgsExtractorTests {
             outputBase: mockOutputBase,
             outputPath: mockOutputPath,
             devDir: mockDevDir,
+            xcodeVersion: mockXcodeVersion,
             devToolchainPath: mockDevToolchainPath,
             executionRoot: mockExecRoot,
             sdkRootPaths: mockSdkRootPaths

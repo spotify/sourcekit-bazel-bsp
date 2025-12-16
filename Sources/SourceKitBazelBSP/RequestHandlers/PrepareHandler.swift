@@ -106,6 +106,8 @@ final class PrepareHandler {
                         minimumOsVersion: labelToBuild.topLevelParentConfig.minimumOsVersion,
                         platform: labelToBuild.topLevelParentConfig.platform,
                         cpuArch: labelToBuild.topLevelParentConfig.cpuArch,
+                        devDir: initializedConfig.devDir,
+                        xcodeVersion: initializedConfig.xcodeVersion
                     )
                     argsToLabelsMap[args, default: []].append(labelToBuild.label)
                 }
@@ -196,7 +198,9 @@ final class PrepareHandler {
     func buildArgs(
         minimumOsVersion: String,
         platform: String,
-        cpuArch: String
+        cpuArch: String,
+        devDir: String,
+        xcodeVersion: String
     ) -> [String] {
         // As of writing, Bazel does not provides a "build X as if it were a child of Y" flag.
         // This means that to compile individual libraries accurately, we need to replicate
@@ -226,6 +230,10 @@ final class PrepareHandler {
             "--\(friendlyPlatName)_minimum_os=\"\(minimumOsVersion)\"",
             "--cpu=\(platform)_\(cpuArch)",
             "--minimum_os_version=\"\(minimumOsVersion)\"",
+            "--xcode_version=\"\(xcodeVersion)\"",
+            "--repo_env=DEVELOPER_DIR=\"\(devDir)\"",
+            "--repo_env=USE_CLANG_CL=\"\(xcodeVersion)\"",
+            "--repo_env=XCODE_VERSION=\"\(xcodeVersion)\"",
         ]
     }
 
