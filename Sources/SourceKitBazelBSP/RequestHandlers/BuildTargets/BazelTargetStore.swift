@@ -214,7 +214,8 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         // Query all the targets we are interested in one invocation:
         //  - Top-level targets (e.g. `ios_application`, `ios_unit_test`, etc.)
         //  - Dependencies of the top-level targets (e.g. `swift_library`, `objc_library`, etc.)
-        let allTargets =
+        //  - Source files connected to these targets
+        let (allTargets, allSrcs) =
             try bazelTargetQuerier
             .queryTargets(
                 config: initializedConfig,
@@ -254,6 +255,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
 
         let targetData = try BazelQueryParser.parseTargetsWithProto(
             from: dependencyTargets,
+            allSrcs: allSrcs,
             rootUri: initializedConfig.rootUri,
             toolchainPath: initializedConfig.devToolchainPath,
         )

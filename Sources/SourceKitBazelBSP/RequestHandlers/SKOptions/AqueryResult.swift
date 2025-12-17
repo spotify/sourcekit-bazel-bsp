@@ -51,6 +51,11 @@ struct AqueryResult: Hashable {
         let configurations: [UInt32: Analysis_Configuration] = results.configuration.reduce(into: [:]) {
             result,
             configuration in
+            if result.keys.contains(configuration.id) {
+                logger.error(
+                    "Duplicate configuration found when aquerying (\(configuration.id))! This is unexpected. Will ignore the duplicate."
+                )
+            }
             result[configuration.id] = configuration
         }
         self.targets = targets

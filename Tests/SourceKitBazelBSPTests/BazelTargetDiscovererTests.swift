@@ -38,7 +38,7 @@ struct BazelTargetDiscovererTests {
             commandRunner: commandRunner,
         )
 
-        #expect(targets == ["//Example/HelloWorld:HelloWorld", "//Example/AnotherApp:AnotherApp"])
+        #expect(targets == ["//Example/AnotherApp:AnotherApp", "//Example/HelloWorld:HelloWorld"])
         #expect(commandRunner.commands.count == 1)
         #expect(commandRunner.commands[0].command == "fakeBazel cquery 'kind(\"ios_application\", ...)' --output label")
     }
@@ -81,7 +81,7 @@ struct BazelTargetDiscovererTests {
             commandRunner: commandRunner,
         )
 
-        #expect(targets == ["//Example/HelloWorld:HelloWorld", "//Example/AnotherApp:AnotherApp"])
+        #expect(targets == ["//Example/AnotherApp:AnotherApp", "//Example/HelloWorld:HelloWorld"])
         #expect(commandRunner.commands.count == 1)
         #expect(
             commandRunner.commands[0].command
@@ -105,7 +105,7 @@ struct BazelTargetDiscovererTests {
             commandRunner: commandRunner,
         )
 
-        #expect(targets == ["//Example/HelloWorld:HelloWorld", "//Example/AnotherApp:AnotherApp"])
+        #expect(targets == ["//Example/AnotherApp:AnotherApp", "//Example/HelloWorld:HelloWorld"])
         #expect(commandRunner.commands.count == 1)
         #expect(
             commandRunner.commands[0].command

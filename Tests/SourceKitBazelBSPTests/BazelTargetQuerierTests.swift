@@ -66,7 +66,8 @@ struct BazelTargetQuerierTests {
         #expect(ranCommands.count == 1)
         #expect(ranCommands[0].command == expectedCommand)
         #expect(ranCommands[0].cwd == mockRootUri)
-        #expect(!result.isEmpty)
+        #expect(result.rules.count > 0)
+        #expect(result.srcs.count > 0)
     }
 
     @Test
@@ -110,7 +111,8 @@ struct BazelTargetQuerierTests {
         #expect(ranCommands.count == 1)
         #expect(ranCommands[0].command == expectedCommand)
         #expect(ranCommands[0].cwd == mockRootUri)
-        #expect(!result.isEmpty)
+        #expect(result.rules.count > 0)
+        #expect(result.srcs.count > 0)
     }
 
     @Test
@@ -217,9 +219,7 @@ struct BazelTargetQuerierTests {
             dependencyKinds: dependencyKinds
         )
 
-        let rules = result.filter { target in
-            target.type == .rule
-        }
+        let rules = result.rules
 
         let ranCommands = runner.commands
 

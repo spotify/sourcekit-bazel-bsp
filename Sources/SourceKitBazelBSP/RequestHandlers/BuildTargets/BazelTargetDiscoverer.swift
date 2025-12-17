@@ -65,6 +65,7 @@ public enum BazelTargetDiscoverer {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .map { $0.components(separatedBy: " (")[0] }
+            .sorted()
 
         if discoveredTargets.isEmpty {
             throw BazelTargetDiscovererError.noTargetsDiscovered
