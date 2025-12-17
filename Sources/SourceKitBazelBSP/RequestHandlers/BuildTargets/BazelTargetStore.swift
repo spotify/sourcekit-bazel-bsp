@@ -284,7 +284,7 @@ final class BazelTargetStoreImpl: BazelTargetStore {
         // We can then use this to locate the exact variant of the target we are looking for.
         // BundleTreeApp is used by most rule types, while SignBinary is for macOS CLI apps specifically.
         let targetsAqueryResult = try bazelTargetAquerier.aquery(
-            targets: topLevelLabelToRuleMap.keys.map { $0 },
+            targets: topLevelTargetLabels,
             config: initializedConfig,
             mnemonics: Self.compileMnemonics.union(Self.topLevelMnemonics),
             additionalFlags: [
