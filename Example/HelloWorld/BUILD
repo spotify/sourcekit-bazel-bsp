@@ -1,28 +1,26 @@
+load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template_rule")
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test")
 load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application", "macos_command_line_application", "macos_unit_test")
 load("@build_bazel_rules_apple//apple:watchos.bzl", "watchos_application", "watchos_extension", "watchos_unit_test")
-load("@build_bazel_rules_swift//swift:swift.bzl", "swift_interop_hint")
-load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template_rule")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_interop_hint", "swift_library")
 load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl", "setup_sourcekit_bsp")
-load("//tools:apple.bzl", "hello_objc_library", "hello_swift_library", "IOS_MINIMUM_OS_VERSION", "WATCHOS_MINIMUM_OS_VERSION", "MACOS_MINIMUM_OS_VERSION")
+load("//tools:apple.bzl", "IOS_MINIMUM_OS_VERSION", "WATCHOS_MINIMUM_OS_VERSION", "MACOS_MINIMUM_OS_VERSION")
 
 ## MARK: iOS / Shared targets
 
-hello_swift_library(
+swift_library(
     name = "HelloWorldTestsLib",
     module_name = "HelloWorldTestsLib",
     testonly = True,
     tags = ["manual"],
     srcs = glob(["HelloWorldTests/*.swift"]),
     deps = [":HelloWorldLib"],
-    platforms = ["ios"],
 )
 
-hello_swift_library(
+swift_library(
     name = "TodoModels",
     module_name = "TodoModels",
     srcs = glob(["TodoModels/Sources/*.swift"]),
-    platforms = ["ios", "watchos", "macos"],
 )
 
 swift_interop_hint(
@@ -31,7 +29,7 @@ swift_interop_hint(
     module_map = "TodoObjCSupport/Sources/module.modulemap",
 )
 
-hello_objc_library(
+objc_library(
     name = "TodoObjCSupport",
     srcs = glob(
         [
@@ -41,15 +39,13 @@ hello_objc_library(
     ),
     hdrs = glob(["TodoObjCSupport/Sources/*.h"]),
     aspect_hints = [":TodoObjCSupport_hint"],
-    platforms = ["ios"],
 )
 
-hello_swift_library(
+swift_library(
     name = "HelloWorldLib",
     module_name = "HelloWorldLib",
     srcs = glob(["HelloWorldLib/Sources/*.swift"]),
     deps = [":TodoModels", ":TodoObjCSupport", ":GeneratedDummy", ":ExpandedTemplate"],
-    platforms = ["ios"],
 )
 
 genrule(
@@ -73,11 +69,10 @@ EOF
 """,
 )
 
-hello_swift_library(
+swift_library(
     name = "GeneratedDummy",
     module_name = "GeneratedDummy",
     srcs = [":GenerateDummySwiftFile"],
-    platforms = ["ios"],
 )
 
 expand_template_rule(
@@ -90,60 +85,54 @@ expand_template_rule(
     },
 )
 
-hello_swift_library(
+swift_library(
     name = "ExpandedTemplate",
     module_name = "ExpandedTemplate",
     srcs = [":ExpandTemplateSwiftFile"],
-    platforms = ["ios"],
 )
 
 ## MARK: WatchOS targets
 
-hello_swift_library(
+swift_library(
     name = "WatchAppTestsLib",
     module_name = "WatchAppTestsLib",
     testonly = True,
     tags = ["manual"],
     srcs = glob(["WatchApp/WatchAppTests/*.swift"]),
     deps = [":WatchAppLib"],
-    platforms = ["watchos"],
 )
 
-hello_swift_library(
+swift_library(
     name = "WatchAppLib",
     module_name = "WatchAppLib",
     srcs = glob(["WatchApp/WatchAppLib/Sources/*.swift"]),
     deps = [":TodoModels"],
-    platforms = ["watchos"],
 )
 
 ## MARK: MacOS targets
 
-hello_swift_library(
+swift_library(
     name = "MacAppTestsLib",
     module_name = "MacAppTestsLib",
     testonly = True,
     srcs = glob(["MacApp/MacAppTests/*.swift"]),
     deps = [":MacAppLib"],
-    platforms = ["macos"],
 )
 
-hello_swift_library(
+swift_library(
     name = "MacAppLib",
     module_name = "MacAppLib",
     srcs = glob(["MacApp/MacAppLib/Sources/*.swift"]),
     deps = [":TodoModels"],
-    platforms = ["macos"],
 )
 
 ## MARK: MacOS CLI targets
 
-hello_swift_library(
+swift_library(
     name = "MacCLIAppLib",
     module_name = "MacCLIAppLib",
     srcs = glob(["MacCLIApp/MacCLIAppLib/Sources/*.swift"]),
     deps = [":TodoModels"],
-    platforms = ["macos"],
 )
 
 ## MARK: Top level targets
