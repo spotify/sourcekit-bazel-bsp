@@ -46,6 +46,7 @@ struct PrepareHandlerTests {
             outputBase: "/tmp/output_base",
             outputPath: "/tmp/output_path",
             devDir: "/Applications/Xcode.app/Contents/Developer",
+            xcodeVersion: "17B100",
             devToolchainPath: "/a/b/XcodeDefault.xctoolchain/",
             executionRoot: "/tmp/output_path/execroot/_main",
             sdkRootPaths: ["iphonesimulator": "bar"]
@@ -135,7 +136,9 @@ struct PrepareHandlerTests {
         let actualFlags = handler.buildArgs(
             minimumOsVersion: "15.0",
             platform: "ios",
-            cpuArch: "arm64"
+            cpuArch: "arm64",
+            devDir: "/Applications/Xcode.app/Contents/Developer",
+            xcodeVersion: "17B100"
         )
         #expect(
             actualFlags == [
@@ -146,6 +149,10 @@ struct PrepareHandlerTests {
                 "--ios_minimum_os=\"15.0\"",
                 "--cpu=ios_arm64",
                 "--minimum_os_version=\"15.0\"",
+                "--xcode_version=\"17B100\"",
+                "--repo_env=DEVELOPER_DIR=\"/Applications/Xcode.app/Contents/Developer\"",
+                "--repo_env=USE_CLANG_CL=\"17B100\"",
+                "--repo_env=XCODE_VERSION=\"17B100\"",
             ]
         )
     }
@@ -155,7 +162,9 @@ struct PrepareHandlerTests {
         let actualFlags = handler.buildArgs(
             minimumOsVersion: "15.0",
             platform: "watchos",
-            cpuArch: "x86_64"
+            cpuArch: "x86_64",
+            devDir: "/Applications/Xcode.app/Contents/Developer",
+            xcodeVersion: "17B100"
         )
         #expect(
             actualFlags == [
@@ -166,6 +175,10 @@ struct PrepareHandlerTests {
                 "--watchos_minimum_os=\"15.0\"",
                 "--cpu=watchos_x86_64",
                 "--minimum_os_version=\"15.0\"",
+                "--xcode_version=\"17B100\"",
+                "--repo_env=DEVELOPER_DIR=\"/Applications/Xcode.app/Contents/Developer\"",
+                "--repo_env=USE_CLANG_CL=\"17B100\"",
+                "--repo_env=XCODE_VERSION=\"17B100\"",
             ]
         )
     }
@@ -175,7 +188,9 @@ struct PrepareHandlerTests {
         let actualFlags = handler.buildArgs(
             minimumOsVersion: "15.0",
             platform: "darwin",
-            cpuArch: "arm64"
+            cpuArch: "arm64",
+            devDir: "/Applications/Xcode.app/Contents/Developer",
+            xcodeVersion: "17B100"
         )
         #expect(
             actualFlags == [
@@ -186,6 +201,10 @@ struct PrepareHandlerTests {
                 "--macos_minimum_os=\"15.0\"",
                 "--cpu=darwin_arm64",
                 "--minimum_os_version=\"15.0\"",
+                "--xcode_version=\"17B100\"",
+                "--repo_env=DEVELOPER_DIR=\"/Applications/Xcode.app/Contents/Developer\"",
+                "--repo_env=USE_CLANG_CL=\"17B100\"",
+                "--repo_env=XCODE_VERSION=\"17B100\"",
             ]
         )
     }
@@ -195,7 +214,9 @@ struct PrepareHandlerTests {
         let actualFlags = handler.buildArgs(
             minimumOsVersion: "15.0",
             platform: "tvos",
-            cpuArch: "sim_arm64"
+            cpuArch: "sim_arm64",
+            devDir: "/Applications/Xcode.app/Contents/Developer",
+            xcodeVersion: "17B100"
         )
         #expect(
             actualFlags == [
@@ -206,6 +227,10 @@ struct PrepareHandlerTests {
                 "--tvos_minimum_os=\"15.0\"",
                 "--cpu=tvos_sim_arm64",
                 "--minimum_os_version=\"15.0\"",
+                "--xcode_version=\"17B100\"",
+                "--repo_env=DEVELOPER_DIR=\"/Applications/Xcode.app/Contents/Developer\"",
+                "--repo_env=USE_CLANG_CL=\"17B100\"",
+                "--repo_env=XCODE_VERSION=\"17B100\"",
             ]
         )
     }
@@ -215,7 +240,9 @@ struct PrepareHandlerTests {
         let actualFlags = handler.buildArgs(
             minimumOsVersion: "15.0",
             platform: "visionos",
-            cpuArch: "sim_arm64"
+            cpuArch: "sim_arm64",
+            devDir: "/Applications/Xcode.app/Contents/Developer",
+            xcodeVersion: "17B100"
         )
         #expect(
             actualFlags == [
@@ -226,6 +253,10 @@ struct PrepareHandlerTests {
                 "--visionos_minimum_os=\"15.0\"",
                 "--cpu=visionos_sim_arm64",
                 "--minimum_os_version=\"15.0\"",
+                "--xcode_version=\"17B100\"",
+                "--repo_env=DEVELOPER_DIR=\"/Applications/Xcode.app/Contents/Developer\"",
+                "--repo_env=USE_CLANG_CL=\"17B100\"",
+                "--repo_env=XCODE_VERSION=\"17B100\"",
             ]
         )
     }

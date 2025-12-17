@@ -41,6 +41,7 @@ struct BazelTargetParserTests {
             outputBase: "/path/to/output/base",
             outputPath: "/path/to/output/path",
             devDir: "/path/to/dev/dir",
+            xcodeVersion: "17B100",
             devToolchainPath: "/path/to/toolchain",
             executionRoot: "/path/to/execution/root",
             sdkRootPaths: ["iphonesimulator": "/path/to/sdk/root"]

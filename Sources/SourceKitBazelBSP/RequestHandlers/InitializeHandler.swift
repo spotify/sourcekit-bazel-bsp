@@ -111,10 +111,14 @@ final class InitializeHandler {
 
         // Collecting the rest of the env's details
         let devDir: String = try commandRunner.run("xcode-select --print-path")
+        let xcodeVersion: String = try commandRunner.run(
+            "xcodebuild -version | grep 'Build version' | awk '{print $3}'"
+        )
         let toolchain = try getToolchainPath(with: commandRunner)
         let sdkRootPaths: [String: String] = getSDKRootPaths(with: commandRunner)
 
         logger.debug("devDir: \(devDir, privacy: .public)")
+        logger.debug("xcodeVersion: \(xcodeVersion, privacy: .public)")
         logger.debug("toolchain: \(toolchain, privacy: .public)")
         logger.debug("sdkRootPaths: \(sdkRootPaths, privacy: .public)")
 
@@ -124,6 +128,7 @@ final class InitializeHandler {
             outputBase: outputBase,
             outputPath: outputPath,
             devDir: devDir,
+            xcodeVersion: xcodeVersion,
             devToolchainPath: toolchain,
             executionRoot: executionRoot,
             sdkRootPaths: sdkRootPaths
