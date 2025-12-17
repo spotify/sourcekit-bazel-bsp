@@ -55,7 +55,7 @@ final class TargetSourcesHandler {
         let count = srcs.reduce(0) { $0 + $1.sources.count }
 
         logger.info(
-            "Returning \(srcs.count, privacy: .public) source specs (\(count, privacy: .public) total source entries"
+            "Returning \(srcs.count, privacy: .public) source specs (\(count, privacy: .public) total source entries)"
         )
 
         return BuildTargetSourcesResponse(items: srcs)

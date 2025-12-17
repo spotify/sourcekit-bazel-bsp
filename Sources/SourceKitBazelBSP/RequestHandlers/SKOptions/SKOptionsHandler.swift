@@ -56,17 +56,14 @@ final class SKOptionsHandler {
         _ request: TextDocumentSourceKitOptionsRequest,
         _ id: RequestID
     ) throws -> TextDocumentSourceKitOptionsResponse? {
-        let taskId = TaskId(id: "getSKOptions-\(id.description)")
-        connection?.startWorkTask(id: taskId, title: "sourcekit-bazel-bsp: Fetching compiler arguments...")
+        // This request doesn't publish a task progress report to the IDE because it's very spammy.
         do {
             let result = try stateLock.withLockUnchecked {
                 let result = try handle(request: request)
-                connection?.finishTask(id: taskId, status: .ok)
                 return result
             }
             return result
         } catch {
-            connection?.finishTask(id: taskId, status: .error)
             throw error
         }
     }
