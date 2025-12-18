@@ -39,7 +39,7 @@ final class BazelTargetQuerier {
 
     private let commandRunner: CommandRunner
 
-    private var queryCache = [String: [BlazeQuery_Target]]()
+    private var queryCache = [String: ([BlazeQuery_Target], [BlazeQuery_Target])]()
     private var dependencyGraphCache = [String: [String: [String]]]()
 
     static func queryDepsString(forTargets targets: [String]) -> String {
@@ -61,7 +61,7 @@ final class BazelTargetQuerier {
     func queryTargets(
         config: InitializedServerConfig,
         dependencyKinds: Set<String>,
-    ) throws -> [BlazeQuery_Target] {
+    ) throws -> (rules: [BlazeQuery_Target], srcs: [BlazeQuery_Target]) {
         if dependencyKinds.isEmpty {
             throw BazelTargetQuerierError.noKinds
         }
@@ -102,14 +102,31 @@ final class BazelTargetQuerier {
             rootUri: config.rootUri
         )
 
-        let result = try BazelProtobufBindings.parseCqueryResult(data: output)
+        let queryResult = try BazelProtobufBindings.parseCqueryResult(data: output)
 
-        let targets = result.results.map { $0.target }
+        let targets = queryResult.results.map { $0.target }
 
         logger.debug("Parsed \(targets.count, privacy: .public) targets for cache key: \(cacheKey, privacy: .public)")
-        queryCache[cacheKey] = targets
 
-        return targets
+        var rules = [BlazeQuery_Target]()
+        var srcs = [BlazeQuery_Target]()
+        for target in targets {
+            if target.type == .rule {
+                rules.append(target)
+            } else if target.type == .sourceFile {
+                srcs.append(target)
+            } else {
+                logger.error("Parsed unexpected target type: \(target.type.rawValue)")
+            }
+        }
+
+        // Sort for determinism
+        rules = rules.sorted(by: { $0.rule.name < $1.rule.name })
+        srcs = srcs.sorted(by: { $0.sourceFile.name < $1.sourceFile.name })
+
+        let result = (rules, srcs)
+        queryCache[cacheKey] = result
+        return result
     }
 
     func queryDependencyGraph(
@@ -167,6 +184,9 @@ final class BazelTargetQuerier {
             }
             graph[source, default: []].append(contentsOf: targets)
         }
+
+        // Sort for determinism
+        graph = graph.mapValues { $0.sorted() }
 
         dependencyGraphCache[cacheKey] = graph
         return graph

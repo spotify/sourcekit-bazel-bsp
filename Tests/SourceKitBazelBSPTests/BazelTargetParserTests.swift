@@ -63,7 +63,8 @@ struct BazelTargetParserTests {
         )
 
         let result = try BazelQueryParser.parseTargetsWithProto(
-            from: targets,
+            from: targets.rules,
+            allSrcs: targets.srcs,
             rootUri: rootUri,
             toolchainPath: toolchainPath,
         )

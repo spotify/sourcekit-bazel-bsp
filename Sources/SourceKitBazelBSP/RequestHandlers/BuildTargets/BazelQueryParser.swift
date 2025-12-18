@@ -59,7 +59,8 @@ enum BazelQueryParser {
     /// and converts them into BSP-compatible build targets with associated source files.
     ///
     /// - Parameters:
-    ///   - targets: Array of `BlazeQuery_Target` protobuf objects from Bazel query output
+    ///   - targets: Array of `BlazeQuery_Target` protobuf objects from Bazel query output (type: rule)
+    ///   - allSrcs: Array of `BlazeQuery_Target` protobuf objects from Bazel query output (type: source_file)
     ///   - rootUri: Absolute path to the project root directory
     ///   - toolchainPath: Absolute path to the development toolchain
     ///
@@ -68,6 +69,7 @@ enum BazelQueryParser {
     ///   - `[URI]`: Array of source file URIs associated with the target
     static func parseTargetsWithProto(
         from targets: [BlazeQuery_Target],
+        allSrcs: [BlazeQuery_Target],
         rootUri: String,
         toolchainPath: String,
     ) throws -> [(BuildTarget, [URI])] {
@@ -78,7 +80,7 @@ enum BazelQueryParser {
         // parse this info.
 
         var result: [(BuildTarget, [URI])] = []
-        let srcMap = buildSourceFilesMap(targets)
+        let srcMap = buildSourceFilesMap(allSrcs)
 
         for target in targets {
             guard target.type == .rule else {
@@ -108,7 +110,7 @@ enum BazelQueryParser {
                     let _deps: [BuildTargetIdentifier] = try attr.stringListValue.map {
                         let id = try $0.toTargetId(rootUri: rootUri)
                         return .init(uri: id)
-                    }
+                    }.sorted(by: { $0.uri.stringValue < $1.uri.stringValue })
                     deps = _deps
                 }
                 if attr.name == "srcs" {
@@ -122,7 +124,7 @@ enum BazelQueryParser {
                             return nil
                         }
                         return try URI(string: path)
-                    }
+                    }.sorted(by: { $0.stringValue < $1.stringValue })
                     srcs = _srcs
                 }
             }
@@ -162,10 +164,10 @@ enum BazelQueryParser {
     /// The `srcs` attribute is a list of source_file labels instead of URI, thus we need
     /// a hashmap to reduce the time complexity.
     private static func buildSourceFilesMap(
-        _ targets: [BlazeQuery_Target]
+        _ allSrcs: [BlazeQuery_Target]
     ) -> [String: String] {
         var srcMap: [String: String] = [:]
-        for target in targets {
+        for target in allSrcs {
             // making sure the target is a source_file type
             guard target.type == .sourceFile else {
                 continue
