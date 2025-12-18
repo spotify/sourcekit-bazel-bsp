@@ -80,7 +80,7 @@
           "background": {
             "activeOnStart": true,
             "beginsPattern": "^Starting launch task\\.\\.\\.$",
-            "endsPattern": "^.*Launched with PID: .*"
+            "endsPattern": "^com.example.HelloWorld: .*"
           }
         },
         {

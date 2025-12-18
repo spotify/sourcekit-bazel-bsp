@@ -16,7 +16,4 @@
       "timeout": 9999
     }
   ],
-  "options": {
-    "console": "integratedTerminal",
-  }
 }
