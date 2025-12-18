@@ -66,6 +66,7 @@ final class BSPMessageHandler: MessageHandler {
             try handler(notification)
         } catch {
             logger.error("Error while handling BSP notification: \(error.localizedDescription, privacy: .public)")
+            extensionLogger.error("Error while handling BSP notification: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -86,11 +87,15 @@ final class BSPMessageHandler: MessageHandler {
                     logger.error(
                         "Error while replying to \(Request.method, privacy: .public): \(error.localizedDescription, privacy: .public)"
                     )
+                    extensionLogger.error(
+                        "Error while replying to \(Request.method, privacy: .public): \(error.localizedDescription, privacy: .public)"
+                    )
                     reply(.failure(buildLSPError(error)))
                 }
             }
         } catch {
             logger.error("Error while handling BSP request: \(error.localizedDescription, privacy: .public)")
+            extensionLogger.error("Error while handling BSP request: \(error.localizedDescription, privacy: .public)")
             reply(.failure(buildLSPError(from: error)))
         }
     }

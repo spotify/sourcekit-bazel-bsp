@@ -17,19 +17,19 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import Foundation
-import OSLog
+import * as vscode from "vscode";
 
-private let bspSubsystem = "com.spotify.sourcekit-bazel-bsp"
+let outputChannel: vscode.OutputChannel | undefined;
 
-/// Simple helper to create loggers under the `com.spotify.sourcekit-bazel-bsp` subsystem.
-package func makeFileLevelBSPLogger(withCategory category: String = #fileID) -> Logger {
-    Logger(subsystem: bspSubsystem, category: category)
+export function initLogger(): vscode.OutputChannel {
+    outputChannel = vscode.window.createOutputChannel("SourceKit Bazel BSP");
+    return outputChannel;
 }
 
-/// Logger specifically for messages intended to be shown in the VSCode extension.
-/// Use this for user-facing status updates, not internal debugging.
-///
-/// The extension filters for this category using:
-/// `log stream --process sourcekit-bazel-bsp --predicate 'category == "extension"'`
-package let extensionLogger = Logger(subsystem: bspSubsystem, category: "extension")
+export function getOutputChannel(): vscode.OutputChannel | undefined {
+    return outputChannel;
+}
+
+export function log(message: string) {
+    outputChannel?.appendLine(message);
+}
