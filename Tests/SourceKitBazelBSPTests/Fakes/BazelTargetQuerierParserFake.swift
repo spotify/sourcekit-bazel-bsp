@@ -33,13 +33,19 @@ final class BazelTargetQuerierParserFake: BazelTargetQuerierParser {
         rootUri: String,
         toolchainPath: String,
     ) throws -> ProcessedCqueryResult {
-        return mockCqueryResult!
+        guard let mockCqueryResult else {
+            unimplemented()
+        }
+        return mockCqueryResult
     }
 
     func processAquery(
         from data: Data,
         topLevelTargets: [(String, TopLevelRuleType)],
     ) throws -> ProcessedAqueryResult {
-        return mockAqueryResult!
+        guard let mockAqueryResult else {
+            unimplemented()
+        }
+        return mockAqueryResult
     }
 }

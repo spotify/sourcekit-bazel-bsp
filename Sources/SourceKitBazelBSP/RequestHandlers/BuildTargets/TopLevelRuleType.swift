@@ -58,17 +58,17 @@ public enum TopLevelRuleType: String, CaseIterable, ExpressibleByArgument, Senda
     // If the rule does not generate a bundle target, returns nil.
     var testBundleRule: String? {
         switch self {
-            case .iosUnitTest: return "_ios_internal_unit_test_bundle"
-            case .iosUiTest: return "_ios_internal_ui_test_bundle"
-            case .watchosUnitTest: return "_watchos_internal_unit_test_bundle"
-            case .watchosUiTest: return "_watchos_internal_ui_test_bundle"
-            case .macosUnitTest: return "_macos_internal_unit_test_bundle"
-            case .macosUiTest: return "_macos_internal_ui_test_bundle"
-            case .tvosUnitTest: return "_tvos_internal_unit_test_bundle"
-            case .tvosUiTest: return "_tvos_internal_ui_test_bundle"
-            case .visionosUnitTest: return "_visionos_internal_unit_test_bundle"
-            case .visionosUiTest: return "_visionos_internal_ui_test_bundle"
-            default: return nil
+        case .iosUnitTest: return "_ios_internal_unit_test_bundle"
+        case .iosUiTest: return "_ios_internal_ui_test_bundle"
+        case .watchosUnitTest: return "_watchos_internal_unit_test_bundle"
+        case .watchosUiTest: return "_watchos_internal_ui_test_bundle"
+        case .macosUnitTest: return "_macos_internal_unit_test_bundle"
+        case .macosUiTest: return "_macos_internal_ui_test_bundle"
+        case .tvosUnitTest: return "_tvos_internal_unit_test_bundle"
+        case .tvosUiTest: return "_tvos_internal_ui_test_bundle"
+        case .visionosUnitTest: return "_visionos_internal_unit_test_bundle"
+        case .visionosUiTest: return "_visionos_internal_ui_test_bundle"
+        default: return nil
         }
     }
 

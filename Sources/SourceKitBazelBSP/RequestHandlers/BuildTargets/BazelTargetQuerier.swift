@@ -158,11 +158,12 @@ final class BazelTargetQuerier {
         let mnemonicsFilter = mnemonics.joined(separator: "|")
         let depsQuery = Self.queryDepsString(forTargets: targets)
 
-        let otherFlags = [
-            "--noinclude_artifacts",
-            "--noinclude_aspects",
-            "--features=-compiler_param_file",  // Context: https://github.com/spotify/sourcekit-bazel-bsp/pull/60
-        ].joined(separator: " ") + " --output proto"
+        let otherFlags =
+            [
+                "--noinclude_artifacts",
+                "--noinclude_aspects",
+                "--features=-compiler_param_file",  // Context: https://github.com/spotify/sourcekit-bazel-bsp/pull/60
+            ].joined(separator: " ") + " --output proto"
         let cmd = "aquery \"mnemonic('\(mnemonicsFilter)', \(depsQuery))\" \(otherFlags)"
 
         logger.info("Processing aquery request...")
