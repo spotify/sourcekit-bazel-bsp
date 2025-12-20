@@ -17,7 +17,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import BazelProtobufBindings
 import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
@@ -33,8 +32,8 @@ struct BazelTargetCompilerArgsExtractorTests {
     let helloWorldConfig: BazelTargetConfigurationInfo
 
     init() throws {
-        let aqueryResult = try BazelTargetQuerierParser().processAquery(
-            from: try BazelProtobufBindings.parseActionGraph(data: exampleAqueryOutput),
+        let aqueryResult = try BazelTargetQuerierParserImpl().processAquery(
+            from: exampleAqueryOutput,
             topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication)]
         )
         self.helloWorldConfig = try #require(aqueryResult.topLevelLabelToConfigMap["//HelloWorld:HelloWorld"])

@@ -22,213 +22,271 @@ import Testing
 
 @testable import SourceKitBazelBSP
 
-// @Suite
-// struct BazelTargetQuerierTests {
+@Suite
+struct BazelTargetQuerierTests {
 
-//     // @Test
-//     // func executesCorrectBazelCommand() throws {
-//     //     let runnerMock = CommandRunnerFake()
-//     //     let querier = BazelTargetQuerier(commandRunner: runnerMock)
+    private static let mockRootUri = "/path/to/project"
 
-//     //     let config = BaseServerConfig(
-//     //         bazelWrapper: "bazelisk",
-//     //         targets: ["//HelloWorld"],
-//     //         indexFlags: ["--config=test"],
-//     //         filesToWatch: nil,
-//     //         compileTopLevel: false
-//     //     )
+    private static let emptyProcessedCqueryResult = ProcessedCqueryResult(
+        buildTargets: [],
+        topLevelTargets: [],
+        bspURIsToBazelLabelsMap: [:],
+        bspURIsToSrcsMap: [:],
+        srcToBspURIsMap: [:],
+        availableBazelLabels: [],
+        topLevelLabelToRuleMap: [:],
+        bazelLabelToParentsMap: [:]
+    )
 
-//     //     let mockRootUri = "/path/to/project"
+    private static let emptyProcessedAqueryResult = ProcessedAqueryResult(
+        targets: [:],
+        actions: [:],
+        configurations: [:],
+        topLevelLabelToConfigMap: [:]
+    )
 
-//     //     let initializedConfig = InitializedServerConfig(
-//     //         baseConfig: config,
-//     //         rootUri: mockRootUri,
-//     //         outputBase: "/path/to/output/base",
-//     //         outputPath: "/path/to/output/path",
-//     //         devDir: "/path/to/dev/dir",
-//     //         xcodeVersion: "17B100",
-//     //         devToolchainPath: "/path/to/toolchain",
-//     //         executionRoot: "/path/to/execution/root",
-//     //         sdkRootPaths: ["iphonesimulator": "/path/to/sdk/root"]
-//     //     )
+    private static func makeInitializedConfig(
+        bazelWrapper: String = "bazelisk",
+        targets: [String] = ["//HelloWorld"],
+        indexFlags: [String] = ["--config=test"]
+    ) -> InitializedServerConfig {
+        let baseConfig = BaseServerConfig(
+            bazelWrapper: bazelWrapper,
+            targets: targets,
+            indexFlags: indexFlags,
+            filesToWatch: nil,
+            compileTopLevel: false
+        )
+        return InitializedServerConfig(
+            baseConfig: baseConfig,
+            rootUri: mockRootUri,
+            outputBase: "/path/to/output/base",
+            outputPath: "/path/to/output/path",
+            devDir: "/path/to/dev/dir",
+            xcodeVersion: "17B100",
+            devToolchainPath: "/path/to/toolchain",
+            executionRoot: "/path/to/execution/root",
+            sdkRootPaths: ["iphonesimulator": "/path/to/sdk/root"]
+        )
+    }
 
-//     //     let expectedCommand =
-//     //         "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"source file|swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output proto --config=test"
-//     //     runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: exampleCqueryOutput)
+    private static func makeQuerier(
+        runner: CommandRunnerFake,
+        parser: BazelTargetQuerierParserFake
+    ) -> BazelTargetQuerier {
+        parser.mockCqueryResult = emptyProcessedCqueryResult
+        parser.mockAqueryResult = emptyProcessedAqueryResult
+        return BazelTargetQuerier(commandRunner: runner, parser: parser)
+    }
 
-//     //     let kinds: Set<String> = ["source file", "swift_library"]
-//     //     let result = try querier.queryTargets(
-//     //         config: initializedConfig,
-//     //         dependencyKinds: kinds
-//     //     )
+    // MARK: Cquery Tests
 
-//     //     let ranCommands = runnerMock.commands
-//     //     #expect(ranCommands.count == 1)
-//     //     #expect(ranCommands[0].command == expectedCommand)
-//     //     #expect(ranCommands[0].cwd == mockRootUri)
-//     //     #expect(result.rules.count > 0)
-//     //     #expect(result.srcs.count > 0)
-//     // }
+    @Test
+    func executesCorrectBazelCommandOnCquery() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig()
 
-//     // @Test
-//     // func queryingMultipleKindsAndTargets() throws {
-//     //     let runnerMock = CommandRunnerFake()
-//     //     let querier = BazelTargetQuerier(commandRunner: runnerMock)
+        let expectedCommand =
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"source file|swift_library|alias\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
+        runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleCqueryOutput)
 
-//     //     let config = BaseServerConfig(
-//     //         bazelWrapper: "bazelisk",
-//     //         targets: ["//HelloWorld", "//Tests"],
-//     //         indexFlags: ["--config=test"],
-//     //         filesToWatch: nil,
-//     //         compileTopLevel: false
-//     //     )
+        _ = try querier.cqueryTargets(
+            config: config,
+            dependencyKinds: ["source file", "swift_library"],
+            supportedTopLevelRuleTypes: [.iosApplication]
+        )
 
-//     //     let mockRootUri = "/path/to/project"
+        let ranCommands = runnerMock.commands
+        #expect(ranCommands.count == 1)
+        #expect(ranCommands[0].command == expectedCommand)
+        #expect(ranCommands[0].cwd == Self.mockRootUri)
+    }
 
-//     //     let initializedConfig = InitializedServerConfig(
-//     //         baseConfig: config,
-//     //         rootUri: mockRootUri,
-//     //         outputBase: "/path/to/output/base",
-//     //         outputPath: "/path/to/output/path",
-//     //         devDir: "/path/to/dev/dir",
-//     //         xcodeVersion: "17B100",
-//     //         devToolchainPath: "/path/to/toolchain",
-//     //         executionRoot: "/path/to/execution/root",
-//     //         sdkRootPaths: ["iphonesimulator": "/path/to/sdk/root"]
-//     //     )
+    @Test
+    func cqueryingMultipleKindsAndTargets() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig(targets: ["//HelloWorld", "//Tests"])
 
-//     //     let expectedCommand =
-//     //         "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld //Tests:Tests)) in   $topLevelTargets   union   kind(\"objc_library|swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output proto --config=test"
-//     //     runnerMock.setResponse(for: expectedCommand, cwd: mockRootUri, response: exampleCqueryOutput)
+        let expectedCommand =
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld //Tests:Tests)) in   $topLevelTargets   union   kind(\"objc_library|swift_library|alias\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
+        runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleCqueryOutput)
 
-//     //     let kinds: Set<String> = ["objc_library", "swift_library"]
-//     //     let result = try querier.queryTargets(
-//     //         config: initializedConfig,
-//     //         dependencyKinds: kinds
-//     //     )
+        _ = try querier.cqueryTargets(
+            config: config,
+            dependencyKinds: ["objc_library", "swift_library"],
+            supportedTopLevelRuleTypes: [.iosApplication]
+        )
 
-//     //     let ranCommands = runnerMock.commands
-//     //     #expect(ranCommands.count == 1)
-//     //     #expect(ranCommands[0].command == expectedCommand)
-//     //     #expect(ranCommands[0].cwd == mockRootUri)
-//     //     #expect(result.rules.count > 0)
-//     //     #expect(result.srcs.count > 0)
-//     // }
+        let ranCommands = runnerMock.commands
+        #expect(ranCommands.count == 1)
+        #expect(ranCommands[0].command == expectedCommand)
+        #expect(ranCommands[0].cwd == Self.mockRootUri)
+    }
 
-//     // @Test
-//     // func cachesQueryResults() throws {
-//     //     let runnerMock = CommandRunnerFake()
-//     //     let querier = BazelTargetQuerier(commandRunner: runnerMock)
+    @Test
+    func cachesCqueryResults() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig(bazelWrapper: "bazel", indexFlags: [])
 
-//     //     let config = BaseServerConfig(
-//     //         bazelWrapper: "bazel",
-//     //         targets: ["//HelloWorld"],
-//     //         indexFlags: [],
-//     //         filesToWatch: nil,
-//     //         compileTopLevel: false
-//     //     )
+        runnerMock.setResponse(
+            for:
+                "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"swift_library|alias\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto",
+            cwd: Self.mockRootUri,
+            response: exampleCqueryOutput
+        )
+        runnerMock.setResponse(
+            for:
+                "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library|alias\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto",
+            cwd: Self.mockRootUri,
+            response: exampleCqueryOutput
+        )
 
-//     //     let mockRootUri = "/path/to/project"
+        func run(dependencyKinds: [String]) throws {
+            _ = try querier.cqueryTargets(
+                config: config,
+                dependencyKinds: dependencyKinds,
+                supportedTopLevelRuleTypes: [.iosApplication]
+            )
+        }
 
-//     //     let initializedConfig = InitializedServerConfig(
-//     //         baseConfig: config,
-//     //         rootUri: mockRootUri,
-//     //         outputBase: "/path/to/output/base",
-//     //         outputPath: "/path/to/output/path",
-//     //         devDir: "/path/to/dev/dir",
-//     //         xcodeVersion: "17B100",
-//     //         devToolchainPath: "/path/to/toolchain",
-//     //         executionRoot: "/path/to/execution/root",
-//     //         sdkRootPaths: ["iphonesimulator": "/path/to/sdk/root"]
-//     //     )
+        try run(dependencyKinds: ["swift_library"])
+        try run(dependencyKinds: ["swift_library"])
+        #expect(runnerMock.commands.count == 1)
 
-//     //     func run(dependencyKinds: Set<String>) throws {
-//     //         _ = try querier.queryTargets(
-//     //             config: initializedConfig,
-//     //             dependencyKinds: kinds
-//     //         )
-//     //     }
+        // Querying something else then results in a new command
+        try run(dependencyKinds: ["objc_library"])
+        #expect(runnerMock.commands.count == 2)
+        try run(dependencyKinds: ["objc_library"])
+        #expect(runnerMock.commands.count == 2)
 
-//     //     var kinds: Set<String> = ["swift_library"]
+        // But the original call is still cached
+        try run(dependencyKinds: ["swift_library"])
+        #expect(runnerMock.commands.count == 2)
+    }
 
-//     //     runnerMock.setResponse(
-//     //         for:
-//     //             "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output proto",
-//     //         cwd: mockRootUri,
-//     //         response: exampleCqueryOutput
-//     //     )
-//     //     runnerMock.setResponse(
-//     //         for:
-//     //             "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output proto",
-//     //         cwd: mockRootUri,
-//     //         response: exampleCqueryOutput
-//     //     )
+    @Test
+    func cqueriesTestBundlesIfNeeded() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig()
 
-//     //     try run(dependencyKinds: kinds)
-//     //     try run(dependencyKinds: kinds)
+        let expectedCommand =
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"source file|swift_library|alias|_watchos_internal_unit_test_bundle\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
+        runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleCqueryOutput)
 
-//     //     #expect(runnerMock.commands.count == 1)
+        _ = try querier.cqueryTargets(
+            config: config,
+            dependencyKinds: ["source file", "swift_library"],
+            supportedTopLevelRuleTypes: [.iosApplication, .watchosUnitTest]
+        )
 
-//     //     // Querying something else then results in a new command
-//     //     kinds = ["objc_library"]
-//     //     try run(dependencyKinds: kinds)
-//     //     #expect(runnerMock.commands.count == 2)
-//     //     try run(dependencyKinds: kinds)
-//     //     #expect(runnerMock.commands.count == 2)
+        let ranCommands = runnerMock.commands
+        #expect(ranCommands.count == 1)
+        #expect(ranCommands[0].command == expectedCommand)
+        #expect(ranCommands[0].cwd == Self.mockRootUri)
+    }
 
-//     //     // But the original call is still cached
-//     //     kinds = ["swift_library"]
-//     //     try run(dependencyKinds: kinds)
-//     //     #expect(runnerMock.commands.count == 2)
-//     // }
+    // MARK: - Aquery Tests
 
-//     // func executeCorrectBazelCommandProto() throws {
-//     //     let runner = CommandRunnerFake()
-//     //     let querier = BazelTargetQuerier(commandRunner: runner)
-//     //     let config = BaseServerConfig(
-//     //         bazelWrapper: "bazel",
-//     //         targets: ["//HelloWorld:HelloWorld"],
-//     //         indexFlags: [],
-//     //         filesToWatch: nil,
-//     //         compileTopLevel: false
-//     //     )
+    @Test
+    func executesCorrectBazelCommandOnAquery() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig()
 
-//     //     let rootUri = "/path/to/project"
+        let expectedCommand =
+            "bazelisk --output_base=/path/to/output/base aquery \"mnemonic('SwiftCompile', deps(//HelloWorld:HelloWorld))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto --config=test"
+        runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleAqueryOutput)
 
-//     //     let initializedConfig = InitializedServerConfig(
-//     //         baseConfig: config,
-//     //         rootUri: rootUri,
-//     //         outputBase: "/path/to/output/base",
-//     //         outputPath: "/path/to/output/path",
-//     //         devDir: "/path/to/dev/dir",
-//     //         xcodeVersion: "17B100",
-//     //         devToolchainPath: "/path/to/toolchain",
-//     //         executionRoot: "/path/to/execution/root",
-//     //         sdkRootPaths: ["iphonesimulator": "/path/to/sdk/root"]
-//     //     )
+        _ = try querier.aquery(
+            topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication)],
+            config: config,
+            mnemonics: ["SwiftCompile"]
+        )
 
-//     //     let command =
-//     //         "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld:HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library|source file|swift_library\", deps($topLevelTargets))\' --notool_deps --noimplicit_deps --output proto"
+        let ranCommands = runnerMock.commands
+        #expect(ranCommands.count == 1)
+        #expect(ranCommands[0].command == expectedCommand)
+        #expect(ranCommands[0].cwd == Self.mockRootUri)
+    }
 
-//     //     runner.setResponse(for: command, cwd: rootUri, response: exampleCqueryOutput)
+    @Test
+    func aqueryingMultipleMnemonicsAndTargets() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig(targets: ["//HelloWorld", "//Tests"])
 
-//     //     let dependencyKinds: Set<String> = ["objc_library", "source file", "swift_library"]
+        let expectedCommand =
+            "bazelisk --output_base=/path/to/output/base aquery \"mnemonic('SwiftCompile|ObjcCompile', deps(//HelloWorld:HelloWorld) union deps(//Tests:Tests))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto --config=test"
+        runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleAqueryOutput)
 
-//     //     let result = try querier.queryTargets(
-//     //         config: initializedConfig,
-//     //         dependencyKinds: dependencyKinds
-//     //     )
+        _ = try querier.aquery(
+            topLevelTargets: [
+                ("//HelloWorld:HelloWorld", .iosApplication),
+                ("//Tests:Tests", .iosUnitTest),
+            ],
+            config: config,
+            mnemonics: ["SwiftCompile", "ObjcCompile"]
+        )
 
-//     //     let rules = result.rules
+        let ranCommands = runnerMock.commands
+        #expect(ranCommands.count == 1)
+        #expect(ranCommands[0].command == expectedCommand)
+        #expect(ranCommands[0].cwd == Self.mockRootUri)
+    }
 
-//     //     let ranCommands = runner.commands
+    @Test
+    func cachesAqueryResults() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig(bazelWrapper: "bazel", indexFlags: [])
 
-//     //     #expect(ranCommands.count == 1)
-//     //     #expect(ranCommands[0].command == command)
-//     //     #expect(ranCommands[0].cwd == rootUri)
-//     //     #expect(rules.count == 5)
-//     // }
-// }
+        runnerMock.setResponse(
+            for:
+                "bazel --output_base=/path/to/output/base aquery \"mnemonic('SwiftCompile', deps(//HelloWorld:HelloWorld))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto",
+            cwd: Self.mockRootUri,
+            response: exampleAqueryOutput
+        )
+        runnerMock.setResponse(
+            for:
+                "bazel --output_base=/path/to/output/base aquery \"mnemonic('ObjcCompile', deps(//HelloWorld:HelloWorld))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto",
+            cwd: Self.mockRootUri,
+            response: exampleAqueryOutput
+        )
+
+        func run(mnemonics: [String]) throws {
+            _ = try querier.aquery(
+                topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication)],
+                config: config,
+                mnemonics: mnemonics
+            )
+        }
+
+        try run(mnemonics: ["SwiftCompile"])
+        try run(mnemonics: ["SwiftCompile"])
+        #expect(runnerMock.commands.count == 1)
+
+        // Querying something else then results in a new command
+        try run(mnemonics: ["ObjcCompile"])
+        #expect(runnerMock.commands.count == 2)
+        try run(mnemonics: ["ObjcCompile"])
+        #expect(runnerMock.commands.count == 2)
+
+        // But the original call is still cached
+        try run(mnemonics: ["SwiftCompile"])
+        #expect(runnerMock.commands.count == 2)
+    }
+}
 
 /// Example aquery output for the example app shipped with this repo.
 /// bazelisk aquery "mnemonic('SwiftCompile|ObjcCompile|CppCompile|BundleTreeApp|SignBinary|TestRunner', deps(//HelloWorld:HelloWorldMacTests) union deps(//HelloWorld:HelloWorldTests) union deps(//HelloWorld:HelloWorld) union deps(//HelloWorld:HelloWorldWatchExtension) union deps(//HelloWorld:HelloWorldWatchTests) union deps(//HelloWorld:HelloWorldMacCLIApp) union deps(//HelloWorld:HelloWorldMacApp) union deps(//HelloWorld:HelloWorldWatchApp))" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto --config=index_build > aquery.pb

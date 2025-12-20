@@ -69,19 +69,34 @@ enum BazelTargetQuerierParserError: Error, LocalizedError {
 }
 
 /// Abstraction that handles the parsing of queries performed by BazelTargetQuerier.
-final class BazelTargetQuerierParser {}
+protocol BazelTargetQuerierParser: AnyObject {
+    func processCquery(
+        from data: Data,
+        testBundleRules: [String],
+        userProvidedTargets: [String],
+        supportedTopLevelRuleTypes: [TopLevelRuleType],
+        rootUri: String,
+        toolchainPath: String,
+    ) throws -> ProcessedCqueryResult
+
+    func processAquery(
+        from data: Data,
+        topLevelTargets: [(String, TopLevelRuleType)],
+    ) throws -> ProcessedAqueryResult
+}
 
 // MARK: - Processing Cqueries
 
-extension BazelTargetQuerierParser {
+final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
     func processCquery(
-        from cquery: Analysis_CqueryResult,
+        from data: Data,
         testBundleRules: [String],
         userProvidedTargets: [String],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
         rootUri: String,
         toolchainPath: String,
     ) throws -> ProcessedCqueryResult {
+        let cquery = try BazelProtobufBindings.parseCqueryResult(data: data)
         let targets = cquery.results
             .map { $0.target }
             .filter {
@@ -427,11 +442,12 @@ extension BazelTargetQuerierParser {
 
 // MARK: - Processing Aqueries
 
-extension BazelTargetQuerierParser {
+extension BazelTargetQuerierParserImpl {
     func processAquery(
-        from aquery: Analysis_ActionGraphContainer,
+        from data: Data,
         topLevelTargets: [(String, TopLevelRuleType)],
     ) throws -> ProcessedAqueryResult {
+        let aquery = try BazelProtobufBindings.parseActionGraph(data: data)
 
         // Pre-aggregate the aquery results to make them easier to work with later.
         let targets: [String: Analysis_Target] = aquery.targets.reduce(into: [:]) { result, target in

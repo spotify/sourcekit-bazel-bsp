@@ -17,7 +17,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import BazelProtobufBindings
 import Foundation
 
 private let logger = makeFileLevelBSPLogger()
@@ -60,7 +59,7 @@ final class BazelTargetQuerier {
 
     init(
         commandRunner: CommandRunner = ShellCommandRunner(),
-        parser: BazelTargetQuerierParser = BazelTargetQuerierParser()
+        parser: BazelTargetQuerierParser = BazelTargetQuerierParserImpl()
     ) {
         self.commandRunner = commandRunner
         self.parser = parser
@@ -126,13 +125,10 @@ final class BazelTargetQuerier {
             rootUri: config.rootUri
         )
 
-        let cqueryResult = try BazelProtobufBindings.parseCqueryResult(data: output)
-
-        logger.debug("Cqueried \(cqueryResult.results.count, privacy: .public) targets")
         logger.info("Processing cquery results...")
 
         let processedCqueryResult = try parser.processCquery(
-            from: cqueryResult,
+            from: output,
             testBundleRules: testBundleRules,
             userProvidedTargets: userProvidedTargets,
             supportedTopLevelRuleTypes: supportedTopLevelRuleTypes,
@@ -140,6 +136,7 @@ final class BazelTargetQuerier {
             toolchainPath: config.devToolchainPath,
         )
 
+        logger.debug("Cqueried \(processedCqueryResult.buildTargets.count, privacy: .public) targets")
         logger.info("Finished processing cquery results")
 
         cqueryCache[cacheKey] = processedCqueryResult
@@ -184,16 +181,14 @@ final class BazelTargetQuerier {
             rootUri: config.rootUri
         )
 
-        let results = try BazelProtobufBindings.parseActionGraph(data: output)
-
-        logger.debug("Aqueried \(results.targets.count, privacy: .public) targets")
         logger.info("Processing aquery results...")
 
         let processedAqueryResult = try parser.processAquery(
-            from: results,
+            from: output,
             topLevelTargets: topLevelTargets
         )
 
+        logger.debug("Aqueried \(processedAqueryResult.targets.count, privacy: .public) targets")
         logger.info("Finished processing aquery results")
 
         aqueryCache[cmd] = processedAqueryResult
