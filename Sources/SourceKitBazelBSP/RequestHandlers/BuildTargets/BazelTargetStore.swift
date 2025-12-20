@@ -35,7 +35,7 @@ protocol BazelTargetStore: AnyObject {
     func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI]
     func bspURIs(containingSrc src: URI) throws -> [URI]
     func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo
-    func targetsAqueryForArgsExtraction() throws -> BazelTargetQuerier.AQueryResult
+    func targetsAqueryForArgsExtraction() throws -> ProcessedAqueryResult
     func clearCache()
 }
 
@@ -88,15 +88,9 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
     private let initializedConfig: InitializedServerConfig
     private let bazelTargetQuerier: BazelTargetQuerier
 
-    private var bspURIsToBazelLabelsMap: [URI: String] = [:]
-    private var bspURIsToSrcsMap: [URI: [URI]] = [:]
-    private var srcToBspURIsMap: [URI: [URI]] = [:]
-    private var availableBazelLabels: Set<String> = []
-    private var bazelLabelToParentsMap: [String: [String]] = [:]
-    private var topLevelLabelToRuleMap: [String: TopLevelRuleType] = [:]
-    private var topLevelLabelToConfigMap: [String: BazelTargetConfigurationInfo] = [:]
     private var cachedTargets: [BuildTarget]? = nil
-    private var targetsAqueryResult: BazelTargetQuerier.AQueryResult? = nil
+    private var aqueryResult: ProcessedAqueryResult? = nil
+    private var cqueryResult: ProcessedCqueryResult? = nil
 
     init(
         initializedConfig: InitializedServerConfig,
@@ -108,7 +102,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 
     /// Converts a BSP BuildTarget URI to its underlying Bazel target label.
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String {
-        guard let label = bspURIsToBazelLabelsMap[uri] else {
+        guard let label = cqueryResult?.bspURIsToBazelLabelsMap[uri] else {
             throw BazelTargetStoreError.unknownBSPURI(uri)
         }
         return label
@@ -116,7 +110,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 
     /// Retrieves the list of registered source files for a given a BSP BuildTarget URI.
     func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI] {
-        guard let srcs = bspURIsToSrcsMap[uri] else {
+        guard let srcs = cqueryResult?.bspURIsToSrcsMap[uri] else {
             throw BazelTargetStoreError.unknownBSPURI(uri)
         }
         return srcs
@@ -124,7 +118,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 
     /// Retrieves the list of BSP BuildTarget URIs that contain a given source file.
     func bspURIs(containingSrc src: URI) throws -> [URI] {
-        guard let bspURIs = srcToBspURIsMap[src] else {
+        guard let bspURIs = cqueryResult?.srcToBspURIsMap[src] else {
             throw BazelTargetStoreError.unknownBSPURI(src)
         }
         return bspURIs
@@ -132,7 +126,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 
     /// Retrieves the list of top-level apps that a given Bazel target label belongs to.
     func bazelLabelToParents(forBazelLabel label: String) throws -> [String] {
-        guard let parents = bazelLabelToParentsMap[label] else {
+        guard let parents = cqueryResult?.bazelLabelToParentsMap[label] else {
             throw BazelTargetStoreError.unableToMapBazelLabelToParents(label)
         }
         return parents
@@ -140,7 +134,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 
     /// Retrieves the top-level rule type for a given Bazel **top-level** target label.
     func topLevelRuleType(forBazelLabel label: String) throws -> TopLevelRuleType {
-        guard let ruleType = topLevelLabelToRuleMap[label] else {
+        guard let ruleType = cqueryResult?.topLevelLabelToRuleMap[label] else {
             throw BazelTargetStoreError.unableToMapBazelLabelToTopLevelRuleType(label)
         }
         return ruleType
@@ -148,7 +142,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 
     /// Retrieves the configuration information for a given Bazel **top-level** target label.
     func topLevelConfigInfo(forBazelLabel label: String) throws -> BazelTargetConfigurationInfo {
-        guard let config = topLevelLabelToConfigMap[label] else {
+        guard let config = aqueryResult?.topLevelLabelToConfigMap[label] else {
             throw BazelTargetStoreError.unableToMapBazelLabelToTopLevelConfig(label)
         }
         return config
@@ -179,8 +173,8 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
     }
 
     /// Returns the processed broad aquery containing compiler arguments for all targets we're interested in.
-    func targetsAqueryForArgsExtraction() throws -> BazelTargetQuerier.AQueryResult {
-        guard let targetsAqueryResult = targetsAqueryResult else {
+    func targetsAqueryForArgsExtraction() throws -> ProcessedAqueryResult {
+        guard let targetsAqueryResult = aqueryResult else {
             throw BazelTargetStoreError.noCachedAquery
         }
         return targetsAqueryResult
@@ -198,7 +192,8 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         //  - Top-level targets (e.g. `ios_application`, `ios_unit_test`, etc.)
         //  - Dependencies of the top-level targets (e.g. `swift_library`, `objc_library`, etc.)
         //  - Source files connected to these targets
-        let cQueryResult = try bazelTargetQuerier.cqueryTargets(
+        // And process the relation between these different targets and sources.
+        let cqueryResult = try bazelTargetQuerier.cqueryTargets(
             config: initializedConfig,
             dependencyKinds: Self.libraryKinds + Self.sourceFileKinds,
             supportedTopLevelRuleTypes: initializedConfig.baseConfig.topLevelRulesToDiscover
@@ -209,67 +204,25 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         // We pass top-level mnemonics in addition to compile ones as a method to gain access to the parent's configuration id.
         // We can then use this to locate the exact variant of the target we are looking for.
         // BundleTreeApp is used by most rule types, while SignBinary is for macOS CLI apps specifically.
-        let aQueryResult = try bazelTargetQuerier.aquery(
-            targets: cQueryResult.topLevelTargets.map { $0.0.rule.name },
+        let aqueryResult = try bazelTargetQuerier.aquery(
+            topLevelTargets: cqueryResult.topLevelTargets,
             config: initializedConfig,
             mnemonics: Self.compileMnemonics + Self.topLevelMnemonics
         )
 
-        logger.info("Finished gathering all compiler arguments")
+        self.aqueryResult = aqueryResult
+        self.cqueryResult = cqueryResult
 
-        // Now, process all the queried targets into their BSP build target equivalents, including
-        // their connection to each top level target and which source files belong to them.
-        let parsedCQueryResult = try BazelQueryParser.parseTargets(
-            inCquery: cQueryResult,
-            rootUri: initializedConfig.rootUri,
-            toolchainPath: initializedConfig.devToolchainPath,
-        )
-
-        // Wrap up by filling the local cache based on the data we got from the two queries.
-        targetsAqueryResult = aQueryResult
-        bazelLabelToParentsMap = parsedCQueryResult.bazelLabelToParentsMap
-        for dependencyTargetInfo in parsedCQueryResult.buildTargets {
-            let target = dependencyTargetInfo.target
-            let srcs = dependencyTargetInfo.srcs
-            guard let displayName = target.displayName else {
-                // Should not happen, but the property is an optional
-                continue
-            }
-            let uri = target.id.uri
-            bspURIsToBazelLabelsMap[uri] = displayName
-            bspURIsToSrcsMap[uri] = srcs
-            availableBazelLabels.insert(displayName)
-            for src in srcs {
-                srcToBspURIsMap[src, default: []].append(uri)
-            }
-        }
-        for (target, ruleType) in cQueryResult.topLevelTargets {
-            let label = target.rule.name
-            topLevelLabelToRuleMap[label] = ruleType
-            let configInfo = try BazelQueryParser.topLevelConfigInfo(
-                ofTarget: label,
-                withType: ruleType,
-                in: aQueryResult
-            )
-            topLevelLabelToConfigMap[label] = configInfo
-        }
-
-        let result = parsedCQueryResult.buildTargets.map { $0.target }
+        let result = cqueryResult.buildTargets
         cachedTargets = result
 
         return result
     }
 
     func clearCache() {
-        bspURIsToBazelLabelsMap = [:]
-        bspURIsToSrcsMap = [:]
-        srcToBspURIsMap = [:]
-        bazelLabelToParentsMap = [:]
-        availableBazelLabels = []
-        topLevelLabelToRuleMap = [:]
-        topLevelLabelToConfigMap = [:]
         bazelTargetQuerier.clearCache()
         cachedTargets = nil
-        targetsAqueryResult = nil
+        aqueryResult = nil
+        cqueryResult = nil
     }
 }

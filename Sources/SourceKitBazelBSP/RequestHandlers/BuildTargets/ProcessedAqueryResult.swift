@@ -18,17 +18,15 @@
 // under the License.
 
 import BazelProtobufBindings
+import BuildServerProtocol
 import Foundation
+import LanguageServerProtocol
 
 private let logger = makeFileLevelBSPLogger()
 
-extension BazelTargetQuerier {
-    struct CQueryResult {
-        typealias TopLevelTarget = (BlazeQuery_Target, TopLevelRuleType)
-        let topLevelTargets: [TopLevelTarget]
-        let dependencyTargets: [BlazeQuery_Target]
-        let testBundleTargets: [BlazeQuery_Target]
-        let allAliases: [BlazeQuery_Target]
-        let allSrcs: [BlazeQuery_Target]
-    }
+struct ProcessedAqueryResult: Hashable {
+    let targets: [String: Analysis_Target]
+    let actions: [UInt32: [Analysis_Action]]
+    let configurations: [UInt32: Analysis_Configuration]
+    let topLevelLabelToConfigMap: [String: BazelTargetConfigurationInfo]
 }

@@ -114,7 +114,7 @@ final class BazelTargetCompilerArgsExtractor {
     }
 
     func extractCompilerArgs(
-        fromAquery aquery: BazelTargetQuerier.AQueryResult,
+        fromAquery aquery: ProcessedAqueryResult,
         forTarget platformInfo: BazelTargetPlatformInfo,
         withStrategy strategy: ParsingStrategy,
     ) throws -> [String] {
@@ -174,7 +174,7 @@ final class BazelTargetCompilerArgsExtractor {
 
     private func getCacheKey(
         forTarget target: String,
-        fromAquery aquery: BazelTargetQuerier.AQueryResult,
+        fromAquery aquery: ProcessedAqueryResult,
         strategy: ParsingStrategy
     ) throws -> String {
         let queryHash = String(aquery.hashValue)
@@ -189,7 +189,7 @@ final class BazelTargetCompilerArgsExtractor {
 
     private func getTargetAction(
         forTarget platformInfo: BazelTargetPlatformInfo,
-        fromAquery aquery: BazelTargetQuerier.AQueryResult,
+        fromAquery aquery: ProcessedAqueryResult,
         strategy: ParsingStrategy
     ) throws -> Analysis_Action {
         let bazelTarget = platformInfo.label
