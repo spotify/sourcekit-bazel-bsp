@@ -230,6 +230,17 @@ import Testing
 //     // }
 // }
 
+/// Example aquery output for the example app shipped with this repo.
+/// bazelisk aquery "mnemonic('SwiftCompile|ObjcCompile|CppCompile|BundleTreeApp|SignBinary|TestRunner', deps(//HelloWorld:HelloWorldMacTests) union deps(//HelloWorld:HelloWorldTests) union deps(//HelloWorld:HelloWorld) union deps(//HelloWorld:HelloWorldWatchExtension) union deps(//HelloWorld:HelloWorldWatchTests) union deps(//HelloWorld:HelloWorldMacCLIApp) union deps(//HelloWorld:HelloWorldMacApp) union deps(//HelloWorld:HelloWorldWatchApp))" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto --config=index_build > aquery.pb
+let exampleAqueryOutput: Data = {
+    guard let url = Bundle.module.url(forResource: "aquery", withExtension: "pb"),
+        let data = try? Data.init(contentsOf: url)
+    else { fatalError("aquery.pb is not found in Resources folder") }
+    return data
+}()
+
+// Example cquery output for the example app shipped with this rpeo.
+/// bazelisk cquery 'let topLevelTargets = kind("rule", set(//HelloWorld:HelloWorld //HelloWorld:HelloWorldMacApp //HelloWorld:HelloWorldMacCLIApp //HelloWorld:HelloWorldMacTests //HelloWorld:HelloWorldTests //HelloWorld:HelloWorldWatchApp //HelloWorld:HelloWorldWatchExtension //HelloWorld:HelloWorldWatchTests)) in   $topLevelTargets   union   kind("swift_library|objc_library|source file|alias|_ios_internal_unit_test_bundle|_ios_internal_ui_test_bundle|_watchos_internal_unit_test_bundle|_watchos_internal_ui_test_bundle|_macos_internal_unit_test_bundle|_macos_internal_ui_test_bundle|_tvos_internal_unit_test_bundle|_tvos_internal_ui_test_bundle|_visionos_internal_unit_test_bundle|_visionos_internal_ui_test_bundle", deps($topLevelTargets))' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=index_build > cquery.pb
 let exampleCqueryOutput: Data = {
     guard let url = Bundle.module.url(forResource: "cquery", withExtension: "pb"),
         let data = try? Data.init(contentsOf: url)
