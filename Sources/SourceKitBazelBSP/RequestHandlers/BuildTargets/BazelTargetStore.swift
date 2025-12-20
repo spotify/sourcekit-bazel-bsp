@@ -35,7 +35,7 @@ protocol BazelTargetStore: AnyObject {
     func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI]
     func bspURIs(containingSrc src: URI) throws -> [URI]
     func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo
-    func targetsAqueryForArgsExtraction() throws -> AqueryResult
+    func targetsAqueryForArgsExtraction() throws -> BazelTargetQuerier.AQueryResult
     func clearCache()
 }
 
@@ -68,17 +68,17 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 
     // The list of kinds that provide compilation params that are used by the BSP.
     // These are collected from the top-level targets that depend on them.
-    static let libraryKinds: Set<String> = ["swift_library", "objc_library"]
-    static let sourceFileKinds: Set<String> = ["source file"]
+    static let libraryKinds: [String] = ["swift_library", "objc_library"]
+    static let sourceFileKinds: [String] = ["source file"]
 
     // The mnemonics representing compilation actions
-    static let compileMnemonics: Set<String> = ["SwiftCompile", "ObjcCompile", "CppCompile"]
+    static let compileMnemonics: [String] = ["SwiftCompile", "ObjcCompile", "CppCompile"]
 
     // The mnemonics representing top-level rule actions
     // - `BundleTreeApp` for finding bundling rules like `ios_unit_test`, `ios_application`
     // - `SignBinary` for finding macOS CLI app rules like `macos_command_line_application`
     // - `TestRunner` for finding build test rules like `ios_build_test`
-    static let topLevelMnemonics: Set<String> = ["BundleTreeApp", "SignBinary", "TestRunner"]
+    static let topLevelMnemonics: [String] = ["BundleTreeApp", "SignBinary", "TestRunner"]
 
     // Users of BazelTargetStore are expected to acquire this lock before reading or writing any of the internal state.
     // This is to prevent race conditions between concurrent requests. It's easier to have each request handle critical sections
@@ -87,7 +87,6 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 
     private let initializedConfig: InitializedServerConfig
     private let bazelTargetQuerier: BazelTargetQuerier
-    private let bazelTargetAquerier: BazelTargetAquerier
 
     private var bspURIsToBazelLabelsMap: [URI: String] = [:]
     private var bspURIsToSrcsMap: [URI: [URI]] = [:]
@@ -97,16 +96,14 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
     private var topLevelLabelToRuleMap: [String: TopLevelRuleType] = [:]
     private var topLevelLabelToConfigMap: [String: BazelTargetConfigurationInfo] = [:]
     private var cachedTargets: [BuildTarget]? = nil
-    private var targetsAqueryResult: AqueryResult? = nil
+    private var targetsAqueryResult: BazelTargetQuerier.AQueryResult? = nil
 
     init(
         initializedConfig: InitializedServerConfig,
         bazelTargetQuerier: BazelTargetQuerier = BazelTargetQuerier(),
-        bazelTargetAquerier: BazelTargetAquerier = BazelTargetAquerier()
     ) {
         self.initializedConfig = initializedConfig
         self.bazelTargetQuerier = bazelTargetQuerier
-        self.bazelTargetAquerier = bazelTargetAquerier
     }
 
     /// Converts a BSP BuildTarget URI to its underlying Bazel target label.
@@ -182,7 +179,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
     }
 
     /// Returns the processed broad aquery containing compiler arguments for all targets we're interested in.
-    func targetsAqueryForArgsExtraction() throws -> AqueryResult {
+    func targetsAqueryForArgsExtraction() throws -> BazelTargetQuerier.AQueryResult {
         guard let targetsAqueryResult = targetsAqueryResult else {
             throw BazelTargetStoreError.noCachedAquery
         }
@@ -201,9 +198,9 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         //  - Top-level targets (e.g. `ios_application`, `ios_unit_test`, etc.)
         //  - Dependencies of the top-level targets (e.g. `swift_library`, `objc_library`, etc.)
         //  - Source files connected to these targets
-        let cQueryResult = try bazelTargetQuerier.queryTargets(
+        let cQueryResult = try bazelTargetQuerier.cqueryTargets(
             config: initializedConfig,
-            dependencyKinds: Self.libraryKinds.union(Self.sourceFileKinds),
+            dependencyKinds: Self.libraryKinds + Self.sourceFileKinds,
             supportedTopLevelRuleTypes: initializedConfig.baseConfig.topLevelRulesToDiscover
         )
 
@@ -212,15 +209,10 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         // We pass top-level mnemonics in addition to compile ones as a method to gain access to the parent's configuration id.
         // We can then use this to locate the exact variant of the target we are looking for.
         // BundleTreeApp is used by most rule types, while SignBinary is for macOS CLI apps specifically.
-        let aqueryResult = try bazelTargetAquerier.aquery(
+        let aQueryResult = try bazelTargetQuerier.aquery(
             targets: cQueryResult.topLevelTargets.map { $0.0.rule.name },
             config: initializedConfig,
-            mnemonics: Self.compileMnemonics.union(Self.topLevelMnemonics),
-            additionalFlags: [
-                "--noinclude_artifacts",
-                "--noinclude_aspects",
-                "--features=-compiler_param_file",  // Context: https://github.com/spotify/sourcekit-bazel-bsp/pull/60
-            ]
+            mnemonics: Self.compileMnemonics + Self.topLevelMnemonics
         )
 
         logger.info("Finished gathering all compiler arguments")
@@ -234,7 +226,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         )
 
         // Wrap up by filling the local cache based on the data we got from the two queries.
-        targetsAqueryResult = aqueryResult
+        targetsAqueryResult = aQueryResult
         bazelLabelToParentsMap = parsedCQueryResult.bazelLabelToParentsMap
         for dependencyTargetInfo in parsedCQueryResult.buildTargets {
             let target = dependencyTargetInfo.target
@@ -257,7 +249,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
             let configInfo = try BazelQueryParser.topLevelConfigInfo(
                 ofTarget: label,
                 withType: ruleType,
-                in: aqueryResult
+                in: aQueryResult
             )
             topLevelLabelToConfigMap[label] = configInfo
         }

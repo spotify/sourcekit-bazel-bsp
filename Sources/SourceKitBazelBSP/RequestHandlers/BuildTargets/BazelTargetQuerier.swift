@@ -29,6 +29,7 @@ enum BazelTargetQuerierError: Error, LocalizedError {
     case unexpectedTargetType(Int)
     case unsupportedTopLevelTargetType(String, String, [TopLevelRuleType])
     case noTopLevelTargets([TopLevelRuleType])
+    case noMnemonics
 
     var errorDescription: String? {
         switch self {
@@ -46,25 +47,17 @@ enum BazelTargetQuerierError: Error, LocalizedError {
                 No top-level targets found in the query of kind: \
                 \(rules.map { $0.rawValue }.joined(separator: ", "))
                 """
+        case .noMnemonics: return "A list of mnemonics is necessary to aquery targets"
         }
     }
 }
 
-/// Small abstraction to handle and cache the results of bazel queries.
+/// Abstraction to handle and cache the results of bazel cqueries and aqueries.
 final class BazelTargetQuerier {
 
-    struct CQueryResult {
-        typealias TopLevelTarget = (BlazeQuery_Target, TopLevelRuleType)
-        let topLevelTargets: [TopLevelTarget]
-        let dependencyTargets: [BlazeQuery_Target]
-        let testBundleTargets: [BlazeQuery_Target]
-        let allAliases: [BlazeQuery_Target]
-        let allSrcs: [BlazeQuery_Target]
-    }
-
     private let commandRunner: CommandRunner
-
-    private var queryCache = [String: CQueryResult]()
+    private var cqueryCache = [String: CQueryResult]()
+    private var aqueryCache = [String: AQueryResult]()
 
     static func queryDepsString(forTargets targets: [String]) -> String {
         var query = ""
@@ -82,9 +75,11 @@ final class BazelTargetQuerier {
         self.commandRunner = commandRunner
     }
 
-    func queryTargets(
+    // Runs a cquery across the codebase based on the user's provided list of top level targets,
+    // listing all of their dependencies and source files.
+    func cqueryTargets(
         config: InitializedServerConfig,
-        dependencyKinds: Set<String>,
+        dependencyKinds: [String],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
     ) throws -> CQueryResult {
         if dependencyKinds.isEmpty {
@@ -104,16 +99,16 @@ final class BazelTargetQuerier {
         // We need to also use the `alias` mnemonic for this query to work properly.
         // This is because --output proto doesn't follow the aliases automatically,
         // so we need this info to do it ourselves.
-        kindsToFilterFor.insert("alias")
+        kindsToFilterFor.append("alias")
 
         // If we're searching for test rules, we need to also include their test bundle rules.
         // Otherwise we won't be able to map test dependencies back to their top level parents.
-        let testBundleRules = Set(supportedTopLevelRuleTypes.compactMap { $0.testBundleRule })
-        kindsToFilterFor.formUnion(testBundleRules)
+        let testBundleRules = supportedTopLevelRuleTypes.compactMap { $0.testBundleRule }
+        kindsToFilterFor.append(contentsOf: testBundleRules)
 
         // Collect the top-level targets -> collect these targets' dependencies
         let providedTargetsQuerySet = "set(\(providedTargets.joined(separator: " ")))"
-        let dependencyKindsFilter = kindsToFilterFor.sorted().joined(separator: "|")
+        let dependencyKindsFilter = kindsToFilterFor.joined(separator: "|")
         let topLevelTargetsQuery = """
             let topLevelTargets = kind("rule", \(providedTargetsQuerySet)) in \
               $topLevelTargets \
@@ -124,7 +119,7 @@ final class BazelTargetQuerier {
         let cacheKey = "QUERY_TARGETS+\(topLevelTargetsQuery)"
         logger.info("Processing cquery request for cache key: \(cacheKey, privacy: .public)")
 
-        if let cached = queryCache[cacheKey] {
+        if let cached = cqueryCache[cacheKey] {
             logger.debug("Returning cached results for \(cacheKey, privacy: .public)")
             return cached
         }
@@ -150,6 +145,7 @@ final class BazelTargetQuerier {
 
         logger.debug("Parsed \(targets.count, privacy: .public) targets for cache key: \(cacheKey, privacy: .public)")
 
+        let testBundleRulesSet = Set(testBundleRules)
         var seenLabels = Set<String>()
         var seenSourceFiles = Set<String>()
         var rules = [BlazeQuery_Target]()
@@ -161,14 +157,14 @@ final class BazelTargetQuerier {
                 guard !seenLabels.contains(target.rule.name) else {
                     // FIXME: It might be possible to lift this limitation, just didn't check deep enough.
                     logger.warning(
-                        "Will skip duplicate entry for \(target.rule.name, privacy: .public). This can happen if your configuration contains multiple variants of the same target due to differing transitions. This should be fine as long as the inputs are the same across all variants."
+                        "Skipping duplicate entry for target \(target.rule.name, privacy: .public). This can happen if your configuration contains multiple variants of the same target due to differing transitions. This should be fine as long as the inputs are the same across all variants."
                     )
                     continue
                 }
                 seenLabels.insert(target.rule.name)
                 if target.rule.ruleClass == "alias" {
                     aliases.append(target)
-                } else if testBundleRules.contains(target.rule.ruleClass) {
+                } else if testBundleRulesSet.contains(target.rule.ruleClass) {
                     testBundles.append(target)
                 } else {
                     rules.append(target)
@@ -176,7 +172,7 @@ final class BazelTargetQuerier {
             } else if target.type == .sourceFile {
                 guard !seenSourceFiles.contains(target.sourceFile.name) else {
                     logger.error(
-                        "Skipping unexpected duplicate entry for source \(target.sourceFile.name, privacy: .public)."
+                        "Skipping duplicate entry for source \(target.sourceFile.name, privacy: .public). This is unexpected."
                     )
                     continue
                 }
@@ -186,12 +182,6 @@ final class BazelTargetQuerier {
                 throw BazelTargetQuerierError.unexpectedTargetType(target.type.rawValue)
             }
         }
-
-        // Sort for determinism
-        rules = rules.sorted(by: { $0.rule.name < $1.rule.name })
-        testBundles = testBundles.sorted(by: { $0.rule.name < $1.rule.name })
-        aliases = aliases.sorted(by: { $0.rule.name < $1.rule.name })
-        srcs = srcs.sorted(by: { $0.sourceFile.name < $1.sourceFile.name })
 
         // Now, separate the parsed content between top-level and non-top-level targets.
         // We don't need to handle the case where a top-level target is missing entirely
@@ -221,7 +211,7 @@ final class BazelTargetQuerier {
             throw BazelTargetQuerierError.noTopLevelTargets(supportedTopLevelRuleTypes)
         }
 
-        logger.debug("Queried top-level targets: \(topLevelTargets.map { $0.0.rule.name }.joined(separator: " "), privacy: .public)")
+        logger.debug("Queried \(topLevelTargets.count, privacy: .public) top-level targets")
 
         let result = CQueryResult(
             topLevelTargets: topLevelTargets,
@@ -231,11 +221,52 @@ final class BazelTargetQuerier {
             allSrcs: srcs
         )
 
-        queryCache[cacheKey] = result
+        cqueryCache[cacheKey] = result
         return result
     }
 
+    // Runs an aquery across the codebase over a list of specific target dependencies.
+    func aquery(
+        targets: [String],
+        config: InitializedServerConfig,
+        mnemonics: [String]
+    ) throws -> AQueryResult {
+        guard !mnemonics.isEmpty else {
+            throw BazelTargetQuerierError.noMnemonics
+        }
+
+        let mnemonicsFilter = mnemonics.joined(separator: "|")
+        let depsQuery = Self.queryDepsString(forTargets: targets)
+
+        let otherFlags = [
+            "--noinclude_artifacts",
+            "--noinclude_aspects",
+            "--features=-compiler_param_file",  // Context: https://github.com/spotify/sourcekit-bazel-bsp/pull/60
+        ].joined(separator: " ") + " --output proto"
+        let cmd = "aquery \"mnemonic('\(mnemonicsFilter)', \(depsQuery))\" \(otherFlags)"
+        logger.info("Processing aquery request for \(targets, privacy: .public)")
+
+        if let cached = aqueryCache[cmd] {
+            logger.debug("Returning cached results")
+            return cached
+        }
+
+        // Run the aquery with the special index flags since that's what we will build with.
+        let output: Data = try commandRunner.bazelIndexAction(
+            baseConfig: config.baseConfig,
+            outputBase: config.outputBase,
+            cmd: cmd,
+            rootUri: config.rootUri
+        )
+
+        let aqueryResult = try AQueryResult(data: output)
+        aqueryCache[cmd] = aqueryResult
+
+        return aqueryResult
+    }
+
     func clearCache() {
-        queryCache = [:]
+        cqueryCache = [:]
+        aqueryCache = [:]
     }
 }
