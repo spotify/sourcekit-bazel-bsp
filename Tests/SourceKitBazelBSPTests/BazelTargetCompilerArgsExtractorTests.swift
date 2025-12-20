@@ -28,11 +28,11 @@ import Testing
 @Suite
 struct BazelTargetCompilerArgsExtractorTests {
 
-    let aqueryResult: AqueryResult
+    let aqueryResult: BazelTargetQuerier.AQueryResult
     let helloWorldConfig: BazelTargetConfigurationInfo
 
     init() throws {
-        self.aqueryResult = try AqueryResult(data: exampleAqueryOutput)
+        self.aqueryResult = try BazelTargetQuerier.AQueryResult(data: exampleAqueryOutput)
         self.helloWorldConfig = try BazelQueryParser.topLevelConfigInfo(
             ofTarget: "//HelloWorld:HelloWorld",
             withType: .iosApplication,
@@ -81,7 +81,7 @@ struct BazelTargetCompilerArgsExtractorTests {
     @Test
     func extractsAndProcessesCompilerArguments_complexRealWorldSwiftExample() throws {
         let extractor = Self.makeMockExtractor()
-        let aqueryResult = try AqueryResult(data: exampleAqueryOutput)
+        let aqueryResult = try BazelTargetQuerier.AQueryResult(data: exampleAqueryOutput)
 
         let result = try extractor.extractCompilerArgs(
             fromAquery: aqueryResult,
@@ -99,7 +99,7 @@ struct BazelTargetCompilerArgsExtractorTests {
     @Test
     func extractsAndProcessesCompilerArguments_complexRealWorldObjCExample() throws {
         let extractor = Self.makeMockExtractor()
-        let aqueryResult = try AqueryResult(data: exampleAqueryOutput)
+        let aqueryResult = try BazelTargetQuerier.AqueryResult(data: exampleAqueryOutput)
 
         let result = try extractor.extractCompilerArgs(
             fromAquery: aqueryResult,
@@ -117,7 +117,7 @@ struct BazelTargetCompilerArgsExtractorTests {
     @Test
     func missingObjCFile() throws {
         let extractor = Self.makeMockExtractor()
-        let aqueryResult = try AqueryResult(data: exampleAqueryOutput)
+        let aqueryResult = try BazelTargetQuerier.AqueryResult(data: exampleAqueryOutput)
 
         let error = #expect(throws: BazelTargetCompilerArgsExtractorError.self) {
             try extractor.extractCompilerArgs(
@@ -140,7 +140,7 @@ struct BazelTargetCompilerArgsExtractorTests {
     @Test
     func ignoresObjCHeaders() throws {
         let extractor = Self.makeMockExtractor()
-        let aqueryResult = try AqueryResult(data: exampleAqueryOutput)
+        let aqueryResult = try BazelTargetQuerier.AqueryResult(data: exampleAqueryOutput)
 
         let result = try extractor.extractCompilerArgs(
             fromAquery: aqueryResult,
@@ -182,7 +182,7 @@ struct BazelTargetCompilerArgsExtractorTests {
     @Test
     func missingSwiftModule() throws {
         let extractor = Self.makeMockExtractor()
-        let aqueryResult = try AqueryResult(data: exampleAqueryOutput)
+        let aqueryResult = try BazelTargetQuerier.AqueryResult(data: exampleAqueryOutput)
 
         let error = #expect(throws: BazelTargetCompilerArgsExtractorError.self) {
             try extractor.extractCompilerArgs(
@@ -206,7 +206,7 @@ struct BazelTargetCompilerArgsExtractorTests {
         let extractor = Self.makeMockExtractor(
             compileTopLevel: true
         )
-        let aqueryResult = try AqueryResult(data: exampleAqueryOutput)
+        let aqueryResult = try BazelTargetQuerier.AqueryResult(data: exampleAqueryOutput)
 
         let result = try extractor.extractCompilerArgs(
             fromAquery: aqueryResult,

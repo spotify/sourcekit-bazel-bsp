@@ -311,7 +311,7 @@ extension BazelQueryParser {
     static func topLevelConfigInfo(
         ofTarget target: String,
         withType type: TopLevelRuleType,
-        in aquery: AqueryResult
+        in aQuery: BazelTargetQuerier.AQueryResult
     ) throws -> BazelTargetConfigurationInfo {
         // If this is a test rule wrapped by a bundle target,
         // then we need to search for this bundle target instead of the original rule.
@@ -322,10 +322,10 @@ extension BazelQueryParser {
             effectiveParentLabel = target
         }
         // First, fetch the configuration id of the target's parent.
-        guard let parentTarget = aquery.targets[effectiveParentLabel] else {
+        guard let parentTarget = aQuery.targets[effectiveParentLabel] else {
             throw BazelQueryParserError.parentTargetNotFound(effectiveParentLabel, target)
         }
-        guard let parentActions = aquery.actions[parentTarget.id] else {
+        guard let parentActions = aQuery.actions[parentTarget.id] else {
             throw BazelQueryParserError.parentActionNotFound(effectiveParentLabel, parentTarget.id)
         }
         guard parentActions.count == 1 else {
@@ -335,7 +335,7 @@ extension BazelQueryParser {
         // e.g. darwin_arm64-dbg-macos-arm64-min15.0-applebin_macos-ST-d1334902beb6
         let parentAction = parentActions[0]
         let configId = parentAction.configurationID
-        guard let fullConfig = aquery.configurations[configId]?.mnemonic else {
+        guard let fullConfig = aQuery.configurations[configId]?.mnemonic else {
             throw BazelQueryParserError.configurationNotFound(configId)
         }
         let configComponents = fullConfig.components(separatedBy: "-")
