@@ -32,6 +32,7 @@ enum BazelQueryParserError: Error, LocalizedError {
     case multipleParentActions(String, String)
     case configurationNotFound(UInt32)
     case indexOutOfBounds(Int, Int)
+    case unexpectedLanguageRule(String, String)
 
     var errorDescription: String? {
         switch self {
@@ -47,147 +48,260 @@ enum BazelQueryParserError: Error, LocalizedError {
             return "Configuration \(id) not found in the aquery output."
         case .indexOutOfBounds(let index, let line):
             return "Index \(index) is out of bounds for array at line \(line)"
+        case .unexpectedLanguageRule(let target, let ruleClass):
+            return "Could not determine \(target)'s language: Unexpected rule \(ruleClass)"
         }
     }
 }
 
 /// Small abstraction to parse the results of bazel target queries and aqueries.
 enum BazelQueryParser {
-    /// Parses Bazel query results from protobuf format into Build Server Protocol (BSP) build targets.
-    ///
-    /// This method processes protobuf-formatted query results (`--output streamed_proto`) from Bazel
-    /// and converts them into BSP-compatible build targets with associated source files.
-    ///
-    /// - Parameters:
-    ///   - targets: Array of `BlazeQuery_Target` protobuf objects from Bazel query output (type: rule)
-    ///   - allSrcs: Array of `BlazeQuery_Target` protobuf objects from Bazel query output (type: source_file)
-    ///   - rootUri: Absolute path to the project root directory
-    ///   - toolchainPath: Absolute path to the development toolchain
-    ///
-    /// - Returns: Array of tuples containing:
-    ///   - `BuildTarget`: BSP build target with metadata (ID, capabilities, dependencies, etc.)
-    ///   - `[URI]`: Array of source file URIs associated with the target
-    static func parseTargetsWithProto(
-        from targets: [BlazeQuery_Target],
-        allSrcs: [BlazeQuery_Target],
+
+    struct ParsedCQueryResult {
+        struct DependencyTargetInfo {
+            let target: BuildTarget
+            let srcs: [URI]
+        }
+        let buildTargets: [DependencyTargetInfo]
+        let bazelLabelToParentsMap: [String: [String]]
+    }
+
+    /// Processes the initial cquery containing all top-level targets and their sources
+    /// into BSP build targets. This does not include dependency information, which is filled later.
+    static func parseTargets(
+        inCquery cqueryResult: BazelTargetQuerier.CQueryResult,
         rootUri: String,
         toolchainPath: String,
-    ) throws -> [(BuildTarget, [URI])] {
+    ) throws -> ParsedCQueryResult {
 
-        // FIXME: Most of this logic is hacked together and not thought through, with the
-        // sole intention of getting the example project to work.
-        // Need to understand what exactly we can receive from the queries to know how to properly
-        // parse this info.
+        // Start by pre-processing all of the provided source files into a map for quick lookup.
+        var srcToUriMap: [String: URI] = [:]
+        for target in cqueryResult.allSrcs {
+            let label = target.sourceFile.name
+            // The location is an absolute path and has suffix `:1:1`, thus we need to trim it.
+            let location = target.sourceFile.location.dropLast(4)
+            srcToUriMap[label] = try URI(string: "file://" + String(location))
+        }
 
-        var result: [(BuildTarget, [URI])] = []
-        let srcMap = buildSourceFilesMap(allSrcs)
+        // Do the same for the dependencies list.
+        // This also defines which dependencies are "valid",
+        // because the cquery result's deps field ignores the filters applied to the query.
+        var depLabelToUriMap: [String: (BuildTargetIdentifier, String)] = [:]
+        for target in cqueryResult.dependencyTargets {
+            let label = target.rule.name
+            depLabelToUriMap[label] = (BuildTargetIdentifier(
+                uri: try label.toTargetId(rootUri: rootUri)
+            ), label)
+        }
 
-        for target in targets {
-            guard target.type == .rule else {
+        // Similarly, process the list of aliases. The cquery result's deps field does not
+        // follow aliases, so we need to do this to find the actual targets.
+        // We track a separate array for determinism reasons.
+        var registeredAliases = [String]()
+        var aliasToLabelMap: [String: String] = [:]
+        for target in cqueryResult.allAliases {
+            let label = target.rule.name
+            let actual = target.rule.ruleInput[0]
+            aliasToLabelMap[label] = actual
+            registeredAliases.append(label)
+        }
+        // Treat test bundle rules as aliases as well. This allows us to locate the "true" dependency
+        // when encountering a test bundle.
+        for target in cqueryResult.testBundleTargets {
+            let label = target.rule.name
+            let actual = target.rule.ruleInput[0]
+            aliasToLabelMap[label] = actual
+            registeredAliases.append(label)
+        }
+
+        // After mapping out all aliases, inject them back into the dependencies map above.
+        // Note that some of these aliases may resolve to invalid dependencies, which is why
+        // we validate them beforehand.
+        for label in registeredAliases {
+            let realLabel = resolveAlias(label: label, from: aliasToLabelMap)
+            guard depLabelToUriMap.keys.contains(realLabel) else {
                 continue
             }
+            depLabelToUriMap[label] = (BuildTargetIdentifier(
+                uri: try realLabel.toTargetId(rootUri: rootUri)
+            ), realLabel)
+        }
 
-            // Ignore third party deps
-            guard !target.rule.name.hasPrefix("@") else {
+        var result: [String: (BuildTarget, [URI])] = [:]
+        var dependencyGraph: [String: [String]] = [:]
+        for target in cqueryResult.dependencyTargets {
+            guard target.type == .rule else {
+                // Should not happen, but checking just in case.
                 continue
             }
 
             let rule = target.rule
 
             let id: URI = try rule.name.toTargetId(rootUri: rootUri)
-
             let baseDirectory: URI = try rule.name.toBaseDirectory(rootUri: rootUri)
 
-            var testOnly = false
-            var deps: [BuildTargetIdentifier] = []
-            var srcs: [URI] = []
-            for attr in rule.attribute {
-                if attr.name == "testonly" {
-                    testOnly = attr.booleanValue
-                }
-                // get direct upstream dependencies only
-                if attr.name == "deps" {
-                    let _deps: [BuildTargetIdentifier] = try attr.stringListValue.map {
-                        let id = try $0.toTargetId(rootUri: rootUri)
-                        return .init(uri: id)
-                    }.sorted(by: { $0.uri.stringValue < $1.uri.stringValue })
-                    deps = _deps
-                }
-                if attr.name == "srcs" {
-                    let _srcs: [URI] = try attr.stringListValue.compactMap {
-                        guard let path = srcMap[$0] else {
-                            // FIXME: We should somehow find where the file would be generated to
-                            // and register it as a proper generated file.
-                            logger.debug(
-                                "Skipping \($0, privacy: .public): Source does not exist, most likely a generated file."
-                            )
-                            return nil
-                        }
-                        return try URI(string: path)
-                    }.sorted(by: { $0.stringValue < $1.stringValue })
-                    srcs = _srcs
-                }
-            }
+            let srcs = try processSrcsAttr(rule: rule, srcToUriMap: srcToUriMap)
+            let deps = try processDependenciesAttr(
+                rule: rule,
+                isBuildTestRule: false,
+                depLabelToUriMap: depLabelToUriMap,
+                dependencyGraph: &dependencyGraph
+            )
 
-            // BuildTargetCapabilities
+            // These settings serve no particular purpose today. They are ignored by sourcekit-lsp.
             let capabilities = BuildTargetCapabilities(
                 canCompile: true,
-                canTest: testOnly,
+                canTest: false,
                 canRun: false,
                 canDebug: false
             )
 
-            // get language
-            let isSwift = target.rule.ruleClass.contains("swift")
-
-            let data = try buildTargetData(for: toolchainPath)
+            let languageId: [Language]
+            switch rule.ruleClass {
+            case "swift_library":
+                languageId = [.swift]
+            case "objc_library":
+                languageId = [.objective_c]
+            default:
+                throw BazelQueryParserError.unexpectedLanguageRule(rule.name, rule.ruleClass)
+            }
 
             let buildTarget = BuildTarget(
                 id: BuildTargetIdentifier(uri: id),
                 displayName: rule.name,
                 baseDirectory: baseDirectory,
-                tags: testOnly ? [.test, .library] : [.library],
+                tags: [.library],
                 capabilities: capabilities,
-                languageIds: isSwift ? [.swift] : [.objective_c],
+                languageIds: languageId,
                 dependencies: deps,
                 dataKind: .sourceKit,
-                data: data
+                data: try SourceKitBuildTarget(
+                    toolchain: URI(string: "file://" + toolchainPath)
+                ).encodeToLSPAny()
             )
-
-            result.append((buildTarget, srcs))
+            result[rule.name] = (buildTarget, srcs)
         }
 
-        return result
-    }
-
-    /// Bazel query outputs a list of targets and each target contains list of attributes.
-    /// The `srcs` attribute is a list of source_file labels instead of URI, thus we need
-    /// a hashmap to reduce the time complexity.
-    private static func buildSourceFilesMap(
-        _ allSrcs: [BlazeQuery_Target]
-    ) -> [String: String] {
-        var srcMap: [String: String] = [:]
-        for target in allSrcs {
-            // making sure the target is a source_file type
-            guard target.type == .sourceFile else {
-                continue
+        // We can now wrap it up by determining which dependencies belong to which top-level targets.
+        var bazelLabelToParentsMap: [String: [String]] = [:]
+        for (target, ruleType) in cqueryResult.topLevelTargets {
+            let topLevelTarget = target.rule.name
+            _ = try processDependenciesAttr(
+                rule: target.rule,
+                isBuildTestRule: ruleType.isBuildTestRule,
+                depLabelToUriMap: depLabelToUriMap,
+                dependencyGraph: &dependencyGraph
+            )
+            let deps = traverseGraph(from: topLevelTarget, in: dependencyGraph)
+            for dep in deps {
+                bazelLabelToParentsMap[dep, default: []].append(topLevelTarget)
             }
-
-            // name is source_file label
-            let label = target.sourceFile.name
-
-            // location is absolute path and has suffix `:1:1`, thus trimming
-            let location = target.sourceFile.location.dropLast(4)
-            srcMap[label] = "file://" + String(location)
         }
 
-        return srcMap
+        for (label, _) in result {
+            let isOrphan = bazelLabelToParentsMap[label, default: []].isEmpty
+            if isOrphan {
+                // If we don't know how to parse the full path to a target, we need to drop it.
+                // Otherwise we will not know how to properly communicate this target's capabilities to sourcekit-lsp.
+                logger.warning("Skipping orphan target \(label, privacy: .public). This can happen if the target is a dependency of something we don't know how to parse.")
+                result[label] = nil
+            }
+        }
+
+        return ParsedCQueryResult(
+            buildTargets: result.sorted(by: { $0.0 < $1.0 }).map {
+                ParsedCQueryResult.DependencyTargetInfo(
+                    target: $0.value.0,
+                    srcs: $0.value.1
+                )
+            },
+            bazelLabelToParentsMap: bazelLabelToParentsMap
+        )
     }
 
-    private static func buildTargetData(for toolchainPath: String) throws -> LanguageServerProtocol.LSPAny {
-        try SourceKitBuildTarget(
-            toolchain: URI(string: "file://" + toolchainPath)
-        ).encodeToLSPAny()
+    /// Resolves an alias to its actual target.
+    /// If the label is not an alias, returns the label unchanged.
+    private static func resolveAlias(
+        label: String,
+        from aliasToLabelMap: [String: String]
+    ) -> String {
+        var current = label
+        while let resolved = aliasToLabelMap[current] {
+            current = resolved
+        }
+        return current
+    }
+
+    private static func processSrcsAttr(
+        rule: BlazeQuery_Rule,
+        srcToUriMap: [String: URI],
+    ) throws -> [URI] {
+        let srcsAttribute = rule.attribute.first { $0.name == "srcs" }
+        let srcs: [URI]
+        if let attr = srcsAttribute {
+            srcs = attr.stringListValue.compactMap {
+                guard let srcUri = srcToUriMap[$0] else {
+                    // If the file is not part of the original array provided to this function,
+                    // then this is likely a generated file.
+                    // FIXME: Generated files are handled by the `generated file` mmnemonic,
+                    // which we don't handle today. Ignoring them for now.
+                    logger.debug(
+                        "Skipping \($0, privacy: .public): Source does not exist, most likely a generated file."
+                    )
+                    return nil
+                }
+                return srcUri
+            }.sorted(by: { $0.stringValue < $1.stringValue })
+        } else {
+            srcs = []
+        }
+        return srcs
+    }
+
+    private static func processDependenciesAttr(
+        rule: BlazeQuery_Rule,
+        isBuildTestRule: Bool,
+        depLabelToUriMap: [String: (BuildTargetIdentifier, String)],
+        dependencyGraph: inout [String: [String]],
+    ) throws -> [BuildTargetIdentifier] {
+        let attrName = isBuildTestRule ? "targets" : "deps"
+        let depsAttribute = rule.attribute.first { $0.name == attrName }
+        let deps: [BuildTargetIdentifier]
+        let thisRule = rule.name
+        if let attr = depsAttribute {
+            deps = attr.stringListValue.compactMap { label in
+                guard let (depUri, depRealLabel) = depLabelToUriMap[label] else {
+                    logger.debug(
+                        "Skipping dependency \(label, privacy: .public): not considered a valid dependency"
+                    )
+                    return nil
+                }
+                dependencyGraph[thisRule, default: []].append(depRealLabel)
+                return depUri
+            }.sorted(by: { $0.uri.stringValue < $1.uri.stringValue })
+        } else {
+            deps = []
+        }
+        return deps
+    }
+
+    private static func traverseGraph(
+        from target: String,
+        in graph: [String: [String]],
+    ) -> Set<String> {
+        var visited = Set<String>()
+        var result = Set<String>()
+        var queue: [String] = graph[target, default: []]
+        while let curr = queue.popLast() {
+            result.insert(curr)
+            for dep in graph[curr, default: []] {
+                if !visited.contains(dep) {
+                    visited.insert(dep)
+                    queue.append(dep)
+                }
+            }
+        }
+        return result
     }
 }
 
@@ -199,10 +313,11 @@ extension BazelQueryParser {
         withType type: TopLevelRuleType,
         in aquery: AqueryResult
     ) throws -> BazelTargetConfigurationInfo {
-        // If the parent is a test target, we need to append __internal__.__test_bundle to the label to find it in the output.
+        // If this is a test rule wrapped by a bundle target,
+        // then we need to search for this bundle target instead of the original rule.
         let effectiveParentLabel: String
-        if type.generatesTestBundle {
-            effectiveParentLabel = target + ".__internal__.__test_bundle"
+        if type.testBundleRule != nil {
+            effectiveParentLabel = target + TopLevelRuleType.testBundleRuleSuffix
         } else {
             effectiveParentLabel = target
         }
@@ -255,14 +370,14 @@ extension Array {
     }
 }
 
-// MARK: - Bazel target name helpers
+// MARK: - Bazel label parsing helpers
 
 extension String {
-    /// Converts the target name into a URI and returns a unique target id.
+    /// Converts a Bazel label into a URI and returns a unique target id.
     ///
     /// file://<path-to-root>/<package-name>___<target-name>
     ///
-    fileprivate func toTargetId(rootUri: String) throws -> URI {
+    func toTargetId(rootUri: String) throws -> URI {
         let (packageName, targetName) = try splitTargetLabel()
         let path = "file://" + rootUri + "/" + packageName + "___" + targetName
         guard let uri = try? URI(string: path) else {
@@ -271,7 +386,7 @@ extension String {
         return uri
     }
 
-    /// Fetches the base directory of a target based on its unique identifier.
+    /// Fetches the base directory of a target based on its id.
     ///
     /// file://<path-to-root>/<package-name>
     ///

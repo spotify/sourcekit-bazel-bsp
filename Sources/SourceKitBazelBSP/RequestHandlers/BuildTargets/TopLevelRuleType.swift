@@ -49,12 +49,36 @@ public enum TopLevelRuleType: String, CaseIterable, ExpressibleByArgument, Senda
     case visionosUiTest = "visionos_ui_test"
     case visionosBuildTest = "visionos_build_test"
 
-    /// Returns true if the top-level rule generates a __internal__.__test_bundle label.
-    var generatesTestBundle: Bool {
+    static var testBundleRuleSuffix: String {
+        return ".__internal__.__test_bundle"
+    }
+
+    // Some test rule types inject a bundle target between the rule and its dependencies.
+    // We need to keep track of them to be able to parse those rules properly.
+    // If the rule does not generate a bundle target, returns nil.
+    var testBundleRule: String? {
         switch self {
-        case .iosUnitTest, .iosUiTest, .watchosUnitTest, .watchosUiTest, .macosUnitTest, .macosUiTest, .tvosUnitTest,
-            .tvosUiTest, .visionosUnitTest, .visionosUiTest:
-            return true
+            case .iosUnitTest: return "_ios_internal_unit_test_bundle"
+            case .iosUiTest: return "_ios_internal_ui_test_bundle"
+            case .watchosUnitTest: return "_watchos_internal_unit_test_bundle"
+            case .watchosUiTest: return "_watchos_internal_ui_test_bundle"
+            case .macosUnitTest: return "_macos_internal_unit_test_bundle"
+            case .macosUiTest: return "_macos_internal_ui_test_bundle"
+            case .tvosUnitTest: return "_tvos_internal_unit_test_bundle"
+            case .tvosUiTest: return "_tvos_internal_ui_test_bundle"
+            case .visionosUnitTest: return "_visionos_internal_unit_test_bundle"
+            case .visionosUiTest: return "_visionos_internal_ui_test_bundle"
+            default: return nil
+        }
+    }
+
+    var isBuildTestRule: Bool {
+        switch self {
+        case .iosBuildTest: return true
+        case .watchosBuildTest: return true
+        case .macosBuildTest: return true
+        case .tvosBuildTest: return true
+        case .visionosBuildTest: return true
         default: return false
         }
     }

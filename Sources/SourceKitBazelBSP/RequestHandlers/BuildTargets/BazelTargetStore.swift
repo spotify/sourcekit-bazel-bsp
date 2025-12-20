@@ -40,8 +40,6 @@ protocol BazelTargetStore: AnyObject {
 }
 
 enum BazelTargetStoreError: Error, LocalizedError {
-    case noTopLevelTargets([TopLevelRuleType])
-    case unsupportedTargetType(target: String, type: String, supportedTypes: [TopLevelRuleType])
     case unknownBSPURI(URI)
     case unableToMapBazelLabelToParents(String)
     case unableToMapBazelLabelToTopLevelRuleType(String)
@@ -50,16 +48,6 @@ enum BazelTargetStoreError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .noTopLevelTargets(let rules):
-            return """
-                No top-level targets found in the store for query of kind: \
-                \(rules.map { $0.rawValue }.joined(separator: ", "))
-                """
-        case .unsupportedTargetType(let target, let type, let supportedTypes):
-            return """
-                Unsupported top-level target type: '\(type)' for target: \
-                '\(target)' supported types: \(supportedTypes.map { $0.rawValue }.joined(separator: ", "))
-                """
         case .unknownBSPURI(let uri):
             return "Unable to map '\(uri)' to a Bazel target label"
         case .unableToMapBazelLabelToParents(let label):
@@ -76,11 +64,12 @@ enum BazelTargetStoreError: Error, LocalizedError {
 
 /// Abstraction that can queries, processes, and stores the project's dependency graph and its files.
 /// Used by many of the requests to calculate and provide data about the project's targets.
-final class BazelTargetStoreImpl: BazelTargetStore {
+final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 
     // The list of kinds that provide compilation params that are used by the BSP.
     // These are collected from the top-level targets that depend on them.
-    static let supportedKinds: Set<String> = ["source file", "swift_library", "objc_library"]
+    static let libraryKinds: Set<String> = ["swift_library", "objc_library"]
+    static let sourceFileKinds: Set<String> = ["source file"]
 
     // The mnemonics representing compilation actions
     static let compileMnemonics: Set<String> = ["SwiftCompile", "ObjcCompile", "CppCompile"]
@@ -208,60 +197,48 @@ final class BazelTargetStoreImpl: BazelTargetStore {
             return cachedTargets
         }
 
-        let topLevelRuleTypes = initializedConfig.baseConfig.topLevelRulesToDiscover
-        let topLevelRuleKinds = Set(topLevelRuleTypes.map(\.rawValue))
-
         // Query all the targets we are interested in one invocation:
         //  - Top-level targets (e.g. `ios_application`, `ios_unit_test`, etc.)
         //  - Dependencies of the top-level targets (e.g. `swift_library`, `objc_library`, etc.)
         //  - Source files connected to these targets
-        let (allTargets, allSrcs) =
-            try bazelTargetQuerier
-            .queryTargets(
-                config: initializedConfig,
-                dependencyKinds: Self.supportedKinds
-            )
+        let cQueryResult = try bazelTargetQuerier.queryTargets(
+            config: initializedConfig,
+            dependencyKinds: Self.libraryKinds.union(Self.sourceFileKinds),
+            supportedTopLevelRuleTypes: initializedConfig.baseConfig.topLevelRulesToDiscover
+        )
 
-        // Find the top-level targets (based on our supported rule kinds) from the query results.
-        // We don't need to handle the case where a provided target is missing entirely
-        // because Bazel itself will fail when this is the case.
-        let userProvidedTargets = Set(initializedConfig.baseConfig.targets)
-        var topLevelTargetLabels: [String] = []
-        var topLevelTargetTypes: [TopLevelRuleType] = []
-        var dependencyTargets: [BlazeQuery_Target] = []
-        for target in allTargets {
-            let kind = target.rule.ruleClass
-            let name = target.rule.name
-            if userProvidedTargets.contains(name) {
-                guard let topLevelRuleType = TopLevelRuleType(rawValue: kind) else {
-                    throw BazelTargetStoreError.unsupportedTargetType(
-                        target: name,
-                        type: kind,
-                        supportedTypes: topLevelRuleTypes
-                    )
-                }
-                topLevelTargetLabels.append(name)
-                topLevelTargetTypes.append(topLevelRuleType)
-            } else {
-                dependencyTargets.append(target)
-            }
-        }
+        // Run a broad aquery against all top-level targets
+        // to get the compiler arguments for all targets we're interested in.
+        // We pass top-level mnemonics in addition to compile ones as a method to gain access to the parent's configuration id.
+        // We can then use this to locate the exact variant of the target we are looking for.
+        // BundleTreeApp is used by most rule types, while SignBinary is for macOS CLI apps specifically.
+        let aqueryResult = try bazelTargetAquerier.aquery(
+            targets: cQueryResult.topLevelTargets.map { $0.0.rule.name },
+            config: initializedConfig,
+            mnemonics: Self.compileMnemonics.union(Self.topLevelMnemonics),
+            additionalFlags: [
+                "--noinclude_artifacts",
+                "--noinclude_aspects",
+                "--features=-compiler_param_file",  // Context: https://github.com/spotify/sourcekit-bazel-bsp/pull/60
+            ]
+        )
 
-        guard !topLevelTargetLabels.isEmpty else {
-            throw BazelTargetStoreError.noTopLevelTargets(topLevelRuleTypes)
-        }
+        logger.info("Finished gathering all compiler arguments")
 
-        logger.debug("Queried top-level targets: \(topLevelTargetLabels.joined(separator: " "), privacy: .public)")
-
-        let targetData = try BazelQueryParser.parseTargetsWithProto(
-            from: dependencyTargets,
-            allSrcs: allSrcs,
+        // Now, process all the queried targets into their BSP build target equivalents, including
+        // their connection to each top level target and which source files belong to them.
+        let parsedCQueryResult = try BazelQueryParser.parseTargets(
+            inCquery: cQueryResult,
             rootUri: initializedConfig.rootUri,
             toolchainPath: initializedConfig.devToolchainPath,
         )
 
-        // Fill the local cache based on the data we got from the query
-        for (target, srcs) in targetData {
+        // Wrap up by filling the local cache based on the data we got from the two queries.
+        targetsAqueryResult = aqueryResult
+        bazelLabelToParentsMap = parsedCQueryResult.bazelLabelToParentsMap
+        for dependencyTargetInfo in parsedCQueryResult.buildTargets {
+            let target = dependencyTargetInfo.target
+            let srcs = dependencyTargetInfo.srcs
             guard let displayName = target.displayName else {
                 // Should not happen, but the property is an optional
                 continue
@@ -274,92 +251,20 @@ final class BazelTargetStoreImpl: BazelTargetStore {
                 srcToBspURIsMap[src, default: []].append(uri)
             }
         }
-
-        let topLevelTargets = zip(topLevelTargetLabels, topLevelTargetTypes)
-        for (target, ruleType) in topLevelTargets {
-            topLevelLabelToRuleMap[target] = ruleType
-        }
-
-        // Now, run a broad aquery against all top-level targets
-        // to get the compiler arguments for all targets we're interested in.
-        // We pass top-level mnemonics in addition to compile ones as a method to gain access to the parent's configuration id.
-        // We can then use this to locate the exact variant of the target we are looking for.
-        // BundleTreeApp is used by most rule types, while SignBinary is for macOS CLI apps specifically.
-        let targetsAqueryResult = try bazelTargetAquerier.aquery(
-            targets: topLevelTargetLabels,
-            config: initializedConfig,
-            mnemonics: Self.compileMnemonics.union(Self.topLevelMnemonics),
-            additionalFlags: [
-                "--noinclude_artifacts",
-                "--noinclude_aspects",
-                "--features=-compiler_param_file",  // Context: https://github.com/spotify/sourcekit-bazel-bsp/pull/60
-            ]
-        )
-        self.targetsAqueryResult = targetsAqueryResult
-
-        logger.info("Finished gathering all compiler arguments")
-
-        // We need to now map which targets belong to which top-level apps,
-        // to further support the target / platform combo differentiation mentioned above.
-
-        // We need to include the top-level data here as well to be able to traverse the graph correctly.
-        let depGraphKinds = Self.supportedKinds.union(topLevelRuleKinds)
-        let depGraph = try bazelTargetQuerier.queryDependencyGraph(
-            ofTargets: topLevelTargetLabels,
-            forConfig: initializedConfig,
-            rootUri: initializedConfig.rootUri,
-            kinds: depGraphKinds
-        )
-
-        // We should ignore any app -> app nodes as we don't want to follow things such
-        // as the watchos_application field in ios_application rules. Otherwise some targets
-        // will be misclassified.
-        let targetsToIgnore = Set(topLevelTargetLabels)
-
-        for topLevelTarget in topLevelTargetLabels {
-            let deps = traverseGraph(from: topLevelTarget, in: depGraph, ignoring: targetsToIgnore)
-            for dep in deps {
-                guard availableBazelLabels.contains(dep) else {
-                    // Ignore any labels that we also ignored above
-                    continue
-                }
-                bazelLabelToParentsMap[dep, default: []].append(topLevelTarget)
-            }
-        }
-
-        // Wrap up by fetching the info we need from the top-level targets that will allow us
-        // to build individual targets via the CLI (if not passing --compile-top-level).
-        for (target, ruleType) in topLevelTargets {
-            let info = try BazelQueryParser.topLevelConfigInfo(
-                ofTarget: target,
+        for (target, ruleType) in cQueryResult.topLevelTargets {
+            let label = target.rule.name
+            topLevelLabelToRuleMap[label] = ruleType
+            let configInfo = try BazelQueryParser.topLevelConfigInfo(
+                ofTarget: label,
                 withType: ruleType,
-                in: targetsAqueryResult
+                in: aqueryResult
             )
-            topLevelLabelToConfigMap[target] = info
+            topLevelLabelToConfigMap[label] = configInfo
         }
 
-        let result = targetData.map { $0.0 }
+        let result = parsedCQueryResult.buildTargets.map { $0.target }
         cachedTargets = result
-        return result
-    }
 
-    private func traverseGraph(from target: String, in graph: [String: [String]], ignoring: Set<String>) -> Set<String>
-    {
-        var visited = Set<String>()
-        var result = Set<String>()
-        var queue: [String] = graph[target, default: []]
-        while let curr = queue.popLast() {
-            guard !ignoring.contains(curr) else {
-                continue
-            }
-            result.insert(curr)
-            for dep in graph[curr, default: []] {
-                if !visited.contains(dep) {
-                    visited.insert(dep)
-                    queue.append(dep)
-                }
-            }
-        }
         return result
     }
 

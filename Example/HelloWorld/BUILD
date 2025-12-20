@@ -44,8 +44,34 @@ objc_library(
 swift_library(
     name = "HelloWorldLib",
     module_name = "HelloWorldLib",
-    srcs = glob(["HelloWorldLib/Sources/*.swift"]),
-    deps = [":TodoModels", ":TodoObjCSupport", ":GeneratedDummy", ":ExpandedTemplate"],
+    srcs = select({
+        "//conditions:default": [],
+        ":dbg_mode": glob(["HelloWorldLib/Sources/*.swift"]),
+    }),
+    deps = [
+        ":TodoModelsAlias",
+        ":TodoObjCSupport",
+        ":ExpandedTemplate",
+    ] + select({
+        "//conditions:default": [],
+        ":dbg_mode": [":GeneratedDummy"],
+    }),
+)
+
+# Exaggerated alias indirection to show the BSP can follow it
+alias(
+    name = "TodoModelsAlias",
+    actual = ":TodoModelsAlias2",
+)
+alias(
+    name = "TodoModelsAlias2",
+    actual = ":TodoModels",
+)
+
+# Config to test that the BSP can follow selects in deps and srcs
+config_setting(
+    name = "dbg_mode",
+    values = {"compilation_mode": "dbg"},
 )
 
 genrule(
@@ -149,7 +175,7 @@ ios_application(
     families = ["iphone", "ipad"],
     infoplists = ["Resources/Info.plist"],
     minimum_os_version = IOS_MINIMUM_OS_VERSION,
-    deps = [":HelloWorldLib", ":GeneratedDummy"],
+    deps = [":HelloWorldLib"],
 )
 
 watchos_application(

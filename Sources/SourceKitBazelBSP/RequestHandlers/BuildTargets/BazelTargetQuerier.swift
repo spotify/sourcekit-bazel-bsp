@@ -25,11 +25,27 @@ private let logger = makeFileLevelBSPLogger()
 enum BazelTargetQuerierError: Error, LocalizedError {
     case noKinds
     case noTargets
+    case noTopLevelRuleTypes
+    case unexpectedTargetType(Int)
+    case unsupportedTopLevelTargetType(String, String, [TopLevelRuleType])
+    case noTopLevelTargets([TopLevelRuleType])
 
     var errorDescription: String? {
         switch self {
         case .noKinds: return "A list of kinds is necessary to query targets"
         case .noTargets: return "A list of targets is necessary to query targets"
+        case .noTopLevelRuleTypes: return "A list of top-level rule types is necessary to query targets"
+        case .unexpectedTargetType(let type): return "Parsed unexpected target type: \(type)"
+        case .unsupportedTopLevelTargetType(let target, let type, let supportedTypes):
+            return """
+                Unsupported top-level target type: '\(type)' for target: \
+                '\(target)' supported types: \(supportedTypes.map { $0.rawValue }.joined(separator: ", "))
+                """
+        case .noTopLevelTargets(let rules):
+            return """
+                No top-level targets found in the query of kind: \
+                \(rules.map { $0.rawValue }.joined(separator: ", "))
+                """
         }
     }
 }
@@ -37,10 +53,18 @@ enum BazelTargetQuerierError: Error, LocalizedError {
 /// Small abstraction to handle and cache the results of bazel queries.
 final class BazelTargetQuerier {
 
+    struct CQueryResult {
+        typealias TopLevelTarget = (BlazeQuery_Target, TopLevelRuleType)
+        let topLevelTargets: [TopLevelTarget]
+        let dependencyTargets: [BlazeQuery_Target]
+        let testBundleTargets: [BlazeQuery_Target]
+        let allAliases: [BlazeQuery_Target]
+        let allSrcs: [BlazeQuery_Target]
+    }
+
     private let commandRunner: CommandRunner
 
-    private var queryCache = [String: ([BlazeQuery_Target], [BlazeQuery_Target])]()
-    private var dependencyGraphCache = [String: [String: [String]]]()
+    private var queryCache = [String: CQueryResult]()
 
     static func queryDepsString(forTargets targets: [String]) -> String {
         var query = ""
@@ -61,9 +85,13 @@ final class BazelTargetQuerier {
     func queryTargets(
         config: InitializedServerConfig,
         dependencyKinds: Set<String>,
-    ) throws -> (rules: [BlazeQuery_Target], srcs: [BlazeQuery_Target]) {
+        supportedTopLevelRuleTypes: [TopLevelRuleType],
+    ) throws -> CQueryResult {
         if dependencyKinds.isEmpty {
             throw BazelTargetQuerierError.noKinds
+        }
+        if supportedTopLevelRuleTypes.isEmpty {
+            throw BazelTargetQuerierError.noTopLevelRuleTypes
         }
 
         let providedTargets = config.baseConfig.targets
@@ -71,12 +99,21 @@ final class BazelTargetQuerier {
             throw BazelTargetQuerierError.noTargets
         }
 
-        let providedTargetsQuerySet = "set(\(providedTargets.joined(separator: " ")))"
+        var kindsToFilterFor = dependencyKinds
 
-        // NOTE: important to sort for determinism
-        let dependencyKindsFilter = dependencyKinds.sorted().joined(separator: "|")
+        // We need to also use the `alias` mnemonic for this query to work properly.
+        // This is because --output proto doesn't follow the aliases automatically,
+        // so we need this info to do it ourselves.
+        kindsToFilterFor.insert("alias")
+
+        // If we're searching for test rules, we need to also include their test bundle rules.
+        // Otherwise we won't be able to map test dependencies back to their top level parents.
+        let testBundleRules = Set(supportedTopLevelRuleTypes.compactMap { $0.testBundleRule })
+        kindsToFilterFor.formUnion(testBundleRules)
 
         // Collect the top-level targets -> collect these targets' dependencies
+        let providedTargetsQuerySet = "set(\(providedTargets.joined(separator: " ")))"
+        let dependencyKindsFilter = kindsToFilterFor.sorted().joined(separator: "|")
         let topLevelTargetsQuery = """
             let topLevelTargets = kind("rule", \(providedTargetsQuerySet)) in \
               $topLevelTargets \
@@ -85,7 +122,7 @@ final class BazelTargetQuerier {
             """
 
         let cacheKey = "QUERY_TARGETS+\(topLevelTargetsQuery)"
-        logger.info("Processing query request for cache key: \(cacheKey, privacy: .public)")
+        logger.info("Processing cquery request for cache key: \(cacheKey, privacy: .public)")
 
         if let cached = queryCache[cacheKey] {
             logger.debug("Returning cached results for \(cacheKey, privacy: .public)")
@@ -94,7 +131,7 @@ final class BazelTargetQuerier {
 
         // We use cquery here because we are interested on what's actually compiled.
         // Also, this shares more analysis cache compared to the regular query.
-        let cmd = "cquery '\(topLevelTargetsQuery)' --notool_deps --noimplicit_deps --output proto"
+        let cmd = "cquery '\(topLevelTargetsQuery)' --noinclude_aspects --notool_deps --noimplicit_deps --output proto"
         let output: Data = try commandRunner.bazelIndexAction(
             baseConfig: config.baseConfig,
             outputBase: config.outputBase,
@@ -103,97 +140,102 @@ final class BazelTargetQuerier {
         )
 
         let queryResult = try BazelProtobufBindings.parseCqueryResult(data: output)
-
-        let targets = queryResult.results.map { $0.target }
+        let targets = queryResult.results
+            .map { $0.target }
+            .filter {
+                // Ignore external labels.
+                // FIXME: I guess _technically_ we could index those, but skipping for now.
+                return !$0.rule.name.hasPrefix("@")
+            }
 
         logger.debug("Parsed \(targets.count, privacy: .public) targets for cache key: \(cacheKey, privacy: .public)")
 
+        var seenLabels = Set<String>()
+        var seenSourceFiles = Set<String>()
         var rules = [BlazeQuery_Target]()
+        var testBundles = [BlazeQuery_Target]()
+        var aliases = [BlazeQuery_Target]()
         var srcs = [BlazeQuery_Target]()
         for target in targets {
             if target.type == .rule {
-                rules.append(target)
+                guard !seenLabels.contains(target.rule.name) else {
+                    // FIXME: It might be possible to lift this limitation, just didn't check deep enough.
+                    logger.warning(
+                        "Will skip duplicate entry for \(target.rule.name, privacy: .public). This can happen if your configuration contains multiple variants of the same target due to differing transitions. This should be fine as long as the inputs are the same across all variants."
+                    )
+                    continue
+                }
+                seenLabels.insert(target.rule.name)
+                if target.rule.ruleClass == "alias" {
+                    aliases.append(target)
+                } else if testBundleRules.contains(target.rule.ruleClass) {
+                    testBundles.append(target)
+                } else {
+                    rules.append(target)
+                }
             } else if target.type == .sourceFile {
+                guard !seenSourceFiles.contains(target.sourceFile.name) else {
+                    logger.error(
+                        "Skipping unexpected duplicate entry for source \(target.sourceFile.name, privacy: .public)."
+                    )
+                    continue
+                }
+                seenSourceFiles.insert(target.sourceFile.name)
                 srcs.append(target)
             } else {
-                logger.error("Parsed unexpected target type: \(target.type.rawValue)")
+                throw BazelTargetQuerierError.unexpectedTargetType(target.type.rawValue)
             }
         }
 
         // Sort for determinism
         rules = rules.sorted(by: { $0.rule.name < $1.rule.name })
+        testBundles = testBundles.sorted(by: { $0.rule.name < $1.rule.name })
+        aliases = aliases.sorted(by: { $0.rule.name < $1.rule.name })
         srcs = srcs.sorted(by: { $0.sourceFile.name < $1.sourceFile.name })
 
-        let result = (rules, srcs)
+        // Now, separate the parsed content between top-level and non-top-level targets.
+        // We don't need to handle the case where a top-level target is missing entirely
+        // because Bazel itself will fail when this is the case.
+        let userProvidedTargets = Set(providedTargets)
+        let supportedTopLevelRuleTypesSet = Set(supportedTopLevelRuleTypes)
+        var topLevelTargets: [(BlazeQuery_Target, TopLevelRuleType)] = []
+        var dependencyTargets: [BlazeQuery_Target] = []
+        for target in rules {
+            let kind = target.rule.ruleClass
+            let name = target.rule.name
+            if userProvidedTargets.contains(name) {
+                guard let topLevelRuleType = TopLevelRuleType(rawValue: kind),supportedTopLevelRuleTypesSet.contains(topLevelRuleType) else {
+                    throw BazelTargetQuerierError.unsupportedTopLevelTargetType(
+                        name,
+                        kind,
+                        supportedTopLevelRuleTypes
+                    )
+                }
+                topLevelTargets.append((target, topLevelRuleType))
+            } else {
+                dependencyTargets.append(target)
+            }
+        }
+
+        guard !topLevelTargets.isEmpty else {
+            throw BazelTargetQuerierError.noTopLevelTargets(supportedTopLevelRuleTypes)
+        }
+
+        logger.debug("Queried top-level targets: \(topLevelTargets.map { $0.0.rule.name }.joined(separator: " "), privacy: .public)")
+
+        let result = CQueryResult(
+            topLevelTargets: topLevelTargets,
+            dependencyTargets: dependencyTargets,
+            testBundleTargets: testBundles,
+            allAliases: aliases,
+            allSrcs: srcs
+        )
+
         queryCache[cacheKey] = result
         return result
     }
 
-    func queryDependencyGraph(
-        ofTargets targets: [String],
-        forConfig config: InitializedServerConfig,
-        rootUri: String,
-        kinds: Set<String>
-    ) throws -> [String: [String]] {
-        guard !kinds.isEmpty else {
-            throw BazelTargetQuerierError.noKinds
-        }
-
-        // NOTE: important to sort for determinism
-        let kindsFilter = kinds.sorted().joined(separator: "|")
-
-        var depsQuery = Self.queryDepsString(forTargets: targets)
-        for target in targets {
-            // Include the top-level target itself so that we can later traverse the graph correctly.
-            depsQuery += " union \(target)"
-        }
-
-        let cacheKey = "\(kindsFilter)+\(depsQuery)"
-
-        logger.info("Processing dependency graph request for \(cacheKey, privacy: .public)")
-
-        if let cached = dependencyGraphCache[cacheKey] {
-            logger.debug("Returning cached results")
-            return cached
-        }
-
-        // We use cquery here because we are interested on what's actually compiled.
-        // Also, this shares more analysis cache compared to the regular query.
-        let cmd = "cquery \"kind('\(kindsFilter)', \(depsQuery))\" --output graph"
-        let output: String = try commandRunner.bazelIndexAction(
-            baseConfig: config.baseConfig,
-            outputBase: config.outputBase,
-            cmd: cmd,
-            rootUri: rootUri
-        )
-        let rawGraph = output.components(separatedBy: "\n").filter {
-            $0.hasPrefix("  \"")
-        }
-
-        var graph = [String: [String]]()
-        for line in rawGraph {
-            let parts = line.components(separatedBy: "\"")
-            // Example line:
-            //   "//path/to/target (abc)" -> "//path/to/target2 (abc)\n//path/to/target3 (abc)"
-            guard parts.count == 5 else {
-                continue
-            }
-            let source = parts[1].components(separatedBy: " (")[0]
-            let targets = parts[3].components(separatedBy: "\n").map {
-                $0.components(separatedBy: " (")[0]
-            }
-            graph[source, default: []].append(contentsOf: targets)
-        }
-
-        // Sort for determinism
-        graph = graph.mapValues { $0.sorted() }
-
-        dependencyGraphCache[cacheKey] = graph
-        return graph
-    }
-
     func clearCache() {
         queryCache = [:]
-        dependencyGraphCache = [:]
     }
 }
