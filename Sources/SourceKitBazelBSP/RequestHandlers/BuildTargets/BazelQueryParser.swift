@@ -156,13 +156,7 @@ enum BazelQueryParser {
                 canDebug: false
             )
 
-            let languageId: [Language]
-            switch rule.ruleClass {
-            case "swift_library":
-                languageId = [.swift]
-            case "objc_library":
-                languageId = [.objective_c]
-            default:
+            guard let language = SupportedLanguage(rawValue: rule.ruleClass) else {
                 throw BazelQueryParserError.unexpectedLanguageRule(rule.name, rule.ruleClass)
             }
 
@@ -172,7 +166,7 @@ enum BazelQueryParser {
                 baseDirectory: baseDirectory,
                 tags: [.library],
                 capabilities: capabilities,
-                languageIds: languageId,
+                languageIds: [language.lspLanguage],
                 dependencies: deps,
                 dataKind: .sourceKit,
                 data: try SourceKitBuildTarget(

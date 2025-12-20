@@ -66,13 +66,8 @@ enum BazelTargetStoreError: Error, LocalizedError {
 /// Used by many of the requests to calculate and provide data about the project's targets.
 final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 
-    // The list of kinds that provide compilation params that are used by the BSP.
-    // These are collected from the top-level targets that depend on them.
-    static let libraryKinds: [String] = ["swift_library", "objc_library"]
-    static let sourceFileKinds: [String] = ["source file"]
-
     // The mnemonics representing compilation actions
-    static let compileMnemonics: [String] = ["SwiftCompile", "ObjcCompile", "CppCompile"]
+    static let compileMnemonics: [String] = SupportedLanguage.allCases.map { $0.compileMnemonic }
 
     // The mnemonics representing top-level rule actions
     // - `BundleTreeApp` for finding bundling rules like `ios_unit_test`, `ios_application`
@@ -200,7 +195,6 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         //  - Source files connected to these targets
         let cQueryResult = try bazelTargetQuerier.cqueryTargets(
             config: initializedConfig,
-            dependencyKinds: Self.libraryKinds + Self.sourceFileKinds,
             supportedTopLevelRuleTypes: initializedConfig.baseConfig.topLevelRulesToDiscover
         )
 

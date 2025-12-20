@@ -87,7 +87,7 @@ final class BazelTargetCompilerArgsExtractor {
         switch language {
         case .swift:
             return .swiftModule
-        case .objective_c, .c, .objective_cpp:
+        case .objective_c, .c, .cpp, .objective_cpp:
             if uri.stringValue.hasSuffix(".h") {
                 return .cHeader
             }
@@ -98,7 +98,7 @@ final class BazelTargetCompilerArgsExtractor {
                 throw BazelTargetCompilerArgsExtractorError.invalidCUri(fullUri)
             }
             let parsedFile = String(fullUri.dropFirst(prefixToCut.count))
-            if language == .c {
+            if language == .c || language == .cpp {
                 return .cImpl(parsedFile)
             } else if language == .objective_c || language == .objective_cpp {
                 return .objcImpl(parsedFile)
