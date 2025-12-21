@@ -63,7 +63,7 @@ package final class SourceKitBazelBSPServer {
         registry.register(syncRequestHandler: waitUpdatesHandler.workspaceWaitForBuildSystemUpdates)
 
         // buildTarget/sources
-        let targetSourcesHandler = TargetSourcesHandler(initializedConfig: initializedConfig, targetStore: targetStore)
+        let targetSourcesHandler = TargetSourcesHandler(targetStore: targetStore)
         registry.register(syncRequestHandler: targetSourcesHandler.buildTargetSources)
 
         // textDocument/sourceKitOptions

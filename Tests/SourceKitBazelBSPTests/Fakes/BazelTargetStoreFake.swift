@@ -55,7 +55,7 @@ final class BazelTargetStoreFake: BazelTargetStore {
         unimplemented()
     }
 
-    func bazelTargetSrcs(forBSPURI uri: DocumentURI) throws -> [DocumentURI] {
+    func bazelTargetSrcs(forBSPURI uri: DocumentURI) throws -> SourcesItem {
         unimplemented()
     }
 

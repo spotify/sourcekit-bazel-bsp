@@ -31,6 +31,7 @@ final class BazelTargetQuerierParserFake: BazelTargetQuerierParser {
         userProvidedTargets: [String],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
         rootUri: String,
+        executionRoot: String,
         toolchainPath: String,
     ) throws -> ProcessedCqueryResult {
         guard let mockCqueryResult else {

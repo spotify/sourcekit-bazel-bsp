@@ -17,7 +17,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import BazelProtobufBindings
 import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
@@ -25,44 +24,5 @@ import Testing
 
 @testable import SourceKitBazelBSP
 
-@Suite
-struct TargetSourcesHandlerTests {
-    static func makeHandler() -> TargetSourcesHandler {
-        let baseConfig = BaseServerConfig(
-            bazelWrapper: "bazel",
-            targets: ["//HelloWorld", "//HelloWorld2"],
-            indexFlags: ["--config=index"],
-            filesToWatch: nil,
-            compileTopLevel: false
-        )
-
-        let initializedConfig = InitializedServerConfig(
-            baseConfig: baseConfig,
-            rootUri: "/path/to/project",
-            outputBase: "/tmp/output_base",
-            outputPath: "/tmp/output_path",
-            devDir: "/Applications/Xcode.app/Contents/Developer",
-            xcodeVersion: "17B100",
-            devToolchainPath: "/a/b/XcodeDefault.xctoolchain/",
-            executionRoot: "/tmp/output_path/execroot/_main",
-            sdkRootPaths: ["iphonesimulator": "bar"]
-        )
-
-        return TargetSourcesHandler(initializedConfig: initializedConfig, targetStore: BazelTargetStoreFake())
-    }
-
-    @Test
-    func canComputeCopyDestinations() throws {
-        let handler = Self.makeHandler()
-
-        let src = try URI(string: "file:///path/to/project/src/main.swift")
-        #expect(
-            handler.computeCopyDestinations(for: src) == [
-                DocumentURI(filePath: "/tmp/output_path/execroot/_main/src/main.swift", isDirectory: false)
-            ]
-        )
-
-        let externalSrc = try URI(string: "file:///other_path/to/project/src/main.swift")
-        #expect(handler.computeCopyDestinations(for: externalSrc) == nil)
-    }
-}
+// Tests for TargetSourcesHandler are covered by BazelTargetQuerierParserImplTests
+// since source item generation (including copy destinations) was moved to the parser.

@@ -133,6 +133,7 @@ final class BazelTargetQuerier {
             userProvidedTargets: userProvidedTargets,
             supportedTopLevelRuleTypes: supportedTopLevelRuleTypes,
             rootUri: config.rootUri,
+            executionRoot: config.executionRoot,
             toolchainPath: config.devToolchainPath,
         )
 

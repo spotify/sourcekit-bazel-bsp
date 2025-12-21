@@ -28,6 +28,7 @@ import Testing
 struct BazelTargetQuerierParserImplTests {
 
     private static let mockRootUri = "/path/to/project"
+    private static let mockExecutionRoot = "/tmp/execroot/_main"
     private static let mockToolchainPath = "/path/to/toolchain"
 
     @Test
@@ -55,6 +56,7 @@ struct BazelTargetQuerierParserImplTests {
             userProvidedTargets: userProvidedTargets,
             supportedTopLevelRuleTypes: supportedTopLevelRuleTypes,
             rootUri: Self.mockRootUri,
+            executionRoot: Self.mockExecutionRoot,
             toolchainPath: Self.mockToolchainPath
         )
 
