@@ -31,4 +31,4 @@ build --spawn_strategy=remote,worker,local
 # Only for BSP builds
 common:index_build --experimental_convenience_symlinks=ignore
 common:index_build --bes_backend= --bes_results_url=
-common:index_build --show_result=0
+common:index_build --show_result=0 --noshow_loading_progress --noshow_progress

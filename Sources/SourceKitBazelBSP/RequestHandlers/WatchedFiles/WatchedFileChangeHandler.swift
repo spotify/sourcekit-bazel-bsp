@@ -78,7 +78,13 @@ final class WatchedFileChangeHandler {
         // In this case, we keep the lock until the very end of the notification to avoid race conditions
         // with how the LSP follows up with this by calling waitForBuildSystemUpdates and buildTargets again.
         // Also because we need the targetStore at multiple points of this function.
-        let invalidatedTargets = targetStore.stateLock.withLockUnchecked {
+        let invalidatedTargets: [InvalidatedTarget] = targetStore.stateLock.withLockUnchecked {
+
+            // If we received this notification before the build graph was calculated, we should stop.
+            guard targetStore.isInitialized else {
+                logger.info("Received file changes before the build graph was calculated. Ignoring.")
+                return []
+            }
 
             logger.info("Received \(changes.count, privacy: .public) file changes")
 

@@ -32,6 +32,10 @@ final class BazelTargetStoreFake: BazelTargetStore {
     var fetchTargetsError: Error?
     var mockSrcToBspURIs: [DocumentURI: [DocumentURI]] = [:]
 
+    var isInitialized: Bool {
+        return fetchTargetsCalled || !mockSrcToBspURIs.isEmpty
+    }
+
     func fetchTargets() throws -> [BuildTarget] {
         fetchTargetsCalled = true
         if let error = fetchTargetsError {
