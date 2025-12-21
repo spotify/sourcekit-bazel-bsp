@@ -109,8 +109,8 @@ package final class SourceKitBazelBSPServer {
         let connection = JSONRPCConnection(
             name: "sourcekit-lsp",
             protocol: MessageRegistry.bspProtocol,
-            inFD: inputHandle,
-            outFD: outputHandle
+            receiveFD: inputHandle,
+            sendFD: outputHandle
         )
         let handler = Self.makeBSPMessageHandler(baseConfig: baseConfig, connection: connection)
         self.init(
