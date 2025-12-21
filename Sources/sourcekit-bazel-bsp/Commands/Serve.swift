@@ -58,6 +58,12 @@ struct Serve: ParsableCommand {
     )
     var compileTopLevel: Bool = false
 
+    @Flag(
+        help:
+            "If enabled, the BSP will not create a separate output base for its indexing actions. You can use this in conjunction with rules_swift's `index_while_building` and `use_global_module_cache` to improve indexing performance and reduce disk usage at the cost of potentially slower builds."
+    )
+    var noExtraOutputBase: Bool = false
+
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
@@ -107,7 +113,8 @@ struct Serve: ParsableCommand {
             indexFlags: indexFlags,
             filesToWatch: filesToWatch,
             compileTopLevel: compileTopLevel,
-            topLevelRulesToDiscover: rulesToUse
+            topLevelRulesToDiscover: rulesToUse,
+            noExtraOutputBase: noExtraOutputBase
         )
 
         logger.debug("Initializing BSP with targets: \(targets)")

@@ -85,11 +85,18 @@ final class InitializeHandler {
         logger.debug("regularOutputBase: \(regularOutputBase, privacy: .public)")
 
         // Setup the special output base path where we will run indexing commands from.
-        let regularOutputBaseLastPath = regularOutputBase.lastPathComponent
-        let outputBase = regularOutputBase.deletingLastPathComponent().appendingPathComponent(
-            "\(regularOutputBaseLastPath)-sourcekit-bazel-bsp"
-        ).path
-        logger.debug("outputBase: \(outputBase, privacy: .public)")
+        let outputBase: String
+        if baseConfig.noExtraOutputBase {
+            outputBase = regularOutputBase.path
+            logger.debug("Will use the regular output base for all actions")
+        } else {
+            let regularOutputBaseLastPath = regularOutputBase.lastPathComponent
+            outputBase =
+                regularOutputBase.deletingLastPathComponent().appendingPathComponent(
+                    "\(regularOutputBaseLastPath)-sourcekit-bazel-bsp"
+                ).path
+            logger.debug("outputBase: \(outputBase, privacy: .public)")
+        }
 
         // Now, get the full output path based on the above output base.
         let outputPath: String = try commandRunner.bazelIndexAction(
