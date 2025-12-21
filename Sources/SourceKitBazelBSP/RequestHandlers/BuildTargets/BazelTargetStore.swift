@@ -30,6 +30,7 @@ private let logger = makeFileLevelBSPLogger()
 // the project's dependency graph and its files.
 protocol BazelTargetStore: AnyObject {
     var stateLock: OSAllocatedUnfairLock<Void> { get }
+    var isInitialized: Bool { get }
     func fetchTargets() throws -> [BuildTarget]
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String
     func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI]
@@ -98,6 +99,11 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
     ) {
         self.initializedConfig = initializedConfig
         self.bazelTargetQuerier = bazelTargetQuerier
+    }
+
+    /// Returns true if the store has actually processed something.
+    var isInitialized: Bool {
+        return cachedTargets != nil
     }
 
     /// Converts a BSP BuildTarget URI to its underlying Bazel target label.
