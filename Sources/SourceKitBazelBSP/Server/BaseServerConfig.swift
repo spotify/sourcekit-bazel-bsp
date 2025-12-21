@@ -41,29 +41,10 @@ package struct BaseServerConfig: Equatable {
         topLevelRulesToDiscover: [TopLevelRuleType] = TopLevelRuleType.allCases,
     ) {
         self.bazelWrapper = bazelWrapper
+        self.targets = targets
         self.indexFlags = indexFlags
         self.filesToWatch = filesToWatch
         self.compileTopLevel = compileTopLevel
         self.topLevelRulesToDiscover = topLevelRulesToDiscover
-
-        // We need to post-process the target list provided by the user
-        // because the queries will always return the "full" label.
-        // e.g: "//foo/bar" -> "//foo/bar:bar"
-        // We need to also de-dupe them if the user passed wildcards in Serve.swift.
-        self.targets = Set(targets.map { $0.toFullLabel() }).sorted()
-    }
-}
-
-extension String {
-    func toFullLabel() -> String {
-        let paths = components(separatedBy: "/")
-        let lastComponent = paths.last
-        if lastComponent?.contains(":") == true {
-            return self
-        } else if let lastComponent = lastComponent {
-            return "\(self):\(lastComponent)"
-        } else {
-            return self
-        }
     }
 }

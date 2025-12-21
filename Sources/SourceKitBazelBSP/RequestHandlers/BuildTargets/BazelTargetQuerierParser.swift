@@ -146,10 +146,12 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         // Now, separate the parsed content between top-level and non-top-level targets.
         // We don't need to handle the case where a top-level target is missing entirely
         // because Bazel itself will fail when this is the case.
-        let userProvidedTargetsSet = Set(userProvidedTargets)
         let supportedTopLevelRuleTypesSet = Set(supportedTopLevelRuleTypes)
         var topLevelTargets: [(BlazeQuery_Target, TopLevelRuleType)] = []
         var dependencyTargets: [BlazeQuery_Target] = []
+        // Convert the user's provided targets to full labels if needed, since this is what
+        // the cquery result will contain.
+        let userProvidedTargetsSet = Set(userProvidedTargets.map { $0.toFullLabel() })
         for target in allRules {
             let kind = target.rule.ruleClass
             let name = target.rule.name
@@ -610,5 +612,19 @@ extension String {
         let targetName = String(components[1])
 
         return (packageName: packageName, targetName: targetName)
+    }
+
+    // Converts a Bazel label to its "full" equivalent, if needed.
+    // e.g: "//foo/bar" -> "//foo/bar:bar"
+    fileprivate func toFullLabel() -> String {
+        let paths = components(separatedBy: "/")
+        let lastComponent = paths.last
+        if lastComponent?.contains(":") == true {
+            return self
+        } else if let lastComponent = lastComponent {
+            return "\(self):\(lastComponent)"
+        } else {
+            return self
+        }
     }
 }
