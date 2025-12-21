@@ -59,7 +59,7 @@ final class BazelTargetStoreFake: BazelTargetStore {
         unimplemented()
     }
 
-    func targetsAqueryForArgsExtraction() throws -> AqueryResult {
+    func targetsAqueryForArgsExtraction() throws -> ProcessedAqueryResult {
         unimplemented()
     }
 

@@ -17,7 +17,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import BazelProtobufBindings
 import Foundation
 
 private let logger = makeFileLevelBSPLogger()
@@ -25,24 +24,28 @@ private let logger = makeFileLevelBSPLogger()
 enum BazelTargetQuerierError: Error, LocalizedError {
     case noKinds
     case noTargets
+    case noTopLevelRuleTypes
+    case noMnemonics
 
     var errorDescription: String? {
         switch self {
         case .noKinds: return "A list of kinds is necessary to query targets"
         case .noTargets: return "A list of targets is necessary to query targets"
+        case .noTopLevelRuleTypes: return "A list of top-level rule types is necessary to query targets"
+        case .noMnemonics: return "A list of mnemonics is necessary to aquery targets"
         }
     }
 }
 
-/// Small abstraction to handle and cache the results of bazel queries.
+/// Abstraction to handle and cache the results of bazel cqueries and aqueries.
 final class BazelTargetQuerier {
 
     private let commandRunner: CommandRunner
+    private let parser: BazelTargetQuerierParser
+    private var cqueryCache = [String: ProcessedCqueryResult]()
+    private var aqueryCache = [String: ProcessedAqueryResult]()
 
-    private var queryCache = [String: ([BlazeQuery_Target], [BlazeQuery_Target])]()
-    private var dependencyGraphCache = [String: [String: [String]]]()
-
-    static func queryDepsString(forTargets targets: [String]) -> String {
+    private static func queryDepsString(forTargets targets: [String]) -> String {
         var query = ""
         for target in targets {
             if query == "" {
@@ -54,29 +57,48 @@ final class BazelTargetQuerier {
         return query
     }
 
-    init(commandRunner: CommandRunner = ShellCommandRunner()) {
+    init(
+        commandRunner: CommandRunner = ShellCommandRunner(),
+        parser: BazelTargetQuerierParser = BazelTargetQuerierParserImpl()
+    ) {
         self.commandRunner = commandRunner
+        self.parser = parser
     }
 
-    func queryTargets(
+    /// Runs a cquery across the codebase based on the user's provided list of top level targets,
+    /// listing all of their dependencies and source files.
+    func cqueryTargets(
         config: InitializedServerConfig,
-        dependencyKinds: Set<String>,
-    ) throws -> (rules: [BlazeQuery_Target], srcs: [BlazeQuery_Target]) {
+        dependencyKinds: [String],
+        supportedTopLevelRuleTypes: [TopLevelRuleType],
+    ) throws -> ProcessedCqueryResult {
         if dependencyKinds.isEmpty {
             throw BazelTargetQuerierError.noKinds
         }
+        if supportedTopLevelRuleTypes.isEmpty {
+            throw BazelTargetQuerierError.noTopLevelRuleTypes
+        }
 
-        let providedTargets = config.baseConfig.targets
-        guard !providedTargets.isEmpty else {
+        let userProvidedTargets = config.baseConfig.targets
+        guard !userProvidedTargets.isEmpty else {
             throw BazelTargetQuerierError.noTargets
         }
 
-        let providedTargetsQuerySet = "set(\(providedTargets.joined(separator: " ")))"
+        var kindsToFilterFor = dependencyKinds
 
-        // NOTE: important to sort for determinism
-        let dependencyKindsFilter = dependencyKinds.sorted().joined(separator: "|")
+        // We need to also use the `alias` mnemonic for this query to work properly.
+        // This is because --output proto doesn't follow the aliases automatically,
+        // so we need this info to do it ourselves.
+        kindsToFilterFor.append("alias")
+
+        // If we're searching for test rules, we need to also include their test bundle rules.
+        // Otherwise we won't be able to map test dependencies back to their top level parents.
+        let testBundleRules = supportedTopLevelRuleTypes.compactMap { $0.testBundleRule }
+        kindsToFilterFor.append(contentsOf: testBundleRules)
 
         // Collect the top-level targets -> collect these targets' dependencies
+        let providedTargetsQuerySet = "set(\(userProvidedTargets.joined(separator: " ")))"
+        let dependencyKindsFilter = kindsToFilterFor.joined(separator: "|")
         let topLevelTargetsQuery = """
             let topLevelTargets = kind("rule", \(providedTargetsQuerySet)) in \
               $topLevelTargets \
@@ -85,16 +107,17 @@ final class BazelTargetQuerier {
             """
 
         let cacheKey = "QUERY_TARGETS+\(topLevelTargetsQuery)"
-        logger.info("Processing query request for cache key: \(cacheKey, privacy: .public)")
+        logger.info("Processing cquery request...")
+        logger.debug("Cache key: \(cacheKey, privacy: .public)")
 
-        if let cached = queryCache[cacheKey] {
-            logger.debug("Returning cached results for \(cacheKey, privacy: .public)")
+        if let cached = cqueryCache[cacheKey] {
+            logger.debug("Returning cached results")
             return cached
         }
 
         // We use cquery here because we are interested on what's actually compiled.
         // Also, this shares more analysis cache compared to the regular query.
-        let cmd = "cquery '\(topLevelTargetsQuery)' --notool_deps --noimplicit_deps --output proto"
+        let cmd = "cquery '\(topLevelTargetsQuery)' --noinclude_aspects --notool_deps --noimplicit_deps --output proto"
         let output: Data = try commandRunner.bazelIndexAction(
             baseConfig: config.baseConfig,
             outputBase: config.outputBase,
@@ -102,98 +125,80 @@ final class BazelTargetQuerier {
             rootUri: config.rootUri
         )
 
-        let queryResult = try BazelProtobufBindings.parseCqueryResult(data: output)
+        logger.info("Processing cquery results...")
 
-        let targets = queryResult.results.map { $0.target }
+        let processedCqueryResult = try parser.processCquery(
+            from: output,
+            testBundleRules: testBundleRules,
+            userProvidedTargets: userProvidedTargets,
+            supportedTopLevelRuleTypes: supportedTopLevelRuleTypes,
+            rootUri: config.rootUri,
+            toolchainPath: config.devToolchainPath,
+        )
 
-        logger.debug("Parsed \(targets.count, privacy: .public) targets for cache key: \(cacheKey, privacy: .public)")
+        logger.debug("Cqueried \(processedCqueryResult.buildTargets.count, privacy: .public) targets")
+        logger.info("Finished processing cquery results")
 
-        var rules = [BlazeQuery_Target]()
-        var srcs = [BlazeQuery_Target]()
-        for target in targets {
-            if target.type == .rule {
-                rules.append(target)
-            } else if target.type == .sourceFile {
-                srcs.append(target)
-            } else {
-                logger.error("Parsed unexpected target type: \(target.type.rawValue)")
-            }
-        }
-
-        // Sort for determinism
-        rules = rules.sorted(by: { $0.rule.name < $1.rule.name })
-        srcs = srcs.sorted(by: { $0.sourceFile.name < $1.sourceFile.name })
-
-        let result = (rules, srcs)
-        queryCache[cacheKey] = result
-        return result
+        cqueryCache[cacheKey] = processedCqueryResult
+        return processedCqueryResult
     }
 
-    func queryDependencyGraph(
-        ofTargets targets: [String],
-        forConfig config: InitializedServerConfig,
-        rootUri: String,
-        kinds: Set<String>
-    ) throws -> [String: [String]] {
-        guard !kinds.isEmpty else {
-            throw BazelTargetQuerierError.noKinds
+    /// Runs an aquery across the codebase over a list of specific target dependencies.
+    func aquery(
+        topLevelTargets: [(String, TopLevelRuleType)],
+        config: InitializedServerConfig,
+        mnemonics: [String]
+    ) throws -> ProcessedAqueryResult {
+        guard !mnemonics.isEmpty else {
+            throw BazelTargetQuerierError.noMnemonics
         }
 
-        // NOTE: important to sort for determinism
-        let kindsFilter = kinds.sorted().joined(separator: "|")
+        let targets = topLevelTargets.map { $0.0 }
 
-        var depsQuery = Self.queryDepsString(forTargets: targets)
-        for target in targets {
-            // Include the top-level target itself so that we can later traverse the graph correctly.
-            depsQuery += " union \(target)"
-        }
+        let mnemonicsFilter = mnemonics.joined(separator: "|")
+        let depsQuery = Self.queryDepsString(forTargets: targets)
 
-        let cacheKey = "\(kindsFilter)+\(depsQuery)"
+        let otherFlags =
+            [
+                "--noinclude_artifacts",
+                "--noinclude_aspects",
+                "--features=-compiler_param_file",  // Context: https://github.com/spotify/sourcekit-bazel-bsp/pull/60
+            ].joined(separator: " ") + " --output proto"
+        let cmd = "aquery \"mnemonic('\(mnemonicsFilter)', \(depsQuery))\" \(otherFlags)"
 
-        logger.info("Processing dependency graph request for \(cacheKey, privacy: .public)")
+        logger.info("Processing aquery request...")
+        logger.debug("Cache key: \(cmd, privacy: .public)")
 
-        if let cached = dependencyGraphCache[cacheKey] {
+        if let cached = aqueryCache[cmd] {
             logger.debug("Returning cached results")
             return cached
         }
 
-        // We use cquery here because we are interested on what's actually compiled.
-        // Also, this shares more analysis cache compared to the regular query.
-        let cmd = "cquery \"kind('\(kindsFilter)', \(depsQuery))\" --output graph"
-        let output: String = try commandRunner.bazelIndexAction(
+        // Run the aquery with the special index flags since that's what we will build with.
+        let output: Data = try commandRunner.bazelIndexAction(
             baseConfig: config.baseConfig,
             outputBase: config.outputBase,
             cmd: cmd,
-            rootUri: rootUri
+            rootUri: config.rootUri
         )
-        let rawGraph = output.components(separatedBy: "\n").filter {
-            $0.hasPrefix("  \"")
-        }
 
-        var graph = [String: [String]]()
-        for line in rawGraph {
-            let parts = line.components(separatedBy: "\"")
-            // Example line:
-            //   "//path/to/target (abc)" -> "//path/to/target2 (abc)\n//path/to/target3 (abc)"
-            guard parts.count == 5 else {
-                continue
-            }
-            let source = parts[1].components(separatedBy: " (")[0]
-            let targets = parts[3].components(separatedBy: "\n").map {
-                $0.components(separatedBy: " (")[0]
-            }
-            graph[source, default: []].append(contentsOf: targets)
-        }
+        logger.info("Processing aquery results...")
 
-        // Sort for determinism
-        graph = graph.mapValues { $0.sorted() }
+        let processedAqueryResult = try parser.processAquery(
+            from: output,
+            topLevelTargets: topLevelTargets
+        )
 
-        dependencyGraphCache[cacheKey] = graph
-        return graph
+        logger.debug("Aqueried \(processedAqueryResult.targets.count, privacy: .public) targets")
+        logger.info("Finished processing aquery results")
+
+        aqueryCache[cmd] = processedAqueryResult
+
+        return processedAqueryResult
     }
 
     func clearCache() {
-        queryCache = [:]
-        dependencyGraphCache = [:]
+        cqueryCache = [:]
+        aqueryCache = [:]
     }
 }

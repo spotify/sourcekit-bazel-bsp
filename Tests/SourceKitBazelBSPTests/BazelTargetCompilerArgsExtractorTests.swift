@@ -28,16 +28,16 @@ import Testing
 @Suite
 struct BazelTargetCompilerArgsExtractorTests {
 
-    let aqueryResult: AqueryResult
+    let aqueryResult: ProcessedAqueryResult
     let helloWorldConfig: BazelTargetConfigurationInfo
 
     init() throws {
-        self.aqueryResult = try AqueryResult(data: exampleAqueryOutput)
-        self.helloWorldConfig = try BazelQueryParser.topLevelConfigInfo(
-            ofTarget: "//HelloWorld:HelloWorld",
-            withType: .iosApplication,
-            in: aqueryResult
+        let aqueryResult = try BazelTargetQuerierParserImpl().processAquery(
+            from: exampleAqueryOutput,
+            topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication)]
         )
+        self.helloWorldConfig = try #require(aqueryResult.topLevelLabelToConfigMap["//HelloWorld:HelloWorld"])
+        self.aqueryResult = aqueryResult
     }
 
     private static func makeMockExtractor(
@@ -81,8 +81,6 @@ struct BazelTargetCompilerArgsExtractorTests {
     @Test
     func extractsAndProcessesCompilerArguments_complexRealWorldSwiftExample() throws {
         let extractor = Self.makeMockExtractor()
-        let aqueryResult = try AqueryResult(data: exampleAqueryOutput)
-
         let result = try extractor.extractCompilerArgs(
             fromAquery: aqueryResult,
             forTarget: BazelTargetPlatformInfo(
@@ -99,8 +97,6 @@ struct BazelTargetCompilerArgsExtractorTests {
     @Test
     func extractsAndProcessesCompilerArguments_complexRealWorldObjCExample() throws {
         let extractor = Self.makeMockExtractor()
-        let aqueryResult = try AqueryResult(data: exampleAqueryOutput)
-
         let result = try extractor.extractCompilerArgs(
             fromAquery: aqueryResult,
             forTarget: BazelTargetPlatformInfo(
@@ -117,8 +113,6 @@ struct BazelTargetCompilerArgsExtractorTests {
     @Test
     func missingObjCFile() throws {
         let extractor = Self.makeMockExtractor()
-        let aqueryResult = try AqueryResult(data: exampleAqueryOutput)
-
         let error = #expect(throws: BazelTargetCompilerArgsExtractorError.self) {
             try extractor.extractCompilerArgs(
                 fromAquery: aqueryResult,
@@ -140,8 +134,6 @@ struct BazelTargetCompilerArgsExtractorTests {
     @Test
     func ignoresObjCHeaders() throws {
         let extractor = Self.makeMockExtractor()
-        let aqueryResult = try AqueryResult(data: exampleAqueryOutput)
-
         let result = try extractor.extractCompilerArgs(
             fromAquery: aqueryResult,
             forTarget: BazelTargetPlatformInfo(
@@ -182,8 +174,6 @@ struct BazelTargetCompilerArgsExtractorTests {
     @Test
     func missingSwiftModule() throws {
         let extractor = Self.makeMockExtractor()
-        let aqueryResult = try AqueryResult(data: exampleAqueryOutput)
-
         let error = #expect(throws: BazelTargetCompilerArgsExtractorError.self) {
             try extractor.extractCompilerArgs(
                 fromAquery: aqueryResult,
@@ -206,8 +196,6 @@ struct BazelTargetCompilerArgsExtractorTests {
         let extractor = Self.makeMockExtractor(
             compileTopLevel: true
         )
-        let aqueryResult = try AqueryResult(data: exampleAqueryOutput)
-
         let result = try extractor.extractCompilerArgs(
             fromAquery: aqueryResult,
             forTarget: BazelTargetPlatformInfo(
@@ -232,23 +220,12 @@ struct BazelTargetCompilerArgsExtractorTests {
 
 // MARK: - Example inputs and expected results
 
-/// Example aquery output for the example app shipped with this repo.
-/// bazelisk aquery "mnemonic('BundleTreeApp|CppCompile|ObjcCompile|SignBinary|SwiftCompile|TestRunner', deps(//HelloWorld:HelloWorld) union deps(//HelloWorld:HelloWorldTests) union deps(//HelloWorld:HelloWorldWatchApp) union deps(//HelloWorld:HelloWorldMacApp) union deps(//HelloWorld:HelloWorldMacCLIApp) union deps(//HelloWorld:HelloWorldLib_ios_skbsp)" --noinclude_artifacts --noinclude_artifacts --noinclude_aspects --output proto --features=-compiler_param_file --config=index_build
-let exampleAqueryOutput: Data = {
-    guard let url = Bundle.module.url(forResource: "aquery", withExtension: "pb"),
-        let data = try? Data.init(contentsOf: url)
-    else { fatalError("aquery.pb is not found in Resources folder") }
-    return data
-}()
-
 /// Expected result of processing the example input for the Swift target.
 let expectedSwiftResult: [String] = [
     "-target",
     "arm64-apple-ios17.0-simulator",
     "-sdk",
     "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk",
-    "-debug-prefix-map",
-    "/Applications/Xcode.app/Contents/Developer=/PLACEHOLDER_DEVELOPER_DIR",
     "-file-prefix-map",
     "/Applications/Xcode.app/Contents/Developer=/PLACEHOLDER_DEVELOPER_DIR",
     "-emit-object",
@@ -265,6 +242,7 @@ let expectedSwiftResult: [String] = [
     "/private/var/tmp/_bazel_user/hash123/external/rules_swift+/swift/toolchains/config/const_protocols_to_gather.json",
     "-DDEBUG",
     "-Onone",
+    "-whole-module-optimization",
     "-Xfrontend",
     "-internalize-at-link",
     "-Xfrontend",
@@ -272,6 +250,8 @@ let expectedSwiftResult: [String] = [
     "-enable-testing",
     "-disable-sandbox",
     "-g",
+    "-file-prefix-map",
+    "/Applications/Xcode.app/Contents/Developer=/PLACEHOLDER_DEVELOPER_DIR",
     "-file-compilation-dir",
     ".",
     "-module-cache-path",
@@ -285,10 +265,10 @@ let expectedSwiftResult: [String] = [
     "-fmodule-map-file=/Users/user/Documents/demo-ios-project/HelloWorld/TodoObjCSupport/Sources/module.modulemap",
     "-Xfrontend",
     "-color-diagnostics",
+    "-num-threads",
+    "12",
     "-module-name",
     "HelloWorldLib",
-    "-file-prefix-map",
-    "/Applications/Xcode.app/Contents/Developer=DEVELOPER_DIR",
     "-index-store-path",
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/_global_index_store",
     "-index-ignore-system-modules",
@@ -307,6 +287,9 @@ let expectedSwiftResult: [String] = [
     "-fstack-protector",
     "-Xcc",
     "-fstack-protector-all",
+    "-whole-module-optimization",
+    "-Xfrontend",
+    "-checked-async-objc-bridging=on",
     "/Users/user/Documents/demo-ios-project/HelloWorld/HelloWorldLib/Sources/AddTodoView.swift",
     "/Users/user/Documents/demo-ios-project/HelloWorld/HelloWorldLib/Sources/HelloWorldApp.swift",
     "/Users/user/Documents/demo-ios-project/HelloWorld/HelloWorldLib/Sources/TodoItemRow.swift",
@@ -317,8 +300,6 @@ let expectedSwiftResult: [String] = [
 let expectedObjCResult: [String] = [
     "-x",
     "objective-c",
-    "-target",
-    "arm64-apple-ios17.0-simulator",
     "-D_FORTIFY_SOURCE=1",
     "-fstack-protector",
     "-fcolor-diagnostics",
@@ -357,6 +338,9 @@ let expectedObjCResult: [String] = [
     "-F/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/System/Library/Frameworks",
     "-F/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks",
     "-fobjc-arc",
+    "-no-canonical-prefixes",
+    "-target",
+    "arm64-apple-ios17.0-simulator",
     "-fexceptions",
     "-fasm-blocks",
     "-fobjc-abi-version=2",
@@ -366,6 +350,10 @@ let expectedObjCResult: [String] = [
     "-fstack-protector",
     "-fstack-protector-all",
     "-g",
+    "-Wno-builtin-macro-redefined",
+    "-D__DATE__=\"redacted\"",
+    "-D__TIMESTAMP__=\"redacted\"",
+    "-D__TIME__=\"redacted\"",
     "HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.m",
     "-o",
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld/_objs/TodoObjCSupport/arc/SKDateDistanceCalculator.o",
