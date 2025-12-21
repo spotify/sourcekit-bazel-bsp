@@ -17,5 +17,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#import "SKObjCppUtils.h"
-#import "SKObjCUtils.h"
+#import <Foundation/Foundation.h>
+
+@interface SKObjCUtils : NSObject
+
++ (NSString *)greetingFromC;
++ (NSInteger)multiplyWithC:(NSInteger)a b:(NSInteger)b;
+
+@end

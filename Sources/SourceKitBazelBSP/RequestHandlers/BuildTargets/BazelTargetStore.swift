@@ -67,14 +67,6 @@ enum BazelTargetStoreError: Error, LocalizedError {
 /// Used by many of the requests to calculate and provide data about the project's targets.
 final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 
-    // The list of kinds that provide compilation params that are used by the BSP.
-    // These are collected from the top-level targets that depend on them.
-    static let libraryKinds: [String] = ["swift_library", "objc_library"]
-    static let sourceFileKinds: [String] = ["source file"]
-
-    // The mnemonics representing compilation actions
-    static let compileMnemonics: [String] = ["SwiftCompile", "ObjcCompile", "CppCompile"]
-
     // The mnemonics representing top-level rule actions
     // - `BundleTreeApp` for finding bundling rules like `ios_unit_test`, `ios_application`
     // - `SignBinary` for finding macOS CLI app rules like `macos_command_line_application`
@@ -199,9 +191,10 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         //  - Dependencies of the top-level targets (e.g. `swift_library`, `objc_library`, etc.)
         //  - Source files connected to these targets
         // And process the relation between these different targets and sources.
+        let dependencyKindsToFilter = SupportedLanguages.ruleKinds.keys.sorted()
         let cqueryResult = try bazelTargetQuerier.cqueryTargets(
             config: initializedConfig,
-            dependencyKinds: Self.libraryKinds + Self.sourceFileKinds,
+            dependencyKinds: dependencyKindsToFilter,
             supportedTopLevelRuleTypes: initializedConfig.baseConfig.topLevelRulesToDiscover
         )
 
@@ -213,7 +206,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         let aqueryResult = try bazelTargetQuerier.aquery(
             topLevelTargets: cqueryResult.topLevelTargets,
             config: initializedConfig,
-            mnemonics: Self.compileMnemonics + Self.topLevelMnemonics
+            mnemonics: SupportedLanguages.compileMnemonics + Self.topLevelMnemonics
         )
 
         self.aqueryResult = aqueryResult

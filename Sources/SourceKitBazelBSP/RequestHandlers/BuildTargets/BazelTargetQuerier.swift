@@ -91,6 +91,10 @@ final class BazelTargetQuerier {
         // so we need this info to do it ourselves.
         kindsToFilterFor.append("alias")
 
+        // Always fetch source information.
+        // FIXME: Need to also handle `generated file`
+        kindsToFilterFor.append("source file")
+
         // If we're searching for test rules, we need to also include their test bundle rules.
         // Otherwise we won't be able to map test dependencies back to their top level parents.
         let testBundleRules = supportedTopLevelRuleTypes.compactMap { $0.testBundleRule }

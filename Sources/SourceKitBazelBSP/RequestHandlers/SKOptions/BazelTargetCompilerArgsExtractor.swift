@@ -62,15 +62,13 @@ enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
 final class BazelTargetCompilerArgsExtractor {
     enum ParsingStrategy: CustomStringConvertible {
         case swiftModule
-        case objcImpl(String)
-        case cImpl(String)
+        case cImpl(String, String)
         case cHeader
 
         var description: String {
             switch self {
             case .swiftModule: return "swiftModule"
-            case .objcImpl(let uri): return "objcImpl(\(uri))"
-            case .cImpl(let uri): return "cImpl(\(uri))"
+            case .cImpl(let uri, let langId): return "cImpl(\(uri), \(langId))"
             case .cHeader: return "cHeader"
             }
         }
@@ -87,8 +85,8 @@ final class BazelTargetCompilerArgsExtractor {
         switch language {
         case .swift:
             return .swiftModule
-        case .objective_c, .c, .objective_cpp:
-            if uri.stringValue.hasSuffix(".h") {
+        case .c, .cpp, .objective_c, .objective_cpp:
+            if let pathExtension = uri.fileURL?.pathExtension, SupportedLanguages.headerExtensions.contains(pathExtension) {
                 return .cHeader
             }
             // Make the path relative, as this is what aquery will return
@@ -98,12 +96,10 @@ final class BazelTargetCompilerArgsExtractor {
                 throw BazelTargetCompilerArgsExtractorError.invalidCUri(fullUri)
             }
             let parsedFile = String(fullUri.dropFirst(prefixToCut.count))
-            if language == .c {
-                return .cImpl(parsedFile)
-            } else if language == .objective_c || language == .objective_cpp {
-                return .objcImpl(parsedFile)
+            if let xflag = language.xflag {
+                return .cImpl(parsedFile, xflag)
             }
-            throw BazelTargetCompilerArgsExtractorError.shouldNeverHappen("No language for C-type parsing")
+            throw BazelTargetCompilerArgsExtractorError.shouldNeverHappen("Unknown language for C-type parsing")
         default:
             throw BazelTargetCompilerArgsExtractorError.unsupportedLanguage(
                 language.rawValue,
@@ -182,8 +178,8 @@ final class BazelTargetCompilerArgsExtractor {
         switch strategy {
         case .swiftModule, .cHeader:
             return target + "|" + queryHash
-        case .objcImpl(let uri), .cImpl(let uri):
-            return target + "|" + uri + "|" + queryHash
+        case .cImpl(let uri, let langId):
+            return target + "|" + uri + "|" + langId + "|" + queryHash
         }
     }
 
@@ -215,7 +211,7 @@ final class BazelTargetCompilerArgsExtractor {
         switch strategy {
         case .swiftModule, .cHeader:
             contentBeingQueried = bazelTarget
-        case .objcImpl(let uri), .cImpl(let uri):
+        case .cImpl(let uri, _):
             // For C, we need to additionally filter for the action containing the specific file we're looking at.
             contentBeingQueried = uri + " (\(bazelTarget))"
             candidateActions = candidateActions.filter {
@@ -258,15 +254,11 @@ extension BazelTargetCompilerArgsExtractor {
 
         var compilerArguments: [String] = []
 
-        // For Obj-C, start by adding some necessary args that wouldn't show up in the aquery
-        if case .objcImpl(let fileURL) = strategy {
+        // For C, start by adding the language params for clang.
+        // It seems that technically we don't need to do this, but this matches what Xcode does.
+        if case .cImpl(_, let langId) = strategy {
             compilerArguments.append("-x")
-
-            if fileURL.hasSuffix(".mm") {
-                compilerArguments.append("objective-c++")
-            } else {
-                compilerArguments.append("objective-c")
-            }
+            compilerArguments.append(langId)
         }
 
         var index = 0
@@ -276,20 +268,20 @@ extension BazelTargetCompilerArgsExtractor {
         // In the case of Obj-C, this is just a single `clang` reference.
         switch strategy {
         case .swiftModule: index = 2
-        case .objcImpl, .cImpl, .cHeader: index = 1
+        case .cImpl, .cHeader: index = 1
         }
 
         while index < count {
             let arg = rawArguments[index]
 
-            // Skip wrapped arguments. These don't work for some reason
+            // Skip injected arguments from rules_swift
             if arg.hasPrefix("-Xwrapped-swift") {
                 index += 1
                 continue
             }
 
-            // Skip unsupported -c arg for Obj-C
-            if case .objcImpl = strategy, arg == "-c" {
+            // Drop -c for clang. sourcekit-lsp will instead inject -fsyntax-only.
+            if arg == "-c", case .cImpl = strategy {
                 index += 1
                 continue
             }
@@ -380,11 +372,11 @@ extension BazelTargetCompilerArgsExtractor {
 
         // Handle remaining necessary adjustments for indexing.
         switch strategy {
-        case .objcImpl, .cImpl:
+        case .cImpl:
             compilerArguments.append("-index-store-path")
             compilerArguments.append(config.indexStorePath)
             compilerArguments.append("-working-directory")
-            compilerArguments.append(config.rootUri)
+            compilerArguments.append(rootUri)
         case .swiftModule:
             // For Swift, swap the index store arg with the global cache.
             // Bazel handles this a bit differently internally, which is why

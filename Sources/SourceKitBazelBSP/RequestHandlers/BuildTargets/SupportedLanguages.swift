@@ -17,5 +17,19 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#import "SKObjCppUtils.h"
-#import "SKObjCUtils.h"
+import BuildServerProtocol
+import Foundation
+import LanguageServerProtocol
+
+private let logger = makeFileLevelBSPLogger()
+
+enum SupportedLanguages {
+    static let headerExtensions: Set<String> = ["h", "hpp"]
+    static let sourceExtensions: Set<String> = ["c", "cpp", "cc", "cxx", "m", "mm", "swift"]
+    static let compileMnemonics: [String] = ["SwiftCompile", "ObjcCompile"] // CppCompile
+    static let ruleKinds: [String: Language] = [
+        "swift_library": .swift,
+        "objc_library": .objective_c
+        // "cc_library": .cpp,
+    ]
+}

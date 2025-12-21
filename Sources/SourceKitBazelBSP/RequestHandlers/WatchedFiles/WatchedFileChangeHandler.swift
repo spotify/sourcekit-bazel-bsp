@@ -34,10 +34,20 @@ final class WatchedFileChangeHandler {
     private let supportedFileExtensions: Set<String> = [
         "swift",
         "h",
+        "hh",
+        "hpp",
+        "hxx",
+        "inc",
+        "inl",
+        "H",
         "m",
         "mm",
         "c",
+        "cc",
+        "cxx",
         "cpp",
+        "c++",
+        "C",
     ]
 
     init(

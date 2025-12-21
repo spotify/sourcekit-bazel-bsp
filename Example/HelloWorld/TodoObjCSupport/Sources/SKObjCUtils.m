@@ -17,5 +17,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#import "SKObjCppUtils.h"
-#import "SKObjCUtils.h"
+#import "HelloWorld/TodoObjCSupport/Sources/SKObjCUtils.h"
+#import "HelloWorld/TodoCSupport/include/SKCUtils.h"
+
+@implementation SKObjCUtils
+
++ (NSString *)greetingFromC {
+    const char *cGreeting = sk_c_get_greeting();
+    return [NSString stringWithUTF8String:cGreeting];
+}
+
++ (NSInteger)multiplyWithC:(NSInteger)a b:(NSInteger)b {
+    return sk_c_multiply((int)a, (int)b);
+}
+
+@end

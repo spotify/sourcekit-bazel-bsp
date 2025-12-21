@@ -17,5 +17,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#import "SKObjCppUtils.h"
-#import "SKObjCUtils.h"
+#include "../include/SKCUtils.h"
+
+const char* sk_c_get_greeting(void) {
+    return "Hello from C!";
+}
+
+int sk_c_multiply(int a, int b) {
+    return a * b;
+}

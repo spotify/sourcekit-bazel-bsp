@@ -36,6 +36,8 @@ enum BazelTargetQuerierParserError: Error, LocalizedError {
     case unexpectedTargetType(Int)
     case unsupportedTopLevelTargetType(String, String, [TopLevelRuleType])
     case noTopLevelTargets([TopLevelRuleType])
+    case missingPathExtension(String)
+    case unexpectedFileExtension(String)
 
     var errorDescription: String? {
         switch self {
@@ -64,6 +66,8 @@ enum BazelTargetQuerierParserError: Error, LocalizedError {
                 No top-level targets found in the query of kind: \
                 \(rules.map { $0.rawValue }.joined(separator: ", "))
                 """
+        case .missingPathExtension(let path): return "Missing path extension for \(path)"
+        case .unexpectedFileExtension(let pathExtension): return "Unexpected file extension: \(pathExtension)"
         }
     }
 }
@@ -270,12 +274,9 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             )
 
             let languageId: [Language]
-            switch rule.ruleClass {
-            case "swift_library":
-                languageId = [.swift]
-            case "objc_library":
-                languageId = [.objective_c]
-            default:
+            if let language = SupportedLanguages.ruleKinds[rule.ruleClass] {
+                languageId = [language]
+            } else {
                 throw BazelTargetQuerierParserError.unexpectedLanguageRule(rule.name, rule.ruleClass)
             }
 
@@ -385,29 +386,25 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         rootUri: String,
         executionRoot: String
     ) throws -> SourcesItem {
-        let srcsAttribute = rule.attribute.first { $0.name == "srcs" }
-        let srcs: [URI]
-        if let attr = srcsAttribute {
-            srcs = attr.stringListValue.compactMap {
-                guard let srcUri = srcToUriMap[$0] else {
-                    // If the file is not part of the original array provided to this function,
-                    // then this is likely a generated file.
-                    // FIXME: Generated files are handled by the `generated file` mmnemonic,
-                    // which we don't handle today. Ignoring them for now.
-                    logger.debug(
-                        "Skipping \($0, privacy: .public): Source does not exist, most likely a generated file."
-                    )
-                    return nil
-                }
-                return srcUri
-            }.sorted(by: { $0.stringValue < $1.stringValue })
-        } else {
-            srcs = []
-        }
+        let srcsAttribute = rule.attribute.first { $0.name == "srcs" }?.stringListValue ?? []
+        let hdrsAttribute = rule.attribute.first { $0.name == "hdrs" }?.stringListValue ?? []
+        let srcs: [URI] = (srcsAttribute + hdrsAttribute).compactMap {
+            guard let srcUri = srcToUriMap[$0] else {
+                // If the file is not part of the original array provided to this function,
+                // then this is likely a generated file.
+                // FIXME: Generated files are handled by the `generated file` mmnemonic,
+                // which we don't handle today. Ignoring them for now.
+                logger.debug(
+                    "Skipping \($0, privacy: .public): Source does not exist, most likely a generated file."
+                )
+                return nil
+            }
+            return srcUri
+        }.sorted(by: { $0.stringValue < $1.stringValue })
         return SourcesItem(
             target: targetId,
-            sources: srcs.map {
-                buildSourceItem(
+            sources: try srcs.map {
+                try buildSourceItem(
                     forSrc: $0,
                     rootUri: rootUri,
                     executionRoot: executionRoot
@@ -420,23 +417,33 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         forSrc src: URI,
         rootUri: String,
         executionRoot: String
-    ) -> SourceItem {
-        let srcString = src.stringValue
-        let copyDestinations = srcCopyDestinations(for: src, rootUri: rootUri, executionRoot: executionRoot)
+    ) throws -> SourceItem {
+        guard let pathExtension = src.fileURL?.pathExtension else {
+            throw BazelTargetQuerierParserError.missingPathExtension(src.stringValue)
+        }
         let kind: SourceKitSourceItemKind
-        if srcString.hasSuffix("h") {
+        if SupportedLanguages.headerExtensions.contains(pathExtension) {
             kind = .header
-        } else {
+        } else if SupportedLanguages.sourceExtensions.contains(pathExtension) {
             kind = .source
-        }
-        let language: Language?
-        if srcString.hasSuffix("swift") {
-            language = .swift
-        } else if srcString.hasSuffix("m") || kind == .header {
-            language = .objective_c
         } else {
-            language = nil
+            throw BazelTargetQuerierParserError.unexpectedFileExtension(pathExtension)
         }
+
+        // Source: https://github.com/swiftlang/sourcekit-lsp/blob/7495f5532fdb17184d69518f46a207e596b26c64/Sources/LanguageServerProtocolExtensions/Language%2BInference.swift#L33
+        // let language: Language? = {
+        //     switch pathExtension {
+        //     case "c": return .c
+        //     case "cpp", "cc", "cxx", "hpp": return .cpp
+        //     case "m": return .objective_c
+        //     case "mm", "h": return .objective_cpp
+        //     case "swift": return .swift
+        //     default: return nil
+        //     }
+        // }()
+        let language: Language? = nil
+
+        let copyDestinations = srcCopyDestinations(for: src, rootUri: rootUri, executionRoot: executionRoot)
         return SourceItem(
             uri: src,
             kind: .file,
@@ -487,24 +494,18 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         dependencyGraph: inout [String: [String]],
     ) throws -> [BuildTargetIdentifier] {
         let attrName = isBuildTestRule ? "targets" : "deps"
-        let depsAttribute = rule.attribute.first { $0.name == attrName }
-        let deps: [BuildTargetIdentifier]
         let thisRule = rule.name
-        if let attr = depsAttribute {
-            deps = attr.stringListValue.compactMap { label in
-                guard let (depUri, depRealLabel) = depLabelToUriMap[label] else {
-                    logger.debug(
-                        "Skipping dependency \(label, privacy: .public): not considered a valid dependency"
-                    )
-                    return nil
-                }
-                dependencyGraph[thisRule, default: []].append(depRealLabel)
-                return depUri
-            }.sorted(by: { $0.uri.stringValue < $1.uri.stringValue })
-        } else {
-            deps = []
-        }
-        return deps
+        let depsAttribute = rule.attribute.first { $0.name == attrName }?.stringListValue ?? []
+        return depsAttribute.compactMap { label in
+            guard let (depUri, depRealLabel) = depLabelToUriMap[label] else {
+                logger.debug(
+                    "Skipping dependency \(label, privacy: .public): not considered a valid dependency"
+                )
+                return nil
+            }
+            dependencyGraph[thisRule, default: []].append(depRealLabel)
+            return depUri
+        }.sorted(by: { $0.uri.stringValue < $1.uri.stringValue })
     }
 
     private func traverseGraph(

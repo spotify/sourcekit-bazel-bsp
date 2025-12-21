@@ -33,12 +33,29 @@ objc_library(
     name = "TodoObjCSupport",
     srcs = glob(
         [
-            "TodoObjCSupport/Sources/*.h",
+            "TodoObjCSupport/Sources/*.mm",
             "TodoObjCSupport/Sources/*.m",
         ],
     ),
     hdrs = glob(["TodoObjCSupport/Sources/*.h"]),
     aspect_hints = [":TodoObjCSupport_hint"],
+    deps = [":TodoCSupport"],
+)
+
+cc_library(
+    name = "TodoCSupport",
+    srcs = glob(
+        [
+            "TodoCSupport/src/*.cpp",
+            "TodoCSupport/src/*.c",
+        ],
+    ),
+    hdrs = glob(
+        [
+            "TodoCSupport/include/*.hpp",
+            "TodoCSupport/include/*.h",
+        ],
+    ),
 )
 
 swift_library(

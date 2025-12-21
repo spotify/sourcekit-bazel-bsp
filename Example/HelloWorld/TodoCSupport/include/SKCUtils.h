@@ -17,5 +17,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#import "SKObjCppUtils.h"
-#import "SKObjCUtils.h"
+#ifndef SK_C_UTILS_H
+#define SK_C_UTILS_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+const char* sk_c_get_greeting(void);
+int sk_c_multiply(int a, int b);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

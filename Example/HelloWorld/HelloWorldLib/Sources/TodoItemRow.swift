@@ -42,9 +42,13 @@ struct TodoItemRow: View {
                     .foregroundColor(item.isCompleted ? .gray : .primary)
                     .animation(.easeInOut(duration: 0.2), value: item.isCompleted)
 
-                Text(SKDateDistanceCalculator.humanReadableDistance(fromNow: item.createdAt))
+                Text(SKObjCppUtils.humanReadableDistance(fromNow: item.createdAt))
                     .font(.caption)
                     .foregroundColor(.gray)
+                    .onAppear {
+                        print(SKObjCUtils.greetingFromC() as Any)
+                        print(SKObjCUtils.multiply(withC: 2, b: 2))
+                    }
             }
 
             Spacer()

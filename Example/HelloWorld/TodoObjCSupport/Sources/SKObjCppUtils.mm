@@ -17,14 +17,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#import "HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.h"
+#import "HelloWorld/TodoObjCSupport/Sources/SKObjCppUtils.h"
+#import "HelloWorld/TodoCSupport/include/SKCppUtils.hpp"
 
-@implementation SKDateDistanceCalculator
+@implementation SKObjCppUtils
 
 + (NSTimeInterval)distanceFromNow:(NSDate *)date {
   if (!date) {
     return 0.0;
   }
+
+  NSLog(@"%s", SKCppUtils::getGreeting().c_str());
+  NSLog(@"%ld", (long)SKCppUtils::add(1, 2));
 
   NSDate *now = [NSDate date];
   return [now timeIntervalSinceDate:date];

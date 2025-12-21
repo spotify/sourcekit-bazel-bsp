@@ -19,7 +19,7 @@
 
 #import <Foundation/Foundation.h>
 
-@interface SKDateDistanceCalculator : NSObject
+@interface SKObjCppUtils : NSObject
 
 /**
  * Calculates the time interval between the given date and now
