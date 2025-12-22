@@ -3,6 +3,7 @@ load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application", "ios_unit_tes
 load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application", "macos_command_line_application", "macos_unit_test")
 load("@build_bazel_rules_apple//apple:watchos.bzl", "watchos_application", "watchos_extension", "watchos_unit_test")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_interop_hint", "swift_library")
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl", "setup_sourcekit_bsp")
 load("//tools:apple.bzl", "IOS_MINIMUM_OS_VERSION", "WATCHOS_MINIMUM_OS_VERSION", "MACOS_MINIMUM_OS_VERSION")
 

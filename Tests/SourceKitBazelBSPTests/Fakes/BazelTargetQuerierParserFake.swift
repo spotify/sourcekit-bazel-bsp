@@ -29,6 +29,7 @@ final class BazelTargetQuerierParserFake: BazelTargetQuerierParser {
         from data: Data,
         testBundleRules: [String],
         userProvidedTargets: [String],
+        supportedRuleKinds: [SupportedRuleKind],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
         rootUri: String,
         executionRoot: String,

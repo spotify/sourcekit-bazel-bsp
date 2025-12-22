@@ -78,6 +78,7 @@ protocol BazelTargetQuerierParser: AnyObject {
         from data: Data,
         testBundleRules: [String],
         userProvidedTargets: [String],
+        supportedRuleKinds: [SupportedRuleKind],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
         rootUri: String,
         executionRoot: String,
@@ -97,6 +98,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         from data: Data,
         testBundleRules: [String],
         userProvidedTargets: [String],
+        supportedRuleKinds: [SupportedRuleKind],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
         rootUri: String,
         executionRoot: String,
@@ -111,6 +113,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 return !$0.rule.name.hasPrefix("@")
             }
 
+        let supportedRuleKindsSet = Set(supportedRuleKinds)
         let testBundleRulesSet = Set(testBundleRules)
         var seenLabels = Set<String>()
         var seenSourceFiles = Set<String>()
@@ -273,11 +276,11 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 canDebug: false
             )
 
-            let languageId: [Language]
-            if let language = SupportedLanguages.ruleKinds[rule.ruleClass] {
-                languageId = [language]
-            } else {
-                throw BazelTargetQuerierParserError.unexpectedLanguageRule(rule.name, rule.ruleClass)
+            guard let ruleKind = SupportedRuleKind(rawValue: rule.ruleClass), supportedRuleKindsSet.contains(ruleKind) else {
+                // The cquery seems to pick up things that have the expected name somewhere within the string, like
+                // my_custom_swift_library. Ignore those
+                logger.warning("Skipping target \(rule.name, privacy: .public) with unexpected rule class: \(rule.ruleClass)")
+                continue
             }
 
             let buildTarget = BuildTarget(
@@ -286,7 +289,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 baseDirectory: baseDirectory,
                 tags: [.library],
                 capabilities: capabilities,
-                languageIds: languageId,
+                languageIds: [ruleKind.language],
                 dependencies: deps,
                 dataKind: .sourceKit,
                 data: try SourceKitBuildTarget(
@@ -421,29 +424,14 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         guard let pathExtension = src.fileURL?.pathExtension else {
             throw BazelTargetQuerierParserError.missingPathExtension(src.stringValue)
         }
-        let kind: SourceKitSourceItemKind
-        if SupportedLanguages.headerExtensions.contains(pathExtension) {
-            kind = .header
-        } else if SupportedLanguages.sourceExtensions.contains(pathExtension) {
-            kind = .source
-        } else {
+        guard let extensionKind = SupportedExtension(rawValue: pathExtension) else {
             throw BazelTargetQuerierParserError.unexpectedFileExtension(pathExtension)
         }
 
-        // Source: https://github.com/swiftlang/sourcekit-lsp/blob/7495f5532fdb17184d69518f46a207e596b26c64/Sources/LanguageServerProtocolExtensions/Language%2BInference.swift#L33
-        // let language: Language? = {
-        //     switch pathExtension {
-        //     case "c": return .c
-        //     case "cpp", "cc", "cxx", "hpp": return .cpp
-        //     case "m": return .objective_c
-        //     case "mm", "h": return .objective_cpp
-        //     case "swift": return .swift
-        //     default: return nil
-        //     }
-        // }()
-        let language: Language? = nil
-
+        let kind: SourceKitSourceItemKind = extensionKind.kind
+        let language: Language = extensionKind.language
         let copyDestinations = srcCopyDestinations(for: src, rootUri: rootUri, executionRoot: executionRoot)
+
         return SourceItem(
             uri: src,
             kind: .file,

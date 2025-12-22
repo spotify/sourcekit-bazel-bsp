@@ -69,10 +69,10 @@ final class BazelTargetQuerier {
     /// listing all of their dependencies and source files.
     func cqueryTargets(
         config: InitializedServerConfig,
-        dependencyKinds: [String],
+        supportedRuleKinds: [SupportedRuleKind],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
     ) throws -> ProcessedCqueryResult {
-        if dependencyKinds.isEmpty {
+        if supportedRuleKinds.isEmpty {
             throw BazelTargetQuerierError.noKinds
         }
         if supportedTopLevelRuleTypes.isEmpty {
@@ -84,7 +84,7 @@ final class BazelTargetQuerier {
             throw BazelTargetQuerierError.noTargets
         }
 
-        var kindsToFilterFor = dependencyKinds
+        var kindsToFilterFor = Set(supportedRuleKinds.map { $0.rawValue }).sorted()
 
         // We need to also use the `alias` mnemonic for this query to work properly.
         // This is because --output proto doesn't follow the aliases automatically,
@@ -135,6 +135,7 @@ final class BazelTargetQuerier {
             from: output,
             testBundleRules: testBundleRules,
             userProvidedTargets: userProvidedTargets,
+            supportedRuleKinds: supportedRuleKinds,
             supportedTopLevelRuleTypes: supportedTopLevelRuleTypes,
             rootUri: config.rootUri,
             executionRoot: config.executionRoot,

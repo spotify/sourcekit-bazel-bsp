@@ -86,7 +86,7 @@ final class BazelTargetCompilerArgsExtractor {
         case .swift:
             return .swiftModule
         case .c, .cpp, .objective_c, .objective_cpp:
-            if let pathExtension = uri.fileURL?.pathExtension, SupportedLanguages.headerExtensions.contains(pathExtension) {
+            if let pathExtension = uri.fileURL?.pathExtension, SupportedExtension(rawValue: pathExtension)?.kind == .header {
                 return .cHeader
             }
             // Make the path relative, as this is what aquery will return
@@ -282,6 +282,12 @@ extension BazelTargetCompilerArgsExtractor {
 
             // Drop -c for clang. sourcekit-lsp will instead inject -fsyntax-only.
             if arg == "-c", case .cImpl = strategy {
+                index += 1
+                continue
+            }
+
+            // Skip warnings as errors since sourcekit-lsp adds some warnings of its own
+            if arg == "-Werror", case .cImpl = strategy {
                 index += 1
                 continue
             }

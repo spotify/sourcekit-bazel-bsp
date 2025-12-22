@@ -23,13 +23,36 @@ import LanguageServerProtocol
 
 private let logger = makeFileLevelBSPLogger()
 
-enum SupportedLanguages {
-    static let headerExtensions: Set<String> = ["h", "hpp"]
-    static let sourceExtensions: Set<String> = ["c", "cpp", "cc", "cxx", "m", "mm", "swift"]
-    static let compileMnemonics: [String] = ["SwiftCompile", "ObjcCompile"] // CppCompile
-    static let ruleKinds: [String: Language] = [
-        "swift_library": .swift,
-        "objc_library": .objective_c
-        // "cc_library": .cpp,
-    ]
+// Contains data about all the file types the BSP knows how to parse.
+// See also: SupportedRuleKind.swift
+enum SupportedExtension: String, CaseIterable {
+    case c
+    case cc
+    case cpp
+    case cxx
+    case h
+    case hpp
+    case m
+    case mm
+    case swift
+
+    var kind: SourceKitSourceItemKind {
+        switch self {
+        case .h, .hpp: return .header
+        case .c, .cc, .cpp, .cxx: return .source
+        case .m, .mm: return .source
+        case .swift: return .source
+        }
+    }
+
+    // Source: https://github.com/swiftlang/sourcekit-lsp/blob/7495f5532fdb17184d69518f46a207e596b26c64/Sources/LanguageServerProtocolExtensions/Language%2BInference.swift#L33
+    var language: Language {
+        switch self {
+            case .c: return .c
+            case .cpp, .cc, .cxx, .hpp: return .cpp
+            case .m: return .objective_c
+            case .mm, .h: return .objective_cpp
+            case .swift: return .swift
+        }
+    }
 }
