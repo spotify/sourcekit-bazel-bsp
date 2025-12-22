@@ -54,7 +54,7 @@ struct BazelTargetQuerierParserImplTests {
             from: exampleCqueryOutput,
             testBundleRules: testBundleRules,
             userProvidedTargets: userProvidedTargets,
-            supportedRuleKinds: SupportedRuleKind.allCases,
+            supportedDependencyRuleTypes: DependencyRuleType.allCases,
             supportedTopLevelRuleTypes: supportedTopLevelRuleTypes,
             rootUri: Self.mockRootUri,
             executionRoot: Self.mockExecutionRoot,

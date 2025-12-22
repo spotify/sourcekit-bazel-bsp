@@ -74,7 +74,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
     private let initializedConfig: InitializedServerConfig
     private let bazelTargetQuerier: BazelTargetQuerier
 
-    private let supportedRuleKinds: [SupportedRuleKind]
+    private let supportedDependencyRuleTypes: [DependencyRuleType]
     private let compileMnemonicsToFilter: [String]
     private let topLevelMnemonicsToFilter: [String]
 
@@ -85,12 +85,11 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
     init(
         initializedConfig: InitializedServerConfig,
         bazelTargetQuerier: BazelTargetQuerier = BazelTargetQuerier(),
-        supportedRuleKinds: [SupportedRuleKind] = SupportedRuleKind.allCases,
     ) {
         self.initializedConfig = initializedConfig
         self.bazelTargetQuerier = bazelTargetQuerier
-        self.supportedRuleKinds = supportedRuleKinds
-        self.compileMnemonicsToFilter = Set(supportedRuleKinds.map { $0.compileMnemonic }).sorted()
+        self.supportedDependencyRuleTypes = initializedConfig.baseConfig.dependencyRulesToDiscover
+        self.compileMnemonicsToFilter = Set(initializedConfig.baseConfig.dependencyRulesToDiscover.map { $0.compileMnemonic }).sorted()
         self.topLevelMnemonicsToFilter = Set(initializedConfig.baseConfig.topLevelRulesToDiscover.map { $0.mmnemonic }).sorted()
     }
 
@@ -194,7 +193,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         // And process the relation between these different targets and sources.
         let cqueryResult = try bazelTargetQuerier.cqueryTargets(
             config: initializedConfig,
-            supportedRuleKinds: supportedRuleKinds,
+            supportedDependencyRuleTypes: initializedConfig.baseConfig.dependencyRulesToDiscover,
             supportedTopLevelRuleTypes: initializedConfig.baseConfig.topLevelRulesToDiscover
         )
 

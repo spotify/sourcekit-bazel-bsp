@@ -17,15 +17,16 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import ArgumentParser
 import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
 private let logger = makeFileLevelBSPLogger()
 
-// Contains data about all the rule kinds the BSP knows how to parse.
-// See also: SupportedExtension.swift
-enum SupportedRuleKind: String, CaseIterable {
+/// The list of **dependency rules** we know how to process in the BSP.
+/// See also: SupportedExtension.swift, TopLevelRuleType.swift
+public enum DependencyRuleType: String, CaseIterable, ExpressibleByArgument, Sendable {
     case swiftLibrary = "swift_library"
     case objcLibrary = "objc_library"
     case ccLibrary = "cc_library"

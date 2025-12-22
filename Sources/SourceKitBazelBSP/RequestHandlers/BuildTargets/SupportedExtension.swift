@@ -24,7 +24,7 @@ import LanguageServerProtocol
 private let logger = makeFileLevelBSPLogger()
 
 // Contains data about all the file types the BSP knows how to parse.
-// See also: SupportedRuleKind.swift
+// See also: DependencyRuleType.swift, TopLevelRuleType.swift
 enum SupportedExtension: String, CaseIterable {
     case c
     case cc

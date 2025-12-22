@@ -94,7 +94,7 @@ struct BazelTargetQuerierTests {
 
         _ = try querier.cqueryTargets(
             config: config,
-            supportedRuleKinds: SupportedRuleKind.allCases,
+            supportedDependencyRuleTypes: DependencyRuleType.allCases,
             supportedTopLevelRuleTypes: [.iosApplication]
         )
 
@@ -117,7 +117,7 @@ struct BazelTargetQuerierTests {
 
         _ = try querier.cqueryTargets(
             config: config,
-            supportedRuleKinds: SupportedRuleKind.allCases,
+            supportedDependencyRuleTypes: DependencyRuleType.allCases,
             supportedTopLevelRuleTypes: [.iosApplication]
         )
 
@@ -147,26 +147,26 @@ struct BazelTargetQuerierTests {
             response: exampleCqueryOutput
         )
 
-        func run(supportedRuleKinds: [SupportedRuleKind]) throws {
+        func run(supportedDependencyRuleTypes: [DependencyRuleType]) throws {
             _ = try querier.cqueryTargets(
                 config: config,
-                supportedRuleKinds: supportedRuleKinds,
+                supportedDependencyRuleTypes: supportedDependencyRuleTypes,
                 supportedTopLevelRuleTypes: [.iosApplication]
             )
         }
 
-        try run(supportedRuleKinds: [.swiftLibrary])
-        try run(supportedRuleKinds: [.swiftLibrary])
+        try run(supportedDependencyRuleTypes: [.swiftLibrary])
+        try run(supportedDependencyRuleTypes: [.swiftLibrary])
         #expect(runnerMock.commands.count == 1)
 
         // Querying something else then results in a new command
-        try run(supportedRuleKinds: [.objcLibrary])
+        try run(supportedDependencyRuleTypes: [.objcLibrary])
         #expect(runnerMock.commands.count == 2)
-        try run(supportedRuleKinds: [.objcLibrary])
+        try run(supportedDependencyRuleTypes: [.objcLibrary])
         #expect(runnerMock.commands.count == 2)
 
         // But the original call is still cached
-        try run(supportedRuleKinds: [.swiftLibrary])
+        try run(supportedDependencyRuleTypes: [.swiftLibrary])
         #expect(runnerMock.commands.count == 2)
     }
 
@@ -183,7 +183,7 @@ struct BazelTargetQuerierTests {
 
         _ = try querier.cqueryTargets(
             config: config,
-            supportedRuleKinds: SupportedRuleKind.allCases,
+            supportedDependencyRuleTypes: DependencyRuleType.allCases,
             supportedTopLevelRuleTypes: [.iosApplication, .watchosUnitTest]
         )
 

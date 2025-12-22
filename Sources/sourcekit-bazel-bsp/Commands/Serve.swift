@@ -52,6 +52,13 @@ struct Serve: ParsableCommand {
     )
     var topLevelRuleToDiscover: [TopLevelRuleType] = []
 
+    @Option(
+        parsing: .singleValue,
+        help:
+            "A rule kind to discover dependencies for (e.g. 'swift_library', 'objc_library', 'cc_library'). Can be specified multiple times. If not specified, all supported rule kinds will be used for dependency discovery."
+    )
+    var dependencyRuleToDiscover: [DependencyRuleType] = []
+
     @Flag(
         help:
             "Instead of attempting to build targets individually, build the top-level parent. If your project contains build_test targets for your individual libraries and you're passing them as the top-level targets for the BSP, you can use this flag to build those targets directly for better predictability and caching."
@@ -61,11 +68,17 @@ struct Serve: ParsableCommand {
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
-        let rulesToUse: [TopLevelRuleType]
+        let topLevelRulesToDiscover: [TopLevelRuleType]
         if !topLevelRuleToDiscover.isEmpty {
-            rulesToUse = topLevelRuleToDiscover
+            topLevelRulesToDiscover = topLevelRuleToDiscover
         } else {
-            rulesToUse = TopLevelRuleType.allCases
+            topLevelRulesToDiscover = TopLevelRuleType.allCases
+        }
+        let dependencyRulesToDiscover: [DependencyRuleType]
+        if !dependencyRuleToDiscover.isEmpty {
+            dependencyRulesToDiscover = dependencyRuleToDiscover
+        } else {
+            dependencyRulesToDiscover = DependencyRuleType.allCases
         }
         let indexFlags = indexFlag.map { "--" + $0 }
         let targets: [String]
@@ -84,7 +97,7 @@ struct Serve: ParsableCommand {
                     contentsOf: try expandWildcardTargets(
                         bazelWrapper: bazelWrapper,
                         targets: targetsToExpand,
-                        topLevelRuleToDiscover: rulesToUse,
+                        topLevelRuleToDiscover: topLevelRulesToDiscover,
                         indexFlags: indexFlags
                     )
                 )
@@ -96,7 +109,7 @@ struct Serve: ParsableCommand {
             targets = try expandWildcardTargets(
                 bazelWrapper: bazelWrapper,
                 targets: ["..."],
-                topLevelRuleToDiscover: rulesToUse,
+                topLevelRuleToDiscover: topLevelRulesToDiscover,
                 indexFlags: indexFlags
             )
         }
@@ -107,7 +120,8 @@ struct Serve: ParsableCommand {
             indexFlags: indexFlags,
             filesToWatch: filesToWatch,
             compileTopLevel: compileTopLevel,
-            topLevelRulesToDiscover: rulesToUse
+            topLevelRulesToDiscover: topLevelRulesToDiscover,
+            dependencyRulesToDiscover: dependencyRulesToDiscover
         )
 
         logger.debug("Initializing BSP with targets: \(targets)")

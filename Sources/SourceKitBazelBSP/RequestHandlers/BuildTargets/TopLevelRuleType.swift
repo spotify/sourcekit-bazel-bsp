@@ -20,6 +20,7 @@
 import ArgumentParser
 
 /// The list of **top-level rules** we know how to process in the BSP.
+/// See also: SupportedExtension.swift, DependencyRuleType.swift
 public enum TopLevelRuleType: String, CaseIterable, ExpressibleByArgument, Sendable {
     case iosApplication = "ios_application"
     case iosAppClip = "ios_app_clip"

@@ -78,7 +78,7 @@ protocol BazelTargetQuerierParser: AnyObject {
         from data: Data,
         testBundleRules: [String],
         userProvidedTargets: [String],
-        supportedRuleKinds: [SupportedRuleKind],
+        supportedDependencyRuleTypes: [DependencyRuleType],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
         rootUri: String,
         executionRoot: String,
@@ -98,7 +98,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         from data: Data,
         testBundleRules: [String],
         userProvidedTargets: [String],
-        supportedRuleKinds: [SupportedRuleKind],
+        supportedDependencyRuleTypes: [DependencyRuleType],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
         rootUri: String,
         executionRoot: String,
@@ -113,7 +113,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 return !$0.rule.name.hasPrefix("@")
             }
 
-        let supportedRuleKindsSet = Set(supportedRuleKinds)
+        let supportedDependencyRuleTypesSet = Set(supportedDependencyRuleTypes)
         let testBundleRulesSet = Set(testBundleRules)
         var seenLabels = Set<String>()
         var seenSourceFiles = Set<String>()
@@ -276,7 +276,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 canDebug: false
             )
 
-            guard let ruleKind = SupportedRuleKind(rawValue: rule.ruleClass), supportedRuleKindsSet.contains(ruleKind) else {
+            guard let ruleType = DependencyRuleType(rawValue: rule.ruleClass), supportedDependencyRuleTypesSet.contains(ruleType) else {
                 // The cquery seems to pick up things that have the expected name somewhere within the string, like
                 // my_custom_swift_library. Ignore those
                 logger.warning("Skipping target \(rule.name, privacy: .public) with unexpected rule class: \(rule.ruleClass)")
@@ -289,7 +289,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 baseDirectory: baseDirectory,
                 tags: [.library],
                 capabilities: capabilities,
-                languageIds: [ruleKind.language],
+                languageIds: [ruleType.language],
                 dependencies: deps,
                 dataKind: .sourceKit,
                 data: try SourceKitBuildTarget(
