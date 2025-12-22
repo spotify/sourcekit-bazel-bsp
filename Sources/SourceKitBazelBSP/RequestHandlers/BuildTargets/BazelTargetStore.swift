@@ -89,8 +89,11 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         self.initializedConfig = initializedConfig
         self.bazelTargetQuerier = bazelTargetQuerier
         self.supportedDependencyRuleTypes = initializedConfig.baseConfig.dependencyRulesToDiscover
-        self.compileMnemonicsToFilter = Set(initializedConfig.baseConfig.dependencyRulesToDiscover.map { $0.compileMnemonic }).sorted()
-        self.topLevelMnemonicsToFilter = Set(initializedConfig.baseConfig.topLevelRulesToDiscover.map { $0.mmnemonic }).sorted()
+        self.compileMnemonicsToFilter = Set(
+            initializedConfig.baseConfig.dependencyRulesToDiscover.map { $0.compileMnemonic }
+        ).sorted()
+        self.topLevelMnemonicsToFilter = Set(initializedConfig.baseConfig.topLevelRulesToDiscover.map { $0.mmnemonic })
+            .sorted()
     }
 
     /// Returns true if the store has actually processed something.

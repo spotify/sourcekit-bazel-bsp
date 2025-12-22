@@ -276,10 +276,14 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 canDebug: false
             )
 
-            guard let ruleType = DependencyRuleType(rawValue: rule.ruleClass), supportedDependencyRuleTypesSet.contains(ruleType) else {
+            guard let ruleType = DependencyRuleType(rawValue: rule.ruleClass),
+                supportedDependencyRuleTypesSet.contains(ruleType)
+            else {
                 // The cquery seems to pick up things that have the expected name somewhere within the string, like
                 // my_custom_swift_library. Ignore those
-                logger.warning("Skipping target \(rule.name, privacy: .public) with unexpected rule class: \(rule.ruleClass)")
+                logger.warning(
+                    "Skipping target \(rule.name, privacy: .public) with unexpected rule class: \(rule.ruleClass). This can also happen if you used --dependency-rule-to-discover flag is set to filter this type."
+                )
                 continue
             }
 

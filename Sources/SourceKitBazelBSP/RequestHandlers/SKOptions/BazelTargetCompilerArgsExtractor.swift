@@ -86,7 +86,9 @@ final class BazelTargetCompilerArgsExtractor {
         case .swift:
             return .swiftModule
         case .c, .cpp, .objective_c, .objective_cpp:
-            if let pathExtension = uri.fileURL?.pathExtension, SupportedExtension(rawValue: pathExtension)?.kind == .header {
+            if let pathExtension = uri.fileURL?.pathExtension,
+                SupportedExtension(rawValue: pathExtension)?.kind == .header
+            {
                 return .cHeader
             }
             // Make the path relative, as this is what aquery will return

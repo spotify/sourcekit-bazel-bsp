@@ -48,11 +48,11 @@ enum SupportedExtension: String, CaseIterable {
     // Source: https://github.com/swiftlang/sourcekit-lsp/blob/7495f5532fdb17184d69518f46a207e596b26c64/Sources/LanguageServerProtocolExtensions/Language%2BInference.swift#L33
     var language: Language {
         switch self {
-            case .c: return .c
-            case .cpp, .cc, .cxx, .hpp: return .cpp
-            case .m: return .objective_c
-            case .mm, .h: return .objective_cpp
-            case .swift: return .swift
+        case .c: return .c
+        case .cpp, .cc, .cxx, .hpp: return .cpp
+        case .m: return .objective_c
+        case .mm, .h: return .objective_cpp
+        case .swift: return .swift
         }
     }
 }
