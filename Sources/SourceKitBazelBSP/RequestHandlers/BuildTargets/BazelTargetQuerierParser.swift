@@ -76,6 +76,7 @@ protocol BazelTargetQuerierParser: AnyObject {
         userProvidedTargets: [String],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
         rootUri: String,
+        executionRoot: String,
         toolchainPath: String,
     ) throws -> ProcessedCqueryResult
 
@@ -94,6 +95,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         userProvidedTargets: [String],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
         rootUri: String,
+        executionRoot: String,
         toolchainPath: String,
     ) throws -> ProcessedCqueryResult {
         let cquery = try BazelProtobufBindings.parseCqueryResult(data: data)
@@ -230,7 +232,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             )
         }
 
-        var result: [String: (BuildTarget, [URI])] = [:]
+        var result: [String: (BuildTarget, SourcesItem)] = [:]
         var dependencyGraph: [String: [String]] = [:]
         for target in dependencyTargets {
             guard target.type == .rule else {
@@ -239,10 +241,17 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             }
 
             let rule = target.rule
-            let id: URI = try rule.name.toTargetId(rootUri: rootUri)
+            let idUri: URI = try rule.name.toTargetId(rootUri: rootUri)
+            let id = BuildTargetIdentifier(uri: idUri)
             let baseDirectory: URI = try rule.name.toBaseDirectory(rootUri: rootUri)
 
-            let srcs = try processSrcsAttr(rule: rule, srcToUriMap: srcToUriMap)
+            let sourcesItem = try processSrcsAttr(
+                rule: rule,
+                targetId: id,
+                srcToUriMap: srcToUriMap,
+                rootUri: rootUri,
+                executionRoot: executionRoot
+            )
             let deps = try processDependenciesAttr(
                 rule: rule,
                 isBuildTestRule: false,
@@ -269,7 +278,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             }
 
             let buildTarget = BuildTarget(
-                id: BuildTargetIdentifier(uri: id),
+                id: id,
                 displayName: rule.name,
                 baseDirectory: baseDirectory,
                 tags: [.library],
@@ -281,7 +290,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                     toolchain: URI(string: "file://" + toolchainPath)
                 ).encodeToLSPAny()
             )
-            result[rule.name] = (buildTarget, srcs)
+            result[rule.name] = (buildTarget, sourcesItem)
         }
 
         // Determine which dependencies belong to which top-level targets.
@@ -307,7 +316,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 // If we don't know how to parse the full path to a target, we need to drop it.
                 // Otherwise we will not know how to properly communicate this target's capabilities to sourcekit-lsp.
                 logger.warning(
-                    "Skipping orphan target \(label, privacy: .public). This can happen if the target is a dependency of something we don't know how to parse."
+                    "Skipping orphan target \(label, privacy: .public). This can happen if the target is a dependency of a test host or of something we don't know how to parse."
                 )
                 result[label] = nil
             }
@@ -318,23 +327,23 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         )
 
         var bspURIsToBazelLabelsMap: [URI: String] = [:]
-        var bspURIsToSrcsMap: [URI: [URI]] = [:]
+        var bspURIsToSrcsMap: [URI: SourcesItem] = [:]
         var srcToBspURIsMap: [URI: [URI]] = [:]
         var availableBazelLabels: Set<String> = []
         var topLevelLabelToRuleMap: [String: TopLevelRuleType] = [:]
         for dependencyTargetInfo in buildTargets {
             let target = dependencyTargetInfo.value.0
-            let srcs = dependencyTargetInfo.value.1
+            let sourcesItem = dependencyTargetInfo.value.1
             guard let displayName = target.displayName else {
                 // Should not happen, but the property is an optional
                 continue
             }
             let uri = target.id.uri
             bspURIsToBazelLabelsMap[uri] = displayName
-            bspURIsToSrcsMap[uri] = srcs
+            bspURIsToSrcsMap[uri] = sourcesItem
             availableBazelLabels.insert(displayName)
-            for src in srcs {
-                srcToBspURIsMap[src, default: []].append(uri)
+            for src in sourcesItem.sources {
+                srcToBspURIsMap[src.uri, default: []].append(uri)
             }
         }
         for (target, ruleType) in topLevelTargets {
@@ -369,8 +378,11 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
 
     private func processSrcsAttr(
         rule: BlazeQuery_Rule,
+        targetId: BuildTargetIdentifier,
         srcToUriMap: [String: URI],
-    ) throws -> [URI] {
+        rootUri: String,
+        executionRoot: String
+    ) throws -> SourcesItem {
         let srcsAttribute = rule.attribute.first { $0.name == "srcs" }
         let srcs: [URI]
         if let attr = srcsAttribute {
@@ -390,7 +402,80 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         } else {
             srcs = []
         }
-        return srcs
+        return SourcesItem(
+            target: targetId,
+            sources: srcs.map {
+                buildSourceItem(
+                    forSrc: $0,
+                    rootUri: rootUri,
+                    executionRoot: executionRoot
+                )
+            }
+        )
+    }
+
+    private func buildSourceItem(
+        forSrc src: URI,
+        rootUri: String,
+        executionRoot: String
+    ) -> SourceItem {
+        let srcString = src.stringValue
+        let copyDestinations = srcCopyDestinations(for: src, rootUri: rootUri, executionRoot: executionRoot)
+        let kind: SourceKitSourceItemKind
+        if srcString.hasSuffix("h") {
+            kind = .header
+        } else {
+            kind = .source
+        }
+        let language: Language?
+        if srcString.hasSuffix("swift") {
+            language = .swift
+        } else if srcString.hasSuffix("m") || kind == .header {
+            language = .objective_c
+        } else {
+            language = nil
+        }
+        return SourceItem(
+            uri: src,
+            kind: .file,
+            generated: false,  // FIXME: Need to handle this properly
+            dataKind: .sourceKit,
+            data: SourceKitSourceItemData(
+                language: language,
+                kind: kind,
+                outputPath: nil,
+                copyDestinations: copyDestinations
+            ).encodeToLSPAny()
+        )
+    }
+
+    /// The path sourcekit-lsp has is the "real" path of the file,
+    /// but Bazel works by copying them over to the execroot.
+    /// This method calculates this fake path so that sourcekit-lsp can
+    /// map the file back to the original workspace path for features like jump to definition.
+    private func srcCopyDestinations(
+        for src: URI,
+        rootUri: String,
+        executionRoot: String
+    ) -> [DocumentURI]? {
+        guard let srcPath = src.fileURL?.path else {
+            return nil
+        }
+
+        guard srcPath.hasPrefix(rootUri) else {
+            return nil
+        }
+
+        var relativePath = srcPath.dropFirst(rootUri.count)
+        // Not sure how much we can assume about rootUri, so adding this as an edge-case check
+        if relativePath.first == "/" {
+            relativePath = relativePath.dropFirst()
+        }
+
+        let newPath = executionRoot + "/" + String(relativePath)
+        return [
+            DocumentURI(filePath: newPath, isDirectory: false)
+        ]
     }
 
     private func processDependenciesAttr(

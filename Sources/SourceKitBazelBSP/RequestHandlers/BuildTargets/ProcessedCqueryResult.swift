@@ -27,7 +27,7 @@ struct ProcessedCqueryResult {
     let buildTargets: [BuildTarget]
     let topLevelTargets: [(String, TopLevelRuleType)]
     let bspURIsToBazelLabelsMap: [URI: String]
-    let bspURIsToSrcsMap: [URI: [URI]]
+    let bspURIsToSrcsMap: [URI: SourcesItem]
     let srcToBspURIsMap: [URI: [URI]]
     let availableBazelLabels: Set<String>
     let topLevelLabelToRuleMap: [String: TopLevelRuleType]

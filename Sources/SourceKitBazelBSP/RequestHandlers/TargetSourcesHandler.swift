@@ -27,11 +27,9 @@ private let logger = makeFileLevelBSPLogger()
 ///
 /// Returns the sources for the provided target based on previously gathered information.
 final class TargetSourcesHandler {
-    private let initializedConfig: InitializedServerConfig
     private let targetStore: BazelTargetStore
 
-    init(initializedConfig: InitializedServerConfig, targetStore: BazelTargetStore) {
-        self.initializedConfig = initializedConfig
+    init(targetStore: BazelTargetStore) {
         self.targetStore = targetStore
     }
 
@@ -43,89 +41,13 @@ final class TargetSourcesHandler {
         logger.info("Fetching sources for \(targets.count, privacy: .public) targets")
 
         let srcs: [SourcesItem] = try targetStore.stateLock.withLockUnchecked {
-            var srcs: [SourcesItem] = []
-            for target in targets {
-                let targetSrcs = try targetStore.bazelTargetSrcs(forBSPURI: target.uri)
-                let sources = convertToSourceItems(targetSrcs)
-                srcs.append(SourcesItem(target: target, sources: sources))
-            }
-            return srcs
+            try targets.map { try targetStore.bazelTargetSrcs(forBSPURI: $0.uri) }
         }
 
-        let count = srcs.reduce(0) { $0 + $1.sources.count }
-
         logger.info(
-            "Returning \(srcs.count, privacy: .public) source specs (\(count, privacy: .public) total source entries)"
+            "Returning \(srcs.count, privacy: .public) source specs"
         )
 
         return BuildTargetSourcesResponse(items: srcs)
-    }
-
-    /// The path sourcekit-lsp has is the "real" path of the file,
-    /// but Bazel works by copying them over to the execroot.
-    /// This method calculates this fake path so that sourcekit-lsp can
-    /// map the file back to the original workspace path for features like jump to definition.
-    /// FIXME: SourceKit-LSP has a config for defining this statically, but I couldn't figure out
-    /// how to make it work. If we do, we can drop this logic and the FIXME at BuildTargetsHandler.swift.
-    func computeCopyDestinations(for src: URI) -> [DocumentURI]? {
-        guard let srcPath = src.fileURL?.path else {
-            return nil
-        }
-
-        let rootUri = initializedConfig.rootUri
-
-        guard srcPath.hasPrefix(rootUri) else {
-            return nil
-        }
-
-        let execRoot = initializedConfig.executionRoot
-
-        var relativePath = srcPath.dropFirst(rootUri.count)
-        // Not sure how much we can assume about rootUri, so adding this as an edge-case check
-        if relativePath.first == "/" {
-            relativePath = relativePath.dropFirst()
-        }
-
-        let newPath = execRoot + "/" + String(relativePath)
-        return [
-            DocumentURI(filePath: newPath, isDirectory: false)
-        ]
-    }
-
-    func convertToSourceItems(_ targetSrcs: [URI]) -> [SourceItem] {
-        var result: [SourceItem] = []
-        for src in targetSrcs {
-            let srcString = src.stringValue
-            let copyDestinations = computeCopyDestinations(for: src)
-            let kind: SourceKitSourceItemKind
-            if srcString.hasSuffix("h") {
-                kind = .header
-            } else {
-                kind = .source
-            }
-            let language: Language?
-            if srcString.hasSuffix("swift") {
-                language = .swift
-            } else if srcString.hasSuffix("m") || kind == .header {
-                language = .objective_c
-            } else {
-                language = nil
-            }
-            result.append(
-                SourceItem(
-                    uri: src,
-                    kind: .file,
-                    generated: false,  // FIXME: Need to handle this properly
-                    dataKind: .sourceKit,
-                    data: SourceKitSourceItemData(
-                        language: language,
-                        kind: kind,
-                        outputPath: nil,
-                        copyDestinations: copyDestinations
-                    ).encodeToLSPAny()
-                )
-            )
-        }
-        return result
     }
 }

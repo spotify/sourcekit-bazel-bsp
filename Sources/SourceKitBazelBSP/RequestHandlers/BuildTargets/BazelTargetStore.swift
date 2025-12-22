@@ -33,7 +33,7 @@ protocol BazelTargetStore: AnyObject {
     var isInitialized: Bool { get }
     func fetchTargets() throws -> [BuildTarget]
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String
-    func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI]
+    func bazelTargetSrcs(forBSPURI uri: URI) throws -> SourcesItem
     func bspURIs(containingSrc src: URI) throws -> [URI]
     func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo
     func targetsAqueryForArgsExtraction() throws -> ProcessedAqueryResult
@@ -114,12 +114,12 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         return label
     }
 
-    /// Retrieves the list of registered source files for a given a BSP BuildTarget URI.
-    func bazelTargetSrcs(forBSPURI uri: URI) throws -> [URI] {
-        guard let srcs = cqueryResult?.bspURIsToSrcsMap[uri] else {
+    /// Retrieves the SourcesItem for a given a BSP BuildTarget URI.
+    func bazelTargetSrcs(forBSPURI uri: URI) throws -> SourcesItem {
+        guard let sourcesItem = cqueryResult?.bspURIsToSrcsMap[uri] else {
             throw BazelTargetStoreError.unknownBSPURI(uri)
         }
-        return srcs
+        return sourcesItem
     }
 
     /// Retrieves the list of BSP BuildTarget URIs that contain a given source file.
