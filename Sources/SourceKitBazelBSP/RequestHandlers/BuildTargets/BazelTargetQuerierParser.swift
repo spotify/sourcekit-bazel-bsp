@@ -265,7 +265,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 // The cquery seems to pick up things that have the expected name somewhere within the string, like
                 // my_custom_swift_library. Ignore those
                 logger.warning(
-                    "Skipping target \(rule.name, privacy: .public) with unexpected rule class: \(rule.ruleClass). This can also happen if you used --dependency-rule-to-discover flag is set to filter this type."
+                    "Skipping target \(rule.name, privacy: .public) with unexpected rule class: \(rule.ruleClass). This can also happen if the BSP was configured to filter this type."
                 )
                 continue
             }
@@ -309,7 +309,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 // If we don't know how to parse the full path to a target, we need to drop it.
                 // Otherwise we will not know how to properly communicate this target's capabilities to sourcekit-lsp.
                 logger.warning(
-                    "Skipping orphan target \(label, privacy: .public). This can happen if the target is a dependency of a test host or of something we don't know how to parse."
+                    "Skipping orphan target \(label, privacy: .public). This can happen if the target is a dependency of a test host, of something we don't know how to parse, or if the BSP was configured to filter this target's parent(s)."
                 )
                 result[label] = nil
             }
