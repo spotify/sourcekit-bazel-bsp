@@ -35,25 +35,12 @@ struct BazelTargetQuerierParserImplTests {
     func canProcessExampleCquery() throws {
         let parser = BazelTargetQuerierParserImpl()
 
-        // These details are meant to match the provided cquery pb example.
-        let userProvidedTargets = [
-            "//HelloWorld:HelloWorld",
-            "//HelloWorld:HelloWorldMacApp",
-            "//HelloWorld:HelloWorldMacCLIApp",
-            "//HelloWorld:HelloWorldMacTests",
-            "//HelloWorld:HelloWorldTests",
-            "//HelloWorld:HelloWorldWatchApp",
-            "//HelloWorld:HelloWorldWatchExtension",
-            "//HelloWorld:HelloWorldWatchTests",
-        ]
-
         let supportedTopLevelRuleTypes = TopLevelRuleType.allCases
         let testBundleRules = supportedTopLevelRuleTypes.compactMap { $0.testBundleRule }
 
         let result = try parser.processCquery(
             from: exampleCqueryOutput,
             testBundleRules: testBundleRules,
-            userProvidedTargets: userProvidedTargets,
             supportedDependencyRuleTypes: DependencyRuleType.allCases,
             supportedTopLevelRuleTypes: supportedTopLevelRuleTypes,
             rootUri: Self.mockRootUri,

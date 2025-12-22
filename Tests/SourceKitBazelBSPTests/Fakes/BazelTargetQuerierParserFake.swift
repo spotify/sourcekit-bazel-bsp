@@ -28,12 +28,11 @@ final class BazelTargetQuerierParserFake: BazelTargetQuerierParser {
     func processCquery(
         from data: Data,
         testBundleRules: [String],
-        userProvidedTargets: [String],
         supportedDependencyRuleTypes: [DependencyRuleType],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
         rootUri: String,
         executionRoot: String,
-        toolchainPath: String,
+        toolchainPath: String
     ) throws -> ProcessedCqueryResult {
         guard let mockCqueryResult else {
             unimplemented()

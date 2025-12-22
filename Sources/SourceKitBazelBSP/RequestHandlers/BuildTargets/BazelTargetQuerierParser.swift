@@ -34,7 +34,6 @@ enum BazelTargetQuerierParserError: Error, LocalizedError {
     case indexOutOfBounds(Int, Int)
     case unexpectedLanguageRule(String, String)
     case unexpectedTargetType(Int)
-    case unsupportedTopLevelTargetType(String, String, [TopLevelRuleType])
     case noTopLevelTargets([TopLevelRuleType])
     case missingPathExtension(String)
     case unexpectedFileExtension(String)
@@ -56,11 +55,6 @@ enum BazelTargetQuerierParserError: Error, LocalizedError {
         case .unexpectedLanguageRule(let target, let ruleClass):
             return "Could not determine \(target)'s language: Unexpected rule \(ruleClass)"
         case .unexpectedTargetType(let type): return "Parsed unexpected target type: \(type)"
-        case .unsupportedTopLevelTargetType(let target, let type, let supportedTypes):
-            return """
-                Unsupported top-level target type: '\(type)' for target: \
-                '\(target)' supported types: \(supportedTypes.map { $0.rawValue }.joined(separator: ", "))
-                """
         case .noTopLevelTargets(let rules):
             return """
                 No top-level targets found in the query of kind: \
@@ -77,7 +71,6 @@ protocol BazelTargetQuerierParser: AnyObject {
     func processCquery(
         from data: Data,
         testBundleRules: [String],
-        userProvidedTargets: [String],
         supportedDependencyRuleTypes: [DependencyRuleType],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
         rootUri: String,
@@ -97,7 +90,6 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
     func processCquery(
         from data: Data,
         testBundleRules: [String],
-        userProvidedTargets: [String],
         supportedDependencyRuleTypes: [DependencyRuleType],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
         rootUri: String,
@@ -158,22 +150,11 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         let supportedTopLevelRuleTypesSet = Set(supportedTopLevelRuleTypes)
         var topLevelTargets: [(BlazeQuery_Target, TopLevelRuleType)] = []
         var dependencyTargets: [BlazeQuery_Target] = []
-        // Convert the user's provided targets to full labels if needed, since this is what
-        // the cquery result will contain.
-        let userProvidedTargetsSet = Set(userProvidedTargets.map { $0.toFullLabel() })
         for target in allRules {
             let kind = target.rule.ruleClass
-            let name = target.rule.name
-            if userProvidedTargetsSet.contains(name) {
-                guard let topLevelRuleType = TopLevelRuleType(rawValue: kind),
-                    supportedTopLevelRuleTypesSet.contains(topLevelRuleType)
-                else {
-                    throw BazelTargetQuerierParserError.unsupportedTopLevelTargetType(
-                        name,
-                        kind,
-                        supportedTopLevelRuleTypes
-                    )
-                }
+            if let topLevelRuleType = TopLevelRuleType(rawValue: kind),
+                supportedTopLevelRuleTypesSet.contains(topLevelRuleType)
+            {
                 topLevelTargets.append((target, topLevelRuleType))
             } else {
                 dependencyTargets.append(target)

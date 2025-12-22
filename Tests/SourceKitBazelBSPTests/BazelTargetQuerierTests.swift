@@ -89,7 +89,7 @@ struct BazelTargetQuerierTests {
         let config = Self.makeInitializedConfig()
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"cc_library|objc_library|swift_library|alias|source file\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"swift_library|objc_library|cc_library|alias|source file\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleCqueryOutput)
 
         _ = try querier.cqueryTargets(
@@ -112,7 +112,7 @@ struct BazelTargetQuerierTests {
         let config = Self.makeInitializedConfig(targets: ["//HelloWorld", "//Tests"])
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld //Tests)) in   $topLevelTargets   union   kind(\"cc_library|objc_library|swift_library|alias|source file\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", set(//HelloWorld //Tests)) in   $topLevelTargets   union   kind(\"swift_library|objc_library|cc_library|alias|source file\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleCqueryOutput)
 
         _ = try querier.cqueryTargets(
@@ -136,13 +136,13 @@ struct BazelTargetQuerierTests {
 
         runnerMock.setResponse(
             for:
-                "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"swift_library|alias|source file\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto",
+                "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"swift_library|alias|source file\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto",
             cwd: Self.mockRootUri,
             response: exampleCqueryOutput
         )
         runnerMock.setResponse(
             for:
-                "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library|alias|source file\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto",
+                "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library|alias|source file\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto",
             cwd: Self.mockRootUri,
             response: exampleCqueryOutput
         )
@@ -178,7 +178,7 @@ struct BazelTargetQuerierTests {
         let config = Self.makeInitializedConfig()
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"cc_library|objc_library|swift_library|alias|source file|_watchos_internal_unit_test_bundle\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application|watchos_unit_test|_watchos_internal_unit_test_bundle\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"swift_library|objc_library|cc_library|alias|source file\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleCqueryOutput)
 
         _ = try querier.cqueryTargets(
