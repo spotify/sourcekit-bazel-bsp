@@ -77,6 +77,7 @@ struct InitializeHandlerTests {
                 == InitializedServerConfig(
                     baseConfig: baseConfig,
                     rootUri: rootUri,
+                    workspaceName: "_main",
                     outputBase: outputBase + "-sourcekit-bazel-bsp",
                     outputPath: outputPath,
                     devDir: devDir,

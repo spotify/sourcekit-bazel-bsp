@@ -63,6 +63,7 @@ struct BazelTargetQuerierTests {
         return InitializedServerConfig(
             baseConfig: baseConfig,
             rootUri: mockRootUri,
+            workspaceName: "_main",
             outputBase: "/path/to/output/base",
             outputPath: "/path/to/output/path",
             devDir: "/path/to/dev/dir",

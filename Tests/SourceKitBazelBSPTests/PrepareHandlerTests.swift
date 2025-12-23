@@ -43,6 +43,7 @@ struct PrepareHandlerTests {
         let initializedConfig = InitializedServerConfig(
             baseConfig: baseConfig,
             rootUri: "/path/to/project",
+            workspaceName: "_main",
             outputBase: "/tmp/output_base",
             outputPath: "/tmp/output_path",
             devDir: "/Applications/Xcode.app/Contents/Developer",

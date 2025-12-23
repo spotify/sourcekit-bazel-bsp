@@ -143,6 +143,7 @@ final class BazelTargetQuerier {
             supportedDependencyRuleTypes: supportedDependencyRuleTypes,
             supportedTopLevelRuleTypes: supportedTopLevelRuleTypes,
             rootUri: config.rootUri,
+            workspaceName: config.workspaceName,
             executionRoot: config.executionRoot,
             toolchainPath: config.devToolchainPath,
         )

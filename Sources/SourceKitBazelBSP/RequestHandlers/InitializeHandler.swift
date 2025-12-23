@@ -109,6 +109,10 @@ final class InitializeHandler {
         )
         logger.debug("executionRoot: \(executionRoot, privacy: .public)")
 
+        // The workspace name is the last component of the execution root path.
+        let workspaceName = URL(fileURLWithPath: executionRoot).lastPathComponent
+        logger.debug("workspaceName: \(workspaceName, privacy: .public)")
+
         // Collecting the rest of the env's details
         let devDir: String = try commandRunner.run("xcode-select --print-path")
         let xcodeVersion: String = try commandRunner.run(
@@ -125,6 +129,7 @@ final class InitializeHandler {
         return InitializedServerConfig(
             baseConfig: baseConfig,
             rootUri: rootUri,
+            workspaceName: workspaceName,
             outputBase: outputBase,
             outputPath: outputPath,
             devDir: devDir,
