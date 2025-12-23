@@ -42,11 +42,6 @@ EOF
 ADDITIONAL_FLAGS+=("--remote_download_regex=.*\.indexstore/.*|.*\.(a|cfg|c|C|cc|cl|cpp|cu|cxx|c++|def|h|H|hh|hpp|hxx|h++|hmap|ilc|inc|inl|ipp|tcc|tlh|tli|tpp|m|modulemap|mm|pch|swift|swiftdoc|swiftmodule|swiftsourceinfo|yaml)$")
 ADDITIONAL_FLAGS+=("--@build_bazel_rules_apple//apple/build_settings:ios_device=${SIMULATOR_INFO}")
 
-BAZEL_APPLE_PREFER_PERSISTENT_SIMS=1 \
-BAZEL_APPLE_LAUNCH_INFO_PATH="${LAUNCH_INFO_JSON}" \
-BAZEL_SIMCTL_LAUNCH_FLAGS="--wait-for-debugger --stdout=$(tty) --stderr=$(tty)" \
-run_bazel "run"
-
 # Remove the default lldbinit file created by rules_xcodeproj if it exists.
 # This prevents Xcode details from leaking over to our builds.
 # It's safe to delete this because rules_xcodeproj creates it on every build.
@@ -56,17 +51,7 @@ if [ -f "${RULES_XCODEPROJ_LLDBINIT_FILE}" ]; then
   rm -f "${RULES_XCODEPROJ_LLDBINIT_FILE}" || true
 fi
 
-PID=$(jq -r '.pid' "${LAUNCH_INFO_JSON}")
-
-if [ -z "${PID}" ]; then
-  emit_launcher_error "No PID found in ${LAUNCH_INFO_JSON}"
-fi
-
-# Note: This string is hardcoded in tasks.json file to launch LLDB-DAP.
-echo "Launched with PID: ${PID}"
-
-# Keep the terminal alive until the app is killed.
-# FIXME: This is only necessary because I couldn't figure out how to make the app's output
-# show up on the dedicated debug console. So we need to keep this script alive and
-# display it here in the meantime.
-lsof -p ${PID} +r 1 &>/dev/null
+BAZEL_APPLE_PREFER_PERSISTENT_SIMS=1 \
+BAZEL_APPLE_LAUNCH_INFO_PATH="${LAUNCH_INFO_JSON}" \
+BAZEL_SIMCTL_LAUNCH_FLAGS="--wait-for-debugger --console-pty" \
+run_bazel "run"

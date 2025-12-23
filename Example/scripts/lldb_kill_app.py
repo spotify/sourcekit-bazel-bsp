@@ -9,4 +9,7 @@ from lldb_common import load_launch_info
 
 launch_info = load_launch_info()
 debug_pid = int(launch_info["pid"])
-os.kill(debug_pid, signal.SIGKILL)
+try:
+    os.kill(debug_pid, signal.SIGKILL)
+except Exception:
+    pass
