@@ -38,7 +38,7 @@ The next step is to integrate sourcekit-bazel-bsp with your project:
 - Add sourcekit-bazel-bsp as a dependency on your `MODULE.bazel` file:
 
 ```python
-bazel_dep(name = "sourcekit_bazel_bsp", version = "0.4.2", repo_name = "sourcekit_bazel_bsp")
+bazel_dep(name = "sourcekit_bazel_bsp", version = "0.5.0", repo_name = "sourcekit_bazel_bsp")
 ```
 
 - Define a `setup_sourcekit_bsp` rule in a BUILD.bazel file of your choice and [configure it](rules/setup_sourcekit_bsp.bzl#L77) for your desired setup:

@@ -1,4 +1,4 @@
-bazel_dep(name = "sourcekit_bazel_bsp", version = "0.4.2")
+bazel_dep(name = "sourcekit_bazel_bsp", version = "0.5.0")
 local_path_override(
     module_name = "sourcekit_bazel_bsp",
     path = "../",
