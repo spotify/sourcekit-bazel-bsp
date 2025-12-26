@@ -61,6 +61,7 @@ struct BazelTargetQuerierParserImplTests {
         let macCLIAppLibUri = try URI(string: "file:///path/to/project/HelloWorld/MacCLIAppLib")
         let todoModelsUri = try URI(string: "file:///path/to/project/HelloWorld/TodoModels")
         let todoObjCSupportUri = try URI(string: "file:///path/to/project/HelloWorld/TodoObjCSupport")
+        let todoCSupport = try URI(string: "file:///path/to/project/HelloWorld/TodoCSupport")
         let watchAppLibUri = try URI(string: "file:///path/to/project/HelloWorld/WatchAppLib")
         let watchAppTestsLibUri = try URI(string: "file:///path/to/project/HelloWorld/WatchAppTestsLib")
 
@@ -125,7 +126,13 @@ struct BazelTargetQuerierParserImplTests {
             makeExpectedTarget(
                 uri: todoObjCSupportUri,
                 displayName: "//HelloWorld:TodoObjCSupport",
-                language: .objective_c
+                language: .objective_c,
+                dependencies: [todoCSupport]
+            ),
+            makeExpectedTarget(
+                uri: todoCSupport,
+                displayName: "//HelloWorld:TodoCSupport",
+                language: .cpp
             ),
             makeExpectedTarget(
                 uri: watchAppLibUri,
@@ -138,7 +145,29 @@ struct BazelTargetQuerierParserImplTests {
                 dependencies: [watchAppLibUri]
             ),
         ]
-        #expect(result.buildTargets == expectedBuildTargets)
+        #expect(result.buildTargets.count == expectedBuildTargets.count)
+
+        // Build a lookup map for actual targets by displayName
+        let actualTargetsByName = Dictionary(
+            uniqueKeysWithValues: result.buildTargets.compactMap { target -> (String, BuildTarget)? in
+                guard let name = target.displayName else { return nil }
+                return (name, target)
+            }
+        )
+
+        // Verify each expected target matches the actual target
+        for expected in expectedBuildTargets {
+            let displayName = try #require(expected.displayName)
+            let actual = try #require(actualTargetsByName[displayName], "Missing target: \(displayName)")
+
+            #expect(actual.id == expected.id, "ID mismatch for \(displayName)")
+            #expect(actual.displayName == expected.displayName, "displayName mismatch for \(displayName)")
+            #expect(actual.languageIds == expected.languageIds, "languageIds mismatch for \(displayName)")
+
+            let actualDeps = Set(actual.dependencies.map { $0.uri })
+            let expectedDeps = Set(expected.dependencies.map { $0.uri })
+            #expect(actualDeps == expectedDeps, "dependencies mismatch for \(displayName)")
+        }
 
         // Top level targets
         let expectedTopLevelTargets: [(String, TopLevelRuleType)] = [
@@ -181,92 +210,109 @@ struct BazelTargetQuerierParserImplTests {
                 macCLIAppLibUri: "//HelloWorld:MacCLIAppLib",
                 todoModelsUri: "//HelloWorld:TodoModels",
                 todoObjCSupportUri: "//HelloWorld:TodoObjCSupport",
+                todoCSupport: "//HelloWorld:TodoCSupport",
                 watchAppLibUri: "//HelloWorld:WatchAppLib",
                 watchAppTestsLibUri: "//HelloWorld:WatchAppTestsLib",
             ]
         )
 
-        #expect(result.bspURIsToSrcsMap.keys.count == 11)
-        #expect(result.srcToBspURIsMap.count == 17)
+        #expect(result.bspURIsToSrcsMap.keys.count == 12)
+        #expect(result.srcToBspURIsMap.count == 23)
 
-        // Bazel label to parents map - compare as sets since order may vary
-        #expect(result.bazelLabelToParentsMap.count == 11)
+        // Bazel label to parent config map - verify labels map to configs
+        #expect(result.bazelLabelToParentConfigMap.count == 20)
+
+        // Helper to get parent labels for a given label through the config mapping
+        func getParentLabels(for label: String) -> Set<String> {
+            guard let configHash = result.bazelLabelToParentConfigMap[label],
+                let parentLabels = result.configurationToTopLevelLabelsMap[configHash]
+            else {
+                return []
+            }
+            return Set(parentLabels)
+        }
+
         #expect(
-            Set(result.bazelLabelToParentsMap["//HelloWorld:ExpandedTemplate"] ?? [])
+            getParentLabels(for: "//HelloWorld:ExpandedTemplate")
                 == Set([
                     "//HelloWorld:HelloWorldTests",
                     "//HelloWorld:HelloWorld",
                 ])
         )
         #expect(
-            Set(result.bazelLabelToParentsMap["//HelloWorld:GeneratedDummy"] ?? [])
+            getParentLabels(for: "//HelloWorld:GeneratedDummy")
                 == Set([
                     "//HelloWorld:HelloWorldTests",
                     "//HelloWorld:HelloWorld",
                 ])
         )
         #expect(
-            Set(result.bazelLabelToParentsMap["//HelloWorld:HelloWorldLib"] ?? [])
+            getParentLabels(for: "//HelloWorld:HelloWorldLib")
                 == Set([
                     "//HelloWorld:HelloWorldTests",
                     "//HelloWorld:HelloWorld",
                 ])
         )
         #expect(
-            Set(result.bazelLabelToParentsMap["//HelloWorld:HelloWorldTestsLib"] ?? [])
+            getParentLabels(for: "//HelloWorld:HelloWorldTestsLib")
                 == Set([
-                    "//HelloWorld:HelloWorldTests"
+                    "//HelloWorld:HelloWorldTests",
+                    "//HelloWorld:HelloWorld",
                 ])
         )
         #expect(
-            Set(result.bazelLabelToParentsMap["//HelloWorld:MacAppLib"] ?? [])
+            getParentLabels(for: "//HelloWorld:MacAppLib")
                 == Set([
                     "//HelloWorld:HelloWorldMacTests",
-                    "//HelloWorld:HelloWorldMacApp",
-                ])
-        )
-        #expect(
-            Set(result.bazelLabelToParentsMap["//HelloWorld:MacAppTestsLib"] ?? [])
-                == Set([
-                    "//HelloWorld:HelloWorldMacTests"
-                ])
-        )
-        #expect(
-            Set(result.bazelLabelToParentsMap["//HelloWorld:MacCLIAppLib"] ?? [])
-                == Set([
-                    "//HelloWorld:HelloWorldMacCLIApp"
-                ])
-        )
-        #expect(
-            Set(result.bazelLabelToParentsMap["//HelloWorld:TodoModels"] ?? [])
-                == Set([
-                    "//HelloWorld:HelloWorldMacTests",
-                    "//HelloWorld:HelloWorldTests",
-                    "//HelloWorld:HelloWorld",
-                    "//HelloWorld:HelloWorldWatchExtension",
-                    "//HelloWorld:HelloWorldWatchTests",
                     "//HelloWorld:HelloWorldMacCLIApp",
                     "//HelloWorld:HelloWorldMacApp",
                 ])
         )
         #expect(
-            Set(result.bazelLabelToParentsMap["//HelloWorld:TodoObjCSupport"] ?? [])
+            getParentLabels(for: "//HelloWorld:MacAppTestsLib")
+                == Set([
+                    "//HelloWorld:HelloWorldMacTests",
+                    "//HelloWorld:HelloWorldMacCLIApp",
+                    "//HelloWorld:HelloWorldMacApp",
+                ])
+        )
+        #expect(
+            getParentLabels(for: "//HelloWorld:MacCLIAppLib")
+                == Set([
+                    "//HelloWorld:HelloWorldMacTests",
+                    "//HelloWorld:HelloWorldMacCLIApp",
+                    "//HelloWorld:HelloWorldMacApp",
+                ])
+        )
+        #expect(
+            getParentLabels(for: "//HelloWorld:TodoModels")
+                == Set([
+                    "//HelloWorld:HelloWorldMacTests",
+                    "//HelloWorld:HelloWorldMacCLIApp",
+                    "//HelloWorld:HelloWorldMacApp",
+                ])
+        )
+        #expect(
+            getParentLabels(for: "//HelloWorld:TodoObjCSupport")
                 == Set([
                     "//HelloWorld:HelloWorldTests",
                     "//HelloWorld:HelloWorld",
                 ])
         )
         #expect(
-            Set(result.bazelLabelToParentsMap["//HelloWorld:WatchAppLib"] ?? [])
+            getParentLabels(for: "//HelloWorld:WatchAppLib")
                 == Set([
                     "//HelloWorld:HelloWorldWatchExtension",
+                    "//HelloWorld:HelloWorldWatchApp",
                     "//HelloWorld:HelloWorldWatchTests",
                 ])
         )
         #expect(
-            Set(result.bazelLabelToParentsMap["//HelloWorld:WatchAppTestsLib"] ?? [])
+            getParentLabels(for: "//HelloWorld:WatchAppTestsLib")
                 == Set([
-                    "//HelloWorld:HelloWorldWatchTests"
+                    "//HelloWorld:HelloWorldWatchExtension",
+                    "//HelloWorld:HelloWorldWatchApp",
+                    "//HelloWorld:HelloWorldWatchTests",
                 ])
         )
     }

@@ -26,20 +26,12 @@ import Testing
 struct BazelProtobufBindingsTests {
     @Test("parses action graph from aquery protobuf output")
     func testBazelProtobuf_readBinaryData() throws {
-        guard let url = Bundle.module.url(forResource: "actions", withExtension: "pb") else {
-            Issue.record("actions.pb is not found in Resouces.")
-            return
-        }
-
-        guard let data = try? Data(contentsOf: url) else {
-            Issue.record("Fail to read actions.pb at url: \(url.path())")
-            return
-        }
-
-        guard let actionGraph = try? BazelProtobufBindings.parseActionGraph(data: data) else {
-            Issue.record("Fail to parse actions.pb")
-            return
-        }
+        let url = try #require(
+            Bundle.module.url(forResource: "actions", withExtension: "pb"),
+            "actions.pb is not found in Resources."
+        )
+        let data = try Data(contentsOf: url)
+        let actionGraph = try BazelProtobufBindings.parseActionGraph(data: data)
 
         let expected = [
             "//HelloWorld:HelloWorldLib",
@@ -55,23 +47,15 @@ struct BazelProtobufBindingsTests {
 
     @Test("testing compiler flags from action graph")
     func testBazelProtobuf_compilerArguments() throws {
-        guard let url = Bundle.module.url(forResource: "actions", withExtension: "pb") else {
-            Issue.record("actions.pb is not found in Resouces.")
-            return
-        }
-
-        guard let data = try? Data(contentsOf: url) else {
-            Issue.record("Fail to read actions.pb at url: \(url.path())")
-            return
-        }
-
-        guard let actionGraph = try? BazelProtobufBindings.parseActionGraph(data: data) else {
-            Issue.record("Fail to parse actions.pb")
-            return
-        }
+        let url = try #require(
+            Bundle.module.url(forResource: "actions", withExtension: "pb"),
+            "actions.pb is not found in Resources."
+        )
+        let data = try Data(contentsOf: url)
+        let actionGraph = try BazelProtobufBindings.parseActionGraph(data: data)
 
         // //HelloWorld:TodoModels -> targetID: 1
-        guard let action = actionGraph.actions.first(where: { $0.targetID == 1 }) else { return }
+        let action = try #require(actionGraph.actions.first(where: { $0.targetID == 1 }))
 
         let actual = action.arguments
         let expected = [

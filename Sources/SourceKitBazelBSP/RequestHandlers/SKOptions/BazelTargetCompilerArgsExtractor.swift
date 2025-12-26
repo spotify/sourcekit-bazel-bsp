@@ -321,6 +321,12 @@ extension BazelTargetCompilerArgsExtractor {
                 continue
             }
 
+            // Indexing doesn't seem to like this attribute
+            if arg == "-Xfrontend" && arg == "-const-gather-protocols-file" {
+                index += 4
+                continue
+            }
+
             // Skip -emit-const-values-path for now, this causes permission issues in bazel-out
             if arg == "-emit-const-values-path" {
                 index += 2

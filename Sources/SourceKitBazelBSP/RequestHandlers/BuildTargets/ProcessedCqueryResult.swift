@@ -30,5 +30,6 @@ struct ProcessedCqueryResult {
     let bspURIsToSrcsMap: [URI: SourcesItem]
     let srcToBspURIsMap: [URI: [URI]]
     let topLevelLabelToRuleMap: [String: TopLevelRuleType]
-    let bazelLabelToParentsMap: [String: [String]]
+    let configurationToTopLevelLabelsMap: [UInt32: [String]]
+    let bazelLabelToParentConfigMap: [String: UInt32]
 }

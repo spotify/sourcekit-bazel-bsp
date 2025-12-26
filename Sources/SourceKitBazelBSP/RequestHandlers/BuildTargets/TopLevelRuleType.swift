@@ -50,6 +50,8 @@ public enum TopLevelRuleType: String, CaseIterable, ExpressibleByArgument, Senda
     case visionosUiTest = "visionos_ui_test"
     case visionosBuildTest = "visionos_build_test"
 
+    /// The suffix that is added to the test rule name to get the bundle target name.
+    /// e.g. HelloWorldTests -> HelloWorldTests.__internal__.__test_bundle
     static var testBundleRuleSuffix: String {
         return ".__internal__.__test_bundle"
     }

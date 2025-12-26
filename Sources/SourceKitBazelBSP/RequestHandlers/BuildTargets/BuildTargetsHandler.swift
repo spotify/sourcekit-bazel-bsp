@@ -57,12 +57,6 @@ final class BuildTargetsHandler {
                     reply(.success(WorkspaceBuildTargetsResponse(targets: [])))
                 }
                 let result = try targetStore.fetchTargets()
-                logger.debug("Found \(result.count, privacy: .public) targets")
-                logger.logFullObjectInMultipleLogMessages(
-                    level: .debug,
-                    header: "Target list",
-                    result.map { $0.id.uri.stringValue }.joined(separator: ", "),
-                )
                 return result
             }
             connection?.finishTask(id: taskId, status: .ok)

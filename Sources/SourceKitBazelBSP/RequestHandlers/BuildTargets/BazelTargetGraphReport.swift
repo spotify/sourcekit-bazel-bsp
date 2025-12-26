@@ -26,17 +26,23 @@ struct BazelTargetGraphReport: Codable, Equatable {
     struct TopLevelTarget: Codable, Equatable {
         let label: String
         let ruleType: String
-        let platform: String
-        let minimumOsVersion: String
-        let cpuArch: String
         let isTest: Bool
+        let configId: UInt32
     }
 
     struct DependencyTarget: Codable, Equatable {
         let label: String
-        let parents: [String]
+        let configId: UInt32
+    }
+
+    struct Configuration: Codable, Equatable {
+        let id: UInt32
+        let platform: String
+        let minimumOsVersion: String
+        let cpuArch: String
     }
 
     let topLevelTargets: [TopLevelTarget]
     let dependencyTargets: [DependencyTarget]
+    let configurations: [Configuration]
 }

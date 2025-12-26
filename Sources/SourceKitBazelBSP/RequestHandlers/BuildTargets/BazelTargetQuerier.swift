@@ -94,9 +94,7 @@ final class BazelTargetQuerier {
         dependencyKindsFilter.append(contentsOf: testBundleRules)
 
         let topLevelKindsFilter = supportedTopLevelRuleTypes.map { $0.rawValue }
-
-        // Collect the top-level targets -> collect these targets' dependencies
-        let providedTargetsQuerySet = "set(\(userProvidedTargets.joined(separator: " ")))"
+        let topLevelDepsFilter = Self.queryDepsString(forTargets: userProvidedTargets)
 
         // Build exclusion clauses if filters are provided
         let topLevelExclusions = config.baseConfig.topLevelTargetsToExclude
@@ -110,7 +108,7 @@ final class BazelTargetQuerier {
             ? "" : " except set(\(dependencyExclusions.joined(separator: " ")))"
 
         let topLevelTargetsQuery = """
-            let topLevelTargets = kind("\(topLevelKindsFilter.joined(separator: "|"))", \(providedTargetsQuerySet))\(topLevelExceptClause) in \
+            let topLevelTargets = kind("\(topLevelKindsFilter.joined(separator: "|"))", \(topLevelDepsFilter))\(topLevelExceptClause) in \
               $topLevelTargets \
               union \
               (kind("\(dependencyKindsFilter.joined(separator: "|"))", deps($topLevelTargets))\(dependencyExceptClause))
