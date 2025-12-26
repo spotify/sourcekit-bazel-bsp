@@ -27,7 +27,6 @@ import struct os.OSAllocatedUnfairLock
 private let logger = makeFileLevelBSPLogger()
 
 enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
-    case invalidCUri(String)
     case invalidTarget(String)
     case sdkRootNotFound(String)
     case targetNotFound(String)
@@ -39,7 +38,6 @@ enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidCUri(let uri): return "Unexpected C-type URI missing root URI prefix: \(uri)"
         case .invalidTarget(let target): return "Expected to receive a build_test target, but got: \(target)"
         case .sdkRootNotFound(let sdk): return "sdkRootPath not found for \(sdk). Is it installed?"
         case .targetNotFound(let target): return "Target \(target) not found in the aquery output."
@@ -77,8 +75,13 @@ final class BazelTargetCompilerArgsExtractor {
     private let config: InitializedServerConfig
     private var argsCache = [String: [String]]()
 
+    private let localFilePrefix: String
+    private let externalFilePrefix: String
+
     init(config: InitializedServerConfig) {
         self.config = config
+        self.localFilePrefix = "file://" + config.rootUri + "/"
+        self.externalFilePrefix = "file://" + config.outputBase + "/"
     }
 
     func getParsingStrategy(for uri: URI, language: Language, targetUri: URI) throws -> ParsingStrategy {
@@ -93,11 +96,14 @@ final class BazelTargetCompilerArgsExtractor {
             }
             // Make the path relative, as this is what aquery will return
             let fullUri = uri.stringValue
-            let prefixToCut = "file://" + config.rootUri + "/"
-            guard fullUri.hasPrefix(prefixToCut) else {
-                throw BazelTargetCompilerArgsExtractorError.invalidCUri(fullUri)
+            let parsedFile: String
+            if fullUri.hasPrefix(self.localFilePrefix) {
+                parsedFile = String(fullUri.dropFirst(localFilePrefix.count))
+            } else if fullUri.hasPrefix(self.externalFilePrefix) {
+                parsedFile = String(fullUri.dropFirst(externalFilePrefix.count))
+            } else {
+                parsedFile = String(fullUri.dropFirst("file://".count))
             }
-            let parsedFile = String(fullUri.dropFirst(prefixToCut.count))
             if let xflag = language.xflag {
                 return .cImpl(parsedFile, xflag)
             }
@@ -190,7 +196,14 @@ final class BazelTargetCompilerArgsExtractor {
         fromAquery aquery: ProcessedAqueryResult,
         strategy: ParsingStrategy
     ) throws -> Analysis_Action {
-        let bazelTarget = platformInfo.label
+        let bazelTarget: String = {
+            let base = platformInfo.label
+            guard base.hasPrefix("@") else {
+                return base
+            }
+            // External labels show up as `@@` in the aquery.
+            return "@\(base)"
+        }()
         guard let target = aquery.targets[bazelTarget] else {
             throw BazelTargetCompilerArgsExtractorError.targetNotFound(bazelTarget)
         }

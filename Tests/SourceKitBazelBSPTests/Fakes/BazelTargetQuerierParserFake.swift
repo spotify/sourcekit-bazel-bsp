@@ -31,6 +31,7 @@ final class BazelTargetQuerierParserFake: BazelTargetQuerierParser {
         supportedDependencyRuleTypes: [DependencyRuleType],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
         rootUri: String,
+        workspaceName: String,
         executionRoot: String,
         toolchainPath: String
     ) throws -> ProcessedCqueryResult {

@@ -64,6 +64,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                 compileTopLevel: compileTopLevel
             ),
             rootUri: mockRootUri,
+            workspaceName: "_main",
             outputBase: mockOutputBase,
             outputPath: mockOutputPath,
             devDir: mockDevDir,
@@ -239,7 +240,7 @@ let expectedSwiftResult: [String] = [
     "-Xfrontend",
     "-const-gather-protocols-file",
     "-Xfrontend",
-    "/private/var/tmp/_bazel_user/hash123/external/rules_swift+/swift/toolchains/config/const_protocols_to_gather.json",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/external/rules_swift+/swift/toolchains/config/const_protocols_to_gather.json",
     "-DDEBUG",
     "-Onone",
     "-whole-module-optimization",

@@ -24,6 +24,7 @@ import Foundation
 struct InitializedServerConfig: Equatable {
     let baseConfig: BaseServerConfig
     let rootUri: String
+    let workspaceName: String
     let outputBase: String
     let outputPath: String
     let devDir: String

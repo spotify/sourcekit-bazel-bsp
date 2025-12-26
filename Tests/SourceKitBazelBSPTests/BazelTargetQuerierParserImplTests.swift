@@ -28,6 +28,7 @@ import Testing
 struct BazelTargetQuerierParserImplTests {
 
     private static let mockRootUri = "/path/to/project"
+    private static let mockWorkspaceName = "_main"
     private static let mockExecutionRoot = "/tmp/execroot/_main"
     private static let mockToolchainPath = "/path/to/toolchain"
 
@@ -44,23 +45,24 @@ struct BazelTargetQuerierParserImplTests {
             supportedDependencyRuleTypes: DependencyRuleType.allCases,
             supportedTopLevelRuleTypes: supportedTopLevelRuleTypes,
             rootUri: Self.mockRootUri,
+            workspaceName: Self.mockWorkspaceName,
             executionRoot: Self.mockExecutionRoot,
             toolchainPath: Self.mockToolchainPath
         )
 
         // Pre-create URIs
-        let baseDir = try URI(string: "file:///path/to/project/HelloWorld")
-        let expandedTemplateUri = try URI(string: "file:///path/to/project/HelloWorld___ExpandedTemplate")
-        let generatedDummyUri = try URI(string: "file:///path/to/project/HelloWorld___GeneratedDummy")
-        let helloWorldLibUri = try URI(string: "file:///path/to/project/HelloWorld___HelloWorldLib")
-        let helloWorldTestsLibUri = try URI(string: "file:///path/to/project/HelloWorld___HelloWorldTestsLib")
-        let macAppLibUri = try URI(string: "file:///path/to/project/HelloWorld___MacAppLib")
-        let macAppTestsLibUri = try URI(string: "file:///path/to/project/HelloWorld___MacAppTestsLib")
-        let macCLIAppLibUri = try URI(string: "file:///path/to/project/HelloWorld___MacCLIAppLib")
-        let todoModelsUri = try URI(string: "file:///path/to/project/HelloWorld___TodoModels")
-        let todoObjCSupportUri = try URI(string: "file:///path/to/project/HelloWorld___TodoObjCSupport")
-        let watchAppLibUri = try URI(string: "file:///path/to/project/HelloWorld___WatchAppLib")
-        let watchAppTestsLibUri = try URI(string: "file:///path/to/project/HelloWorld___WatchAppTestsLib")
+        let baseDir = try URI(string: "file:///path/to/project/HelloWorld/")
+        let expandedTemplateUri = try URI(string: "file:///path/to/project/HelloWorld/ExpandedTemplate")
+        let generatedDummyUri = try URI(string: "file:///path/to/project/HelloWorld/GeneratedDummy")
+        let helloWorldLibUri = try URI(string: "file:///path/to/project/HelloWorld/HelloWorldLib")
+        let helloWorldTestsLibUri = try URI(string: "file:///path/to/project/HelloWorld/HelloWorldTestsLib")
+        let macAppLibUri = try URI(string: "file:///path/to/project/HelloWorld/MacAppLib")
+        let macAppTestsLibUri = try URI(string: "file:///path/to/project/HelloWorld/MacAppTestsLib")
+        let macCLIAppLibUri = try URI(string: "file:///path/to/project/HelloWorld/MacCLIAppLib")
+        let todoModelsUri = try URI(string: "file:///path/to/project/HelloWorld/TodoModels")
+        let todoObjCSupportUri = try URI(string: "file:///path/to/project/HelloWorld/TodoObjCSupport")
+        let watchAppLibUri = try URI(string: "file:///path/to/project/HelloWorld/WatchAppLib")
+        let watchAppTestsLibUri = try URI(string: "file:///path/to/project/HelloWorld/WatchAppTestsLib")
 
         let expectedCapabilities = BuildTargetCapabilities(
             canCompile: true,
@@ -97,7 +99,7 @@ struct BazelTargetQuerierParserImplTests {
             makeExpectedTarget(
                 uri: helloWorldLibUri,
                 displayName: "//HelloWorld:HelloWorldLib",
-                dependencies: [expandedTemplateUri, generatedDummyUri, todoModelsUri, todoObjCSupportUri]
+                dependencies: [todoModelsUri, todoObjCSupportUri, expandedTemplateUri, generatedDummyUri]
             ),
             makeExpectedTarget(
                 uri: helloWorldTestsLibUri,
