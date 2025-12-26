@@ -17,18 +17,26 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import BuildServerProtocol
 import Foundation
-import LanguageServerProtocol
 
-private let logger = makeFileLevelBSPLogger()
+/// A report containing all parsed targets from the build graph.
+/// Written as JSON after buildTargets completes.
+struct BazelTargetGraphReport: Codable, Equatable {
 
-struct ProcessedCqueryResult {
-    let buildTargets: [BuildTarget]
-    let topLevelTargets: [(String, TopLevelRuleType)]
-    let bspURIsToBazelLabelsMap: [URI: String]
-    let bspURIsToSrcsMap: [URI: SourcesItem]
-    let srcToBspURIsMap: [URI: [URI]]
-    let topLevelLabelToRuleMap: [String: TopLevelRuleType]
-    let bazelLabelToParentsMap: [String: [String]]
+    struct TopLevelTarget: Codable, Equatable {
+        let label: String
+        let ruleType: String
+        let platform: String
+        let minimumOsVersion: String
+        let cpuArch: String
+        let isTest: Bool
+    }
+
+    struct DependencyTarget: Codable, Equatable {
+        let label: String
+        let parents: [String]
+    }
+
+    let topLevelTargets: [TopLevelTarget]
+    let dependencyTargets: [DependencyTarget]
 }

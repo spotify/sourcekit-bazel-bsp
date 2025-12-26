@@ -33,7 +33,6 @@ struct BazelTargetQuerierTests {
         bspURIsToBazelLabelsMap: [:],
         bspURIsToSrcsMap: [:],
         srcToBspURIsMap: [:],
-        availableBazelLabels: [],
         topLevelLabelToRuleMap: [:],
         bazelLabelToParentsMap: [:]
     )
