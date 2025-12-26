@@ -106,7 +106,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                 topLevelParentRuleType: .iosApplication,
                 topLevelParentConfig: helloWorldConfig
             ),
-            withStrategy: .cImpl("HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.m", "objective-c"),
+            withStrategy: .cImpl("HelloWorld/TodoObjCSupport/Sources/SKObjCUtils.m", "objective-c"),
         )
         #expect(result == expectedObjCResult)
     }
@@ -149,27 +149,78 @@ struct BazelTargetCompilerArgsExtractorTests {
     }
 
     @Test
-    func objCFilesRequireFullPath() throws {
+    func objCFilesRelativizeLocalPaths() throws {
         let extractor = Self.makeMockExtractor()
 
-        let error = #expect(throws: BazelTargetCompilerArgsExtractorError.self) {
-            try extractor.getParsingStrategy(
-                for: URI(
-                    filePath: "/random/wrong/prefix/HelloWorld/TodoObjCSupport/Sources/SomethingElse.m",
-                    isDirectory: false
-                ),
-                language: .objective_c,
-                targetUri: URI(
-                    filePath: "/target",
-                    isDirectory: false
-                )
+        // Local files (inside rootUri) should have the local prefix stripped
+        let strategy = try extractor.getParsingStrategy(
+            for: URI(
+                filePath: "/Users/user/Documents/demo-ios-project/HelloWorld/TodoObjCSupport/Sources/File.m",
+                isDirectory: false
+            ),
+            language: .objective_c,
+            targetUri: URI(
+                filePath: "/target",
+                isDirectory: false
             )
-        }
-
-        #expect(
-            error?.localizedDescription
-                == "Unexpected C-type URI missing root URI prefix: file:///random/wrong/prefix/HelloWorld/TodoObjCSupport/Sources/SomethingElse.m"
         )
+
+        guard case .cImpl(let path, let language) = strategy else {
+            Issue.record("Expected cImpl strategy but got \(strategy)")
+            return
+        }
+        #expect(path == "HelloWorld/TodoObjCSupport/Sources/File.m")
+        #expect(language == "objective-c")
+    }
+
+    @Test
+    func objCFilesRelativizeExternalPaths() throws {
+        let extractor = Self.makeMockExtractor()
+
+        // External files (inside outputBase) should have the external prefix stripped
+        let strategy = try extractor.getParsingStrategy(
+            for: URI(
+                filePath: "/private/var/tmp/_bazel_user/hash123/external/some_lib/Sources/File.m",
+                isDirectory: false
+            ),
+            language: .objective_c,
+            targetUri: URI(
+                filePath: "/target",
+                isDirectory: false
+            )
+        )
+
+        guard case .cImpl(let path, let language) = strategy else {
+            Issue.record("Expected cImpl strategy but got \(strategy)")
+            return
+        }
+        #expect(path == "external/some_lib/Sources/File.m")
+        #expect(language == "objective-c")
+    }
+
+    @Test
+    func objCFilesHandleUnknownPaths() throws {
+        let extractor = Self.makeMockExtractor()
+
+        // Files outside both prefixes should just have file:// stripped
+        let strategy = try extractor.getParsingStrategy(
+            for: URI(
+                filePath: "/random/unknown/path/File.m",
+                isDirectory: false
+            ),
+            language: .objective_c,
+            targetUri: URI(
+                filePath: "/target",
+                isDirectory: false
+            )
+        )
+
+        guard case .cImpl(let path, let language) = strategy else {
+            Issue.record("Expected cImpl strategy but got \(strategy)")
+            return
+        }
+        #expect(path == "/random/unknown/path/File.m")
+        #expect(language == "objective-c")
     }
 
     @Test
@@ -240,7 +291,7 @@ let expectedSwiftResult: [String] = [
     "-Xfrontend",
     "-const-gather-protocols-file",
     "-Xfrontend",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/external/rules_swift+/swift/toolchains/config/const_protocols_to_gather.json",
+    "/private/var/tmp/_bazel_user/hash123/external/rules_swift+/swift/toolchains/config/const_protocols_to_gather.json",
     "-DDEBUG",
     "-Onone",
     "-whole-module-optimization",
@@ -331,7 +382,7 @@ let expectedObjCResult: [String] = [
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin",
     "-MD",
     "-MF",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld/_objs/TodoObjCSupport/arc/SKDateDistanceCalculator.d",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld/_objs/TodoObjCSupport/arc/SKObjCUtils.d",
     "-DOS_IOS",
     "-fno-autolink",
     "-isysroot",
@@ -355,9 +406,9 @@ let expectedObjCResult: [String] = [
     "-D__DATE__=\"redacted\"",
     "-D__TIMESTAMP__=\"redacted\"",
     "-D__TIME__=\"redacted\"",
-    "HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.m",
+    "HelloWorld/TodoObjCSupport/Sources/SKObjCUtils.m",
     "-o",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld/_objs/TodoObjCSupport/arc/SKDateDistanceCalculator.o",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld/_objs/TodoObjCSupport/arc/SKObjCUtils.o",
     "-index-store-path",
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/_global_index_store",
     "-working-directory",

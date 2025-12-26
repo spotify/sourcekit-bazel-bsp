@@ -193,19 +193,21 @@ ios_application(
     families = ["iphone", "ipad"],
     infoplists = ["Resources/Info.plist"],
     minimum_os_version = IOS_MINIMUM_OS_VERSION,
+    watch_application = ":HelloWorldWatchApp",
     deps = [":HelloWorldLib"],
 )
 
 watchos_application(
     name = "HelloWorldWatchApp",
     bundle_id = "com.example.HelloWorld.Watch",
-    extensions = [":HelloWorldWatchExtension"],
+    extension = ":HelloWorldWatchExtension",
     infoplists = ["Resources/WatchApp-Info.plist"],
     minimum_os_version = WATCHOS_MINIMUM_OS_VERSION,
 )
 
 watchos_extension(
     name = "HelloWorldWatchExtension",
+    application_extension = True,
     bundle_id = "com.example.HelloWorld.Watch.extension",
     infoplists = ["Resources/WatchExt-Info.plist"],
     minimum_os_version = WATCHOS_MINIMUM_OS_VERSION,
