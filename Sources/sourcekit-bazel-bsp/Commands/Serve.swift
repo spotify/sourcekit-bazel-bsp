@@ -68,14 +68,14 @@ struct Serve: ParsableCommand {
     @Option(
         parsing: .singleValue,
         help:
-            "A target pattern to exclude when discovering top-level targets. Can be specified multiple times."
+            "A target pattern to exclude when discovering top-level targets. Can be specified multiple times. Wildcards are supported (e.g. //foo/...)."
     )
     var topLevelTargetToExclude: [String] = []
 
     @Option(
         parsing: .singleValue,
         help:
-            "A target pattern to exclude when discovering dependency targets. Can be specified multiple times."
+            "A target pattern to exclude when discovering dependency targets. Can be specified multiple times. Wildcards are supported (e.g. //foo/...)."
     )
     var dependencyTargetToExclude: [String] = []
 
