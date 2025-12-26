@@ -250,7 +250,11 @@ setup_sourcekit_bsp(
     files_to_watch = [
         "HelloWorld/**/*.swift",
         "HelloWorld/**/*.h",
-        "HelloWorld/**/*.m"
+        "HelloWorld/**/*.m",
+        "HelloWorld/**/*.mm",
+        "HelloWorld/**/*.c",
+        "HelloWorld/**/*.hpp",
+        "HelloWorld/**/*.cpp"
     ],
     index_flags = [
         "config=index_build",

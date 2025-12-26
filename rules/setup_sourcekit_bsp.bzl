@@ -22,6 +22,9 @@ def _setup_sourcekit_bsp_impl(ctx):
     for top_level_rule in ctx.attr.top_level_rules_to_discover:
         bsp_config_argv.append("--top-level-rule-to-discover")
         bsp_config_argv.append(top_level_rule)
+    for dependency_rule in ctx.attr.dependency_rules_to_discover:
+        bsp_config_argv.append("--dependency-rule-to-discover")
+        bsp_config_argv.append(dependency_rule)
     for target in ctx.attr.top_level_targets_to_exclude:
         bsp_config_argv.append("--top-level-target-to-exclude")
         bsp_config_argv.append(target)
@@ -123,12 +126,16 @@ setup_sourcekit_bsp = rule(
             doc = "A list of top-level rule types to discover targets for (e.g. 'ios_application', 'ios_unit_test'). If not specified, all supported top-level rule types will be used for target discovery.",
             default = [],
         ),
+        "dependency_rules_to_discover": attr.string_list(
+            doc = "A list of dependency rule types to discover targets for (e.g. 'swift_library', 'objc_library', 'cc_library'). If not specified, all supported dependency rule types will be used for target discovery.",
+            default = [],
+        ),
         "top_level_targets_to_exclude": attr.string_list(
-            doc = "A list of target patterns to exclude from top-level targets in the cquery.",
+            doc = "A list of target patterns to exclude from top-level targets in the cquery. Wildcards are supported (e.g. //foo/...).",
             default = [],
         ),
         "dependency_targets_to_exclude": attr.string_list(
-            doc = "A list of target patterns to exclude from dependency targets in the cquery.",
+            doc = "A list of target patterns to exclude from dependency targets in the cquery. Wildcards are supported (e.g. //foo/...).",
             default = [],
         ),
         "index_build_batch_size": attr.int(

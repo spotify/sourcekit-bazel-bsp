@@ -296,7 +296,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 depLabelToUriMap: depLabelToUriMap
             )
 
-            // These settings serve no particular purpose today. They are ignored by sourcekit-lsp.
+            // AFAIK these settings serve no particular purpose today and are ignored by sourcekit-lsp.
             let capabilities = BuildTargetCapabilities(
                 canCompile: true,
                 canTest: false,
@@ -304,11 +304,20 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 canDebug: false
             )
 
+            let isExternal = rule.name.hasPrefix("@")
+            let tags: [BuildTargetTag] = {
+                var tags: [BuildTargetTag] = [.library]
+                if isExternal {
+                    tags.append(.dependency)
+                }
+                return tags
+            }()
+
             let buildTarget = BuildTarget(
                 id: id,
                 displayName: rule.name,
                 baseDirectory: baseDirectory,
-                tags: [.library],
+                tags: tags,
                 capabilities: capabilities,
                 languageIds: [ruleType.language],
                 dependencies: deps,
