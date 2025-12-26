@@ -19,7 +19,8 @@
 
 import ArgumentParser
 
-// The list of **top-level rules** we know how to process in the BSP.
+/// The list of **top-level rules** we know how to process in the BSP.
+/// See also: SupportedExtension.swift, DependencyRuleType.swift
 public enum TopLevelRuleType: String, CaseIterable, ExpressibleByArgument, Sendable {
     case iosApplication = "ios_application"
     case iosAppClip = "ios_app_clip"
@@ -53,9 +54,23 @@ public enum TopLevelRuleType: String, CaseIterable, ExpressibleByArgument, Senda
         return ".__internal__.__test_bundle"
     }
 
-    // Some test rule types inject a bundle target between the rule and its dependencies.
-    // We need to keep track of them to be able to parse those rules properly.
-    // If the rule does not generate a bundle target, returns nil.
+    /// The mnemonic that assembles everything together in this rule.
+    /// This is used to find the correct variant of each library we need to parse.
+    var mmnemonic: String {
+        switch self {
+        case .iosApplication, .iosAppClip, .iosExtension, .iosUnitTest, .iosUiTest, .watchosApplication,
+            .watchosExtension, .watchosUnitTest, .watchosUiTest, .macosApplication, .macosExtension, .macosUnitTest,
+            .macosUiTest, .tvosApplication, .tvosExtension, .tvosUnitTest, .tvosUiTest, .visionosApplication,
+            .visionosExtension, .visionosUnitTest, .visionosUiTest:
+            return "BundleTreeApp"
+        case .iosBuildTest, .watchosBuildTest, .macosBuildTest, .tvosBuildTest, .visionosBuildTest: return "TestRunner"
+        case .macosCommandLineApplication: return "SignBinary"
+        }
+    }
+
+    /// Some test rule types inject a bundle target between the rule and its dependencies.
+    /// We need to keep track of them to be able to parse those rules properly.
+    /// If the rule does not generate a bundle target, returns nil.
     var testBundleRule: String? {
         switch self {
         case .iosUnitTest: return "_ios_internal_unit_test_bundle"

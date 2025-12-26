@@ -89,12 +89,12 @@ struct BazelTargetQuerierTests {
         let config = Self.makeInitializedConfig()
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"source file|swift_library|alias\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"cc_library|objc_library|swift_library|alias|source file\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleCqueryOutput)
 
         _ = try querier.cqueryTargets(
             config: config,
-            dependencyKinds: ["source file", "swift_library"],
+            supportedDependencyRuleTypes: DependencyRuleType.allCases,
             supportedTopLevelRuleTypes: [.iosApplication]
         )
 
@@ -112,12 +112,12 @@ struct BazelTargetQuerierTests {
         let config = Self.makeInitializedConfig(targets: ["//HelloWorld", "//Tests"])
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld //Tests)) in   $topLevelTargets   union   kind(\"objc_library|swift_library|alias\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld //Tests)) in   $topLevelTargets   union   kind(\"cc_library|objc_library|swift_library|alias|source file\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleCqueryOutput)
 
         _ = try querier.cqueryTargets(
             config: config,
-            dependencyKinds: ["objc_library", "swift_library"],
+            supportedDependencyRuleTypes: DependencyRuleType.allCases,
             supportedTopLevelRuleTypes: [.iosApplication]
         )
 
@@ -136,37 +136,37 @@ struct BazelTargetQuerierTests {
 
         runnerMock.setResponse(
             for:
-                "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"swift_library|alias\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto",
+                "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"swift_library|alias|source file\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto",
             cwd: Self.mockRootUri,
             response: exampleCqueryOutput
         )
         runnerMock.setResponse(
             for:
-                "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library|alias\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto",
+                "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"objc_library|alias|source file\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto",
             cwd: Self.mockRootUri,
             response: exampleCqueryOutput
         )
 
-        func run(dependencyKinds: [String]) throws {
+        func run(supportedDependencyRuleTypes: [DependencyRuleType]) throws {
             _ = try querier.cqueryTargets(
                 config: config,
-                dependencyKinds: dependencyKinds,
+                supportedDependencyRuleTypes: supportedDependencyRuleTypes,
                 supportedTopLevelRuleTypes: [.iosApplication]
             )
         }
 
-        try run(dependencyKinds: ["swift_library"])
-        try run(dependencyKinds: ["swift_library"])
+        try run(supportedDependencyRuleTypes: [.swiftLibrary])
+        try run(supportedDependencyRuleTypes: [.swiftLibrary])
         #expect(runnerMock.commands.count == 1)
 
         // Querying something else then results in a new command
-        try run(dependencyKinds: ["objc_library"])
+        try run(supportedDependencyRuleTypes: [.objcLibrary])
         #expect(runnerMock.commands.count == 2)
-        try run(dependencyKinds: ["objc_library"])
+        try run(supportedDependencyRuleTypes: [.objcLibrary])
         #expect(runnerMock.commands.count == 2)
 
         // But the original call is still cached
-        try run(dependencyKinds: ["swift_library"])
+        try run(supportedDependencyRuleTypes: [.swiftLibrary])
         #expect(runnerMock.commands.count == 2)
     }
 
@@ -178,12 +178,12 @@ struct BazelTargetQuerierTests {
         let config = Self.makeInitializedConfig()
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"source file|swift_library|alias|_watchos_internal_unit_test_bundle\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"rule\", set(//HelloWorld)) in   $topLevelTargets   union   kind(\"cc_library|objc_library|swift_library|alias|source file|_watchos_internal_unit_test_bundle\", deps($topLevelTargets))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleCqueryOutput)
 
         _ = try querier.cqueryTargets(
             config: config,
-            dependencyKinds: ["source file", "swift_library"],
+            supportedDependencyRuleTypes: DependencyRuleType.allCases,
             supportedTopLevelRuleTypes: [.iosApplication, .watchosUnitTest]
         )
 

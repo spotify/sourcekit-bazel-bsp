@@ -105,7 +105,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                 topLevelParentRuleType: .iosApplication,
                 topLevelParentConfig: helloWorldConfig
             ),
-            withStrategy: .objcImpl("HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.m"),
+            withStrategy: .cImpl("HelloWorld/TodoObjCSupport/Sources/SKDateDistanceCalculator.m", "objective-c"),
         )
         #expect(result == expectedObjCResult)
     }
@@ -122,7 +122,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                     topLevelParentRuleType: .iosApplication,
                     topLevelParentConfig: helloWorldConfig
                 ),
-                withStrategy: .objcImpl("HelloWorld/TodoObjCSupport/Sources/SomethingElse.m"),
+                withStrategy: .cImpl("HelloWorld/TodoObjCSupport/Sources/SomethingElse.m", "objective-c"),
             )
         }
         #expect(

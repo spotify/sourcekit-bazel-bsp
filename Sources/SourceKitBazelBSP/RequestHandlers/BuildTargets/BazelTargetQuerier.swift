@@ -69,10 +69,10 @@ final class BazelTargetQuerier {
     /// listing all of their dependencies and source files.
     func cqueryTargets(
         config: InitializedServerConfig,
-        dependencyKinds: [String],
+        supportedDependencyRuleTypes: [DependencyRuleType],
         supportedTopLevelRuleTypes: [TopLevelRuleType],
     ) throws -> ProcessedCqueryResult {
-        if dependencyKinds.isEmpty {
+        if supportedDependencyRuleTypes.isEmpty {
             throw BazelTargetQuerierError.noKinds
         }
         if supportedTopLevelRuleTypes.isEmpty {
@@ -84,12 +84,16 @@ final class BazelTargetQuerier {
             throw BazelTargetQuerierError.noTargets
         }
 
-        var kindsToFilterFor = dependencyKinds
+        var kindsToFilterFor = Set(supportedDependencyRuleTypes.map { $0.rawValue }).sorted()
 
         // We need to also use the `alias` mnemonic for this query to work properly.
         // This is because --output proto doesn't follow the aliases automatically,
         // so we need this info to do it ourselves.
         kindsToFilterFor.append("alias")
+
+        // Always fetch source information.
+        // FIXME: Need to also handle `generated file`
+        kindsToFilterFor.append("source file")
 
         // If we're searching for test rules, we need to also include their test bundle rules.
         // Otherwise we won't be able to map test dependencies back to their top level parents.
@@ -131,6 +135,7 @@ final class BazelTargetQuerier {
             from: output,
             testBundleRules: testBundleRules,
             userProvidedTargets: userProvidedTargets,
+            supportedDependencyRuleTypes: supportedDependencyRuleTypes,
             supportedTopLevelRuleTypes: supportedTopLevelRuleTypes,
             rootUri: config.rootUri,
             executionRoot: config.executionRoot,

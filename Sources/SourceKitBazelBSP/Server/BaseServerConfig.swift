@@ -31,6 +31,7 @@ package struct BaseServerConfig: Equatable {
     let filesToWatch: String?
     let compileTopLevel: Bool
     let topLevelRulesToDiscover: [TopLevelRuleType]
+    let dependencyRulesToDiscover: [DependencyRuleType]
 
     package init(
         bazelWrapper: String,
@@ -39,6 +40,7 @@ package struct BaseServerConfig: Equatable {
         filesToWatch: String?,
         compileTopLevel: Bool,
         topLevelRulesToDiscover: [TopLevelRuleType] = TopLevelRuleType.allCases,
+        dependencyRulesToDiscover: [DependencyRuleType] = DependencyRuleType.allCases,
     ) {
         self.bazelWrapper = bazelWrapper
         self.targets = targets
@@ -46,5 +48,6 @@ package struct BaseServerConfig: Equatable {
         self.filesToWatch = filesToWatch
         self.compileTopLevel = compileTopLevel
         self.topLevelRulesToDiscover = topLevelRulesToDiscover
+        self.dependencyRulesToDiscover = dependencyRulesToDiscover
     }
 }

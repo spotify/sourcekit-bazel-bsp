@@ -66,21 +66,6 @@ enum BazelTargetStoreError: Error, LocalizedError {
 /// Abstraction that can queries, processes, and stores the project's dependency graph and its files.
 /// Used by many of the requests to calculate and provide data about the project's targets.
 final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
-
-    // The list of kinds that provide compilation params that are used by the BSP.
-    // These are collected from the top-level targets that depend on them.
-    static let libraryKinds: [String] = ["swift_library", "objc_library"]
-    static let sourceFileKinds: [String] = ["source file"]
-
-    // The mnemonics representing compilation actions
-    static let compileMnemonics: [String] = ["SwiftCompile", "ObjcCompile", "CppCompile"]
-
-    // The mnemonics representing top-level rule actions
-    // - `BundleTreeApp` for finding bundling rules like `ios_unit_test`, `ios_application`
-    // - `SignBinary` for finding macOS CLI app rules like `macos_command_line_application`
-    // - `TestRunner` for finding build test rules like `ios_build_test`
-    static let topLevelMnemonics: [String] = ["BundleTreeApp", "SignBinary", "TestRunner"]
-
     // Users of BazelTargetStore are expected to acquire this lock before reading or writing any of the internal state.
     // This is to prevent race conditions between concurrent requests. It's easier to have each request handle critical sections
     // on their own instead of trying to solve it entirely within this class.
@@ -88,6 +73,10 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 
     private let initializedConfig: InitializedServerConfig
     private let bazelTargetQuerier: BazelTargetQuerier
+
+    private let supportedDependencyRuleTypes: [DependencyRuleType]
+    private let compileMnemonicsToFilter: [String]
+    private let topLevelMnemonicsToFilter: [String]
 
     private var cachedTargets: [BuildTarget]? = nil
     private var aqueryResult: ProcessedAqueryResult? = nil
@@ -99,6 +88,12 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
     ) {
         self.initializedConfig = initializedConfig
         self.bazelTargetQuerier = bazelTargetQuerier
+        self.supportedDependencyRuleTypes = initializedConfig.baseConfig.dependencyRulesToDiscover
+        self.compileMnemonicsToFilter = Set(
+            initializedConfig.baseConfig.dependencyRulesToDiscover.map { $0.compileMnemonic }
+        ).sorted()
+        self.topLevelMnemonicsToFilter = Set(initializedConfig.baseConfig.topLevelRulesToDiscover.map { $0.mmnemonic })
+            .sorted()
     }
 
     /// Returns true if the store has actually processed something.
@@ -201,7 +196,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         // And process the relation between these different targets and sources.
         let cqueryResult = try bazelTargetQuerier.cqueryTargets(
             config: initializedConfig,
-            dependencyKinds: Self.libraryKinds + Self.sourceFileKinds,
+            supportedDependencyRuleTypes: initializedConfig.baseConfig.dependencyRulesToDiscover,
             supportedTopLevelRuleTypes: initializedConfig.baseConfig.topLevelRulesToDiscover
         )
 
@@ -213,7 +208,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         let aqueryResult = try bazelTargetQuerier.aquery(
             topLevelTargets: cqueryResult.topLevelTargets,
             config: initializedConfig,
-            mnemonics: Self.compileMnemonics + Self.topLevelMnemonics
+            mnemonics: compileMnemonicsToFilter + topLevelMnemonicsToFilter
         )
 
         self.aqueryResult = aqueryResult

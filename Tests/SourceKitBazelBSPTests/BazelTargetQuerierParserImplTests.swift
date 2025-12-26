@@ -54,6 +54,7 @@ struct BazelTargetQuerierParserImplTests {
             from: exampleCqueryOutput,
             testBundleRules: testBundleRules,
             userProvidedTargets: userProvidedTargets,
+            supportedDependencyRuleTypes: DependencyRuleType.allCases,
             supportedTopLevelRuleTypes: supportedTopLevelRuleTypes,
             rootUri: Self.mockRootUri,
             executionRoot: Self.mockExecutionRoot,
@@ -81,159 +82,90 @@ struct BazelTargetQuerierParserImplTests {
             canDebug: false
         )
 
-        #expect(result.buildTargets.count == 11)
+        let toolchainUri = try URI(string: "file://" + Self.mockToolchainPath)
+        let expectedData = SourceKitBuildTarget(toolchain: toolchainUri).encodeToLSPAny()
 
-        // Target 0: ExpandedTemplate
-        #expect(result.buildTargets[0].id == BuildTargetIdentifier(uri: expandedTemplateUri))
-        #expect(result.buildTargets[0].displayName == "//HelloWorld:ExpandedTemplate")
-        #expect(result.buildTargets[0].baseDirectory == baseDir)
-        #expect(result.buildTargets[0].tags == [.library])
-        #expect(result.buildTargets[0].languageIds == [.swift])
-        #expect(result.buildTargets[0].dependencies == [])
-        #expect(result.buildTargets[0].capabilities == expectedCapabilities)
-        #expect(result.buildTargets[0].dataKind == .sourceKit)
+        func makeExpectedTarget(
+            uri: URI,
+            displayName: String,
+            language: Language = .swift,
+            dependencies: [URI] = []
+        ) -> BuildTarget {
+            BuildTarget(
+                id: BuildTargetIdentifier(uri: uri),
+                displayName: displayName,
+                baseDirectory: baseDir,
+                tags: [.library],
+                capabilities: expectedCapabilities,
+                languageIds: [language],
+                dependencies: dependencies.map { BuildTargetIdentifier(uri: $0) },
+                dataKind: .sourceKit,
+                data: expectedData
+            )
+        }
 
-        // Target 1: GeneratedDummy
-        #expect(result.buildTargets[1].id == BuildTargetIdentifier(uri: generatedDummyUri))
-        #expect(result.buildTargets[1].displayName == "//HelloWorld:GeneratedDummy")
-        #expect(result.buildTargets[1].baseDirectory == baseDir)
-        #expect(result.buildTargets[1].tags == [.library])
-        #expect(result.buildTargets[1].languageIds == [.swift])
-        #expect(result.buildTargets[1].dependencies == [])
-        #expect(result.buildTargets[1].capabilities == expectedCapabilities)
-        #expect(result.buildTargets[1].dataKind == .sourceKit)
-
-        // Target 2: HelloWorldLib
-        #expect(result.buildTargets[2].id == BuildTargetIdentifier(uri: helloWorldLibUri))
-        #expect(result.buildTargets[2].displayName == "//HelloWorld:HelloWorldLib")
-        #expect(result.buildTargets[2].baseDirectory == baseDir)
-        #expect(result.buildTargets[2].tags == [.library])
-        #expect(result.buildTargets[2].languageIds == [.swift])
-        #expect(
-            result.buildTargets[2].dependencies == [
-                BuildTargetIdentifier(uri: expandedTemplateUri),
-                BuildTargetIdentifier(uri: generatedDummyUri),
-                BuildTargetIdentifier(uri: todoModelsUri),
-                BuildTargetIdentifier(uri: todoObjCSupportUri),
-            ]
-        )
-        #expect(result.buildTargets[2].capabilities == expectedCapabilities)
-        #expect(result.buildTargets[2].dataKind == .sourceKit)
-
-        // Target 3: HelloWorldTestsLib
-        #expect(result.buildTargets[3].id == BuildTargetIdentifier(uri: helloWorldTestsLibUri))
-        #expect(result.buildTargets[3].displayName == "//HelloWorld:HelloWorldTestsLib")
-        #expect(result.buildTargets[3].baseDirectory == baseDir)
-        #expect(result.buildTargets[3].tags == [.library])
-        #expect(result.buildTargets[3].languageIds == [.swift])
-        #expect(
-            result.buildTargets[3].dependencies == [
-                BuildTargetIdentifier(uri: helloWorldLibUri)
-            ]
-        )
-        #expect(result.buildTargets[3].capabilities == expectedCapabilities)
-        #expect(result.buildTargets[3].dataKind == .sourceKit)
-
-        // Target 4: MacAppLib
-        #expect(result.buildTargets[4].id == BuildTargetIdentifier(uri: macAppLibUri))
-        #expect(result.buildTargets[4].displayName == "//HelloWorld:MacAppLib")
-        #expect(result.buildTargets[4].baseDirectory == baseDir)
-        #expect(result.buildTargets[4].tags == [.library])
-        #expect(result.buildTargets[4].languageIds == [.swift])
-        #expect(
-            result.buildTargets[4].dependencies == [
-                BuildTargetIdentifier(uri: todoModelsUri)
-            ]
-        )
-        #expect(result.buildTargets[4].capabilities == expectedCapabilities)
-        #expect(result.buildTargets[4].dataKind == .sourceKit)
-
-        // Target 5: MacAppTestsLib
-        #expect(result.buildTargets[5].id == BuildTargetIdentifier(uri: macAppTestsLibUri))
-        #expect(result.buildTargets[5].displayName == "//HelloWorld:MacAppTestsLib")
-        #expect(result.buildTargets[5].baseDirectory == baseDir)
-        #expect(result.buildTargets[5].tags == [.library])
-        #expect(result.buildTargets[5].languageIds == [.swift])
-        #expect(
-            result.buildTargets[5].dependencies == [
-                BuildTargetIdentifier(uri: macAppLibUri)
-            ]
-        )
-        #expect(result.buildTargets[5].capabilities == expectedCapabilities)
-        #expect(result.buildTargets[5].dataKind == .sourceKit)
-
-        // Target 6: MacCLIAppLib
-        #expect(result.buildTargets[6].id == BuildTargetIdentifier(uri: macCLIAppLibUri))
-        #expect(result.buildTargets[6].displayName == "//HelloWorld:MacCLIAppLib")
-        #expect(result.buildTargets[6].baseDirectory == baseDir)
-        #expect(result.buildTargets[6].tags == [.library])
-        #expect(result.buildTargets[6].languageIds == [.swift])
-        #expect(
-            result.buildTargets[6].dependencies == [
-                BuildTargetIdentifier(uri: todoModelsUri)
-            ]
-        )
-        #expect(result.buildTargets[6].capabilities == expectedCapabilities)
-        #expect(result.buildTargets[6].dataKind == .sourceKit)
-
-        // Target 7: TodoModels
-        #expect(result.buildTargets[7].id == BuildTargetIdentifier(uri: todoModelsUri))
-        #expect(result.buildTargets[7].displayName == "//HelloWorld:TodoModels")
-        #expect(result.buildTargets[7].baseDirectory == baseDir)
-        #expect(result.buildTargets[7].tags == [.library])
-        #expect(result.buildTargets[7].languageIds == [.swift])
-        #expect(result.buildTargets[7].dependencies == [])
-        #expect(result.buildTargets[7].capabilities == expectedCapabilities)
-        #expect(result.buildTargets[7].dataKind == .sourceKit)
-
-        // Target 8: TodoObjCSupport
-        #expect(result.buildTargets[8].id == BuildTargetIdentifier(uri: todoObjCSupportUri))
-        #expect(result.buildTargets[8].displayName == "//HelloWorld:TodoObjCSupport")
-        #expect(result.buildTargets[8].baseDirectory == baseDir)
-        #expect(result.buildTargets[8].tags == [.library])
-        #expect(result.buildTargets[8].languageIds == [.objective_c])
-        #expect(result.buildTargets[8].dependencies == [])
-        #expect(result.buildTargets[8].capabilities == expectedCapabilities)
-        #expect(result.buildTargets[8].dataKind == .sourceKit)
-
-        // Target 9: WatchAppLib
-        #expect(result.buildTargets[9].id == BuildTargetIdentifier(uri: watchAppLibUri))
-        #expect(result.buildTargets[9].displayName == "//HelloWorld:WatchAppLib")
-        #expect(result.buildTargets[9].baseDirectory == baseDir)
-        #expect(result.buildTargets[9].tags == [.library])
-        #expect(result.buildTargets[9].languageIds == [.swift])
-        #expect(
-            result.buildTargets[9].dependencies == [
-                BuildTargetIdentifier(uri: todoModelsUri)
-            ]
-        )
-        #expect(result.buildTargets[9].capabilities == expectedCapabilities)
-        #expect(result.buildTargets[9].dataKind == .sourceKit)
-
-        // Target 10: WatchAppTestsLib
-        #expect(result.buildTargets[10].id == BuildTargetIdentifier(uri: watchAppTestsLibUri))
-        #expect(result.buildTargets[10].displayName == "//HelloWorld:WatchAppTestsLib")
-        #expect(result.buildTargets[10].baseDirectory == baseDir)
-        #expect(result.buildTargets[10].tags == [.library])
-        #expect(result.buildTargets[10].languageIds == [.swift])
-        #expect(
-            result.buildTargets[10].dependencies == [
-                BuildTargetIdentifier(uri: watchAppLibUri)
-            ]
-        )
-        #expect(result.buildTargets[10].capabilities == expectedCapabilities)
-        #expect(result.buildTargets[10].dataKind == .sourceKit)
+        let expectedBuildTargets = [
+            makeExpectedTarget(uri: expandedTemplateUri, displayName: "//HelloWorld:ExpandedTemplate"),
+            makeExpectedTarget(uri: generatedDummyUri, displayName: "//HelloWorld:GeneratedDummy"),
+            makeExpectedTarget(
+                uri: helloWorldLibUri,
+                displayName: "//HelloWorld:HelloWorldLib",
+                dependencies: [expandedTemplateUri, generatedDummyUri, todoModelsUri, todoObjCSupportUri]
+            ),
+            makeExpectedTarget(
+                uri: helloWorldTestsLibUri,
+                displayName: "//HelloWorld:HelloWorldTestsLib",
+                dependencies: [helloWorldLibUri]
+            ),
+            makeExpectedTarget(
+                uri: macAppLibUri,
+                displayName: "//HelloWorld:MacAppLib",
+                dependencies: [todoModelsUri]
+            ),
+            makeExpectedTarget(
+                uri: macAppTestsLibUri,
+                displayName: "//HelloWorld:MacAppTestsLib",
+                dependencies: [macAppLibUri]
+            ),
+            makeExpectedTarget(
+                uri: macCLIAppLibUri,
+                displayName: "//HelloWorld:MacCLIAppLib",
+                dependencies: [todoModelsUri]
+            ),
+            makeExpectedTarget(uri: todoModelsUri, displayName: "//HelloWorld:TodoModels"),
+            makeExpectedTarget(
+                uri: todoObjCSupportUri,
+                displayName: "//HelloWorld:TodoObjCSupport",
+                language: .objective_c
+            ),
+            makeExpectedTarget(
+                uri: watchAppLibUri,
+                displayName: "//HelloWorld:WatchAppLib",
+                dependencies: [todoModelsUri]
+            ),
+            makeExpectedTarget(
+                uri: watchAppTestsLibUri,
+                displayName: "//HelloWorld:WatchAppTestsLib",
+                dependencies: [watchAppLibUri]
+            ),
+        ]
+        #expect(result.buildTargets == expectedBuildTargets)
 
         // Top level targets
-        #expect(result.topLevelTargets.count == 8)
-        #expect(result.topLevelTargets[0] == ("//HelloWorld:HelloWorldMacTests", .macosUnitTest))
-        #expect(result.topLevelTargets[1] == ("//HelloWorld:HelloWorldTests", .iosUnitTest))
-        #expect(result.topLevelTargets[2] == ("//HelloWorld:HelloWorld", .iosApplication))
-        #expect(result.topLevelTargets[3] == ("//HelloWorld:HelloWorldWatchExtension", .watchosExtension))
-        #expect(result.topLevelTargets[4] == ("//HelloWorld:HelloWorldWatchTests", .watchosUnitTest))
-        #expect(result.topLevelTargets[5] == ("//HelloWorld:HelloWorldMacCLIApp", .macosCommandLineApplication))
-        #expect(result.topLevelTargets[6] == ("//HelloWorld:HelloWorldMacApp", .macosApplication))
-        #expect(result.topLevelTargets[7] == ("//HelloWorld:HelloWorldWatchApp", .watchosApplication))
+        let expectedTopLevelTargets: [(String, TopLevelRuleType)] = [
+            ("//HelloWorld:HelloWorldMacTests", .macosUnitTest),
+            ("//HelloWorld:HelloWorldTests", .iosUnitTest),
+            ("//HelloWorld:HelloWorld", .iosApplication),
+            ("//HelloWorld:HelloWorldWatchExtension", .watchosExtension),
+            ("//HelloWorld:HelloWorldWatchTests", .watchosUnitTest),
+            ("//HelloWorld:HelloWorldMacCLIApp", .macosCommandLineApplication),
+            ("//HelloWorld:HelloWorldMacApp", .macosApplication),
+            ("//HelloWorld:HelloWorldWatchApp", .watchosApplication),
+        ]
+        #expect(result.topLevelTargets.count == expectedTopLevelTargets.count)
+        for (index, expected) in expectedTopLevelTargets.enumerated() {
+            #expect(result.topLevelTargets[index] == expected)
+        }
 
         // Available Bazel labels
         #expect(
@@ -254,18 +186,17 @@ struct BazelTargetQuerierParserImplTests {
         )
 
         // Top level label to rule map
-        #expect(
-            result.topLevelLabelToRuleMap == [
-                "//HelloWorld:HelloWorld": .iosApplication,
-                "//HelloWorld:HelloWorldMacApp": .macosApplication,
-                "//HelloWorld:HelloWorldMacCLIApp": .macosCommandLineApplication,
-                "//HelloWorld:HelloWorldMacTests": .macosUnitTest,
-                "//HelloWorld:HelloWorldTests": .iosUnitTest,
-                "//HelloWorld:HelloWorldWatchApp": .watchosApplication,
-                "//HelloWorld:HelloWorldWatchExtension": .watchosExtension,
-                "//HelloWorld:HelloWorldWatchTests": .watchosUnitTest,
-            ]
-        )
+        let expectedTopLevelLabelToRuleMap: [String: TopLevelRuleType] = [
+            "//HelloWorld:HelloWorld": .iosApplication,
+            "//HelloWorld:HelloWorldMacApp": .macosApplication,
+            "//HelloWorld:HelloWorldMacCLIApp": .macosCommandLineApplication,
+            "//HelloWorld:HelloWorldMacTests": .macosUnitTest,
+            "//HelloWorld:HelloWorldTests": .iosUnitTest,
+            "//HelloWorld:HelloWorldWatchApp": .watchosApplication,
+            "//HelloWorld:HelloWorldWatchExtension": .watchosExtension,
+            "//HelloWorld:HelloWorldWatchTests": .watchosUnitTest,
+        ]
+        #expect(result.topLevelLabelToRuleMap == expectedTopLevelLabelToRuleMap)
 
         // BSP URIs to Bazel Labels map
         #expect(

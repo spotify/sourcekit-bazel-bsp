@@ -31,14 +31,7 @@ final class WatchedFileChangeHandler {
     private var observers: [any InvalidatedTargetObserver]
     private weak var connection: LSPConnection?
 
-    private let supportedFileExtensions: Set<String> = [
-        "swift",
-        "h",
-        "m",
-        "mm",
-        "c",
-        "cpp",
-    ]
+    private let supportedFileExtensions: Set<String> = Set(SupportedExtension.allCases.map { $0.rawValue })
 
     init(
         targetStore: BazelTargetStore,
