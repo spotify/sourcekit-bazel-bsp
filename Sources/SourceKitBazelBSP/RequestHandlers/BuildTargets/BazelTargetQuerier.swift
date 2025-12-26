@@ -46,15 +46,11 @@ final class BazelTargetQuerier {
     private var aqueryCache = [String: ProcessedAqueryResult]()
 
     private static func queryDepsString(forTargets targets: [String]) -> String {
-        var query = ""
-        for target in targets {
-            if query == "" {
-                query = "deps(\(target))"
-            } else {
-                query += " union deps(\(target))"
-            }
-        }
-        return query
+        return unionString(forTargets: targets.map { "deps(\($0))" })
+    }
+
+    private static func unionString(forTargets targets: [String]) -> String {
+        return targets.joined(separator: " union ")
     }
 
     init(
@@ -84,30 +80,28 @@ final class BazelTargetQuerier {
             throw BazelTargetQuerierError.noTargets
         }
 
-        var kindsToFilterFor = Set(supportedDependencyRuleTypes.map { $0.rawValue }).sorted()
-
+        var dependencyKindsFilter = supportedDependencyRuleTypes.map { $0.rawValue }
         // We need to also use the `alias` mnemonic for this query to work properly.
         // This is because --output proto doesn't follow the aliases automatically,
         // so we need this info to do it ourselves.
-        kindsToFilterFor.append("alias")
-
+        dependencyKindsFilter.append("alias")
         // Always fetch source information.
         // FIXME: Need to also handle `generated file`
-        kindsToFilterFor.append("source file")
+        dependencyKindsFilter.append("source file")
 
+        var topLevelKindsFilter = supportedTopLevelRuleTypes.map { $0.rawValue }
         // If we're searching for test rules, we need to also include their test bundle rules.
         // Otherwise we won't be able to map test dependencies back to their top level parents.
         let testBundleRules = supportedTopLevelRuleTypes.compactMap { $0.testBundleRule }
-        kindsToFilterFor.append(contentsOf: testBundleRules)
+        topLevelKindsFilter.append(contentsOf: testBundleRules)
 
         // Collect the top-level targets -> collect these targets' dependencies
         let providedTargetsQuerySet = "set(\(userProvidedTargets.joined(separator: " ")))"
-        let dependencyKindsFilter = kindsToFilterFor.joined(separator: "|")
         let topLevelTargetsQuery = """
-            let topLevelTargets = kind("rule", \(providedTargetsQuerySet)) in \
+            let topLevelTargets = kind("\(topLevelKindsFilter.joined(separator: "|"))", \(providedTargetsQuerySet)) in \
               $topLevelTargets \
               union \
-              kind("\(dependencyKindsFilter)", deps($topLevelTargets))
+              kind("\(dependencyKindsFilter.joined(separator: "|"))", deps($topLevelTargets))
             """
 
         let cacheKey = "QUERY_TARGETS+\(topLevelTargetsQuery)"
@@ -134,7 +128,6 @@ final class BazelTargetQuerier {
         let processedCqueryResult = try parser.processCquery(
             from: output,
             testBundleRules: testBundleRules,
-            userProvidedTargets: userProvidedTargets,
             supportedDependencyRuleTypes: supportedDependencyRuleTypes,
             supportedTopLevelRuleTypes: supportedTopLevelRuleTypes,
             rootUri: config.rootUri,

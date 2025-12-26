@@ -68,51 +68,12 @@ struct Serve: ParsableCommand {
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
-        let topLevelRulesToDiscover: [TopLevelRuleType]
-        if !topLevelRuleToDiscover.isEmpty {
-            topLevelRulesToDiscover = topLevelRuleToDiscover
-        } else {
-            topLevelRulesToDiscover = TopLevelRuleType.allCases
-        }
-        let dependencyRulesToDiscover: [DependencyRuleType]
-        if !dependencyRuleToDiscover.isEmpty {
-            dependencyRulesToDiscover = dependencyRuleToDiscover
-        } else {
-            dependencyRulesToDiscover = DependencyRuleType.allCases
-        }
+        let topLevelRulesToDiscover: [TopLevelRuleType] =
+            topLevelRuleToDiscover.isEmpty ? TopLevelRuleType.allCases : topLevelRuleToDiscover
+        let dependencyRulesToDiscover: [DependencyRuleType] =
+            dependencyRuleToDiscover.isEmpty ? DependencyRuleType.allCases : dependencyRuleToDiscover
         let indexFlags = indexFlag.map { "--" + $0 }
-        let targets: [String]
-        if !target.isEmpty {
-            var expandedTargets = [String]()
-            var targetsToExpand = [String]()
-            for _target in target {
-                if _target.hasSuffix("...") {
-                    targetsToExpand.append(_target)
-                } else {
-                    expandedTargets.append(_target)
-                }
-            }
-            if !targetsToExpand.isEmpty {
-                expandedTargets.append(
-                    contentsOf: try expandWildcardTargets(
-                        bazelWrapper: bazelWrapper,
-                        targets: targetsToExpand,
-                        topLevelRuleToDiscover: topLevelRulesToDiscover,
-                        indexFlags: indexFlags
-                    )
-                )
-            }
-            targets = expandedTargets
-        } else {
-            // If the user provided no specific targets, try to discover them
-            // in the workspace.
-            targets = try expandWildcardTargets(
-                bazelWrapper: bazelWrapper,
-                targets: ["..."],
-                topLevelRuleToDiscover: topLevelRulesToDiscover,
-                indexFlags: indexFlags
-            )
-        }
+        let targets = target.isEmpty ? ["//..."] : target
 
         let config = BaseServerConfig(
             bazelWrapper: bazelWrapper,
@@ -128,30 +89,5 @@ struct Serve: ParsableCommand {
 
         let server = SourceKitBazelBSPServer(baseConfig: config)
         server.run()
-    }
-
-    private func expandWildcardTargets(
-        bazelWrapper: String,
-        targets: [String],
-        topLevelRuleToDiscover: [TopLevelRuleType],
-        indexFlags: [String]
-    ) throws -> [String] {
-        let targetsString = targets.joined(separator: ", ")
-        logger.warning(
-            "Will expand wildcard targets (\(targetsString, privacy: .public)). This can cause the BSP to perform poorly if we find too many targets. Prefer passing explicit targets via --targets if possible."
-        )
-        do {
-            return try BazelTargetDiscoverer.discoverTargets(
-                for: topLevelRuleToDiscover,
-                bazelWrapper: bazelWrapper,
-                locations: targets,
-                additionalFlags: indexFlags,
-            )
-        } catch {
-            logger.error(
-                "Failed to initialize server: Could not expand wildcard targets (\(targetsString, privacy: .public)). Please check your Bazel configuration or try specifying targets explicitly with `--target` instead. Failure: \(error, privacy: .public)"
-            )
-            throw error
-        }
     }
 }
