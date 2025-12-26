@@ -154,24 +154,6 @@ struct BazelTargetQuerierParserImplTests {
             #expect(result.topLevelTargets[index] == expected)
         }
 
-        // Available Bazel labels
-        #expect(
-            result.availableBazelLabels
-                == Set([
-                    "//HelloWorld:ExpandedTemplate",
-                    "//HelloWorld:GeneratedDummy",
-                    "//HelloWorld:HelloWorldLib",
-                    "//HelloWorld:HelloWorldTestsLib",
-                    "//HelloWorld:MacAppLib",
-                    "//HelloWorld:MacAppTestsLib",
-                    "//HelloWorld:MacCLIAppLib",
-                    "//HelloWorld:TodoModels",
-                    "//HelloWorld:TodoObjCSupport",
-                    "//HelloWorld:WatchAppLib",
-                    "//HelloWorld:WatchAppTestsLib",
-                ])
-        )
-
         // Top level label to rule map
         let expectedTopLevelLabelToRuleMap: [String: TopLevelRuleType] = [
             "//HelloWorld:HelloWorld": .iosApplication,

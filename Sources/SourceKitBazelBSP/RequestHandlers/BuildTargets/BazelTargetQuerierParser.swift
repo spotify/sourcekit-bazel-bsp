@@ -165,6 +165,8 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             throw BazelTargetQuerierParserError.noTopLevelTargets(supportedTopLevelRuleTypes)
         }
 
+        logger.logFullObjectInMultipleLogMessages(level: .info, header: "Top-level targets", String(topLevelTargets.map { $0.0.rule.name }.joined(separator: ", ")))
+
         // Start by pre-processing all of the provided source files into a map for quick lookup.
         var srcToUriMap: [String: URI] = [:]
         for target in allSrcs {
@@ -320,7 +322,6 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         var bspURIsToBazelLabelsMap: [URI: String] = [:]
         var bspURIsToSrcsMap: [URI: SourcesItem] = [:]
         var srcToBspURIsMap: [URI: [URI]] = [:]
-        var availableBazelLabels: Set<String> = []
         var topLevelLabelToRuleMap: [String: TopLevelRuleType] = [:]
         for dependencyTargetInfo in buildTargets {
             let target = dependencyTargetInfo.value.0
@@ -332,7 +333,6 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             let uri = target.id.uri
             bspURIsToBazelLabelsMap[uri] = displayName
             bspURIsToSrcsMap[uri] = sourcesItem
-            availableBazelLabels.insert(displayName)
             for src in sourcesItem.sources {
                 srcToBspURIsMap[src.uri, default: []].append(uri)
             }
@@ -348,7 +348,6 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             bspURIsToBazelLabelsMap: bspURIsToBazelLabelsMap,
             bspURIsToSrcsMap: bspURIsToSrcsMap,
             srcToBspURIsMap: srcToBspURIsMap,
-            availableBazelLabels: availableBazelLabels,
             topLevelLabelToRuleMap: topLevelLabelToRuleMap,
             bazelLabelToParentsMap: bazelLabelToParentsMap
         )

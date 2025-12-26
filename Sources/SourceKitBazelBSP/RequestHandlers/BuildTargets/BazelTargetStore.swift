@@ -77,6 +77,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
     private let supportedDependencyRuleTypes: [DependencyRuleType]
     private let compileMnemonicsToFilter: [String]
     private let topLevelMnemonicsToFilter: [String]
+    private let reportQueue = DispatchQueue(label: "com.spotify.sourcekit-bazel-bsp.bazel-target-store.report-queue")
 
     private var cachedTargets: [BuildTarget]? = nil
     private var aqueryResult: ProcessedAqueryResult? = nil
@@ -217,6 +218,13 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         let result = cqueryResult.buildTargets
         cachedTargets = result
 
+        reportQueue.async { [weak self] in
+            guard let self = self else { return }
+            let outputPath = self.initializedConfig.outputPath
+            let fileName = "sourcekit-bazel-bsp-graph.json"
+            self.writeReport(toPath: outputPath + "/" + fileName)
+        }
+
         return result
     }
 
@@ -225,5 +233,49 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         cachedTargets = nil
         aqueryResult = nil
         cqueryResult = nil
+    }
+}
+
+extension BazelTargetStoreImpl {
+    private func writeReport(toPath path: String) {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        do {
+            let report = try generateGraphReport()
+            let json = try encoder.encode(report)
+            try json.write(to: URL(fileURLWithPath: path), options: .atomic)
+            logger.info("Graph report written to \(path, privacy: .public)")
+        } catch {
+            logger.error("Failed to write graph report: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func generateGraphReport() throws -> BazelTargetGraphReport {
+        logger.info("Generating graph report")
+        var reportTopLevel: [BazelTargetGraphReport.TopLevelTarget] = []
+        let topLevelTargets = cqueryResult?.topLevelTargets ?? []
+        for (label, ruleType) in topLevelTargets {
+            let topLevelConfig = try topLevelConfigInfo(forBazelLabel: label)
+            reportTopLevel.append(
+                .init(
+                    label: label,
+                    ruleType: ruleType.rawValue,
+                    platform: topLevelConfig.platform,
+                    minimumOsVersion: topLevelConfig.minimumOsVersion,
+                    cpuArch: topLevelConfig.cpuArch,
+                    isTest: ruleType.testBundleRule != nil
+                )
+            )
+        }
+        var reportDependencies: [BazelTargetGraphReport.DependencyTarget] = []
+        let dependencyTargets = cqueryResult?.buildTargets.compactMap { $0.displayName } ?? []
+        for label in dependencyTargets {
+            let parents = try bazelLabelToParents(forBazelLabel: label)
+            reportDependencies.append(.init(label: label, parents: parents))
+        }
+        return BazelTargetGraphReport(
+            topLevelTargets: reportTopLevel,
+            dependencyTargets: reportDependencies
+        )
     }
 }
