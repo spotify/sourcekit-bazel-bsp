@@ -58,33 +58,13 @@ public enum TopLevelRuleType: String, CaseIterable, ExpressibleByArgument, Senda
     /// This is used to find the correct variant of each library we need to parse.
     var mmnemonic: String {
         switch self {
-        case .iosApplication: return "BundleTreeApp"
-        case .iosAppClip: return "BundleTreeApp"
-        case .iosExtension: return "BundleTreeApp"
-        case .iosUnitTest: return "BundleTreeApp"
-        case .iosUiTest: return "BundleTreeApp"
-        case .iosBuildTest: return "TestRunner"
-        case .watchosApplication: return "BundleTreeApp"
-        case .watchosExtension: return "BundleTreeApp"
-        case .watchosUnitTest: return "BundleTreeApp"
-        case .watchosUiTest: return "BundleTreeApp"
-        case .watchosBuildTest: return "TestRunner"
-        case .macosApplication: return "BundleTreeApp"
-        case .macosExtension: return "BundleTreeApp"
+        case .iosApplication, .iosAppClip, .iosExtension, .iosUnitTest, .iosUiTest, .watchosApplication,
+            .watchosExtension, .watchosUnitTest, .watchosUiTest, .macosApplication, .macosExtension, .macosUnitTest,
+            .macosUiTest, .tvosApplication, .tvosExtension, .tvosUnitTest, .tvosUiTest, .visionosApplication,
+            .visionosExtension, .visionosUnitTest, .visionosUiTest:
+            return "BundleTreeApp"
+        case .iosBuildTest, .watchosBuildTest, .macosBuildTest, .tvosBuildTest, .visionosBuildTest: return "TestRunner"
         case .macosCommandLineApplication: return "SignBinary"
-        case .macosUnitTest: return "BundleTreeApp"
-        case .macosUiTest: return "BundleTreeApp"
-        case .macosBuildTest: return "TestRunner"
-        case .tvosApplication: return "BundleTreeApp"
-        case .tvosExtension: return "BundleTreeApp"
-        case .tvosUnitTest: return "BundleTreeApp"
-        case .tvosUiTest: return "BundleTreeApp"
-        case .tvosBuildTest: return "TestRunner"
-        case .visionosApplication: return "BundleTreeApp"
-        case .visionosExtension: return "BundleTreeApp"
-        case .visionosUnitTest: return "BundleTreeApp"
-        case .visionosUiTest: return "BundleTreeApp"
-        case .visionosBuildTest: return "TestRunner"
         }
     }
 
