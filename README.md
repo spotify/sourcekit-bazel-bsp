@@ -78,9 +78,9 @@ If this is undesirable, you can pass the `--compile-top-level` flag to make the 
 
 ## Best Practices
 
-- When working with large apps, consider being more explicit about the task you're going to do. This means that instead of importing the _entire app at all times_, try to import only a small group of test targets that you think will be required to perform the task. This will greatly increase the performance of the IDE.
+- When working with large apps, consider being more explicit about the task you're going to do. This means that instead of importing the _entire app at all times_ or running wide-reaching wildcards like `//...`, try to import only a small group of test targets that you think will be required to perform the task. This will greatly increase the performance of the IDE.
+    - The BSP's many filtering arguments can be particularly useful for more complex cases.
     - For smaller apps, this doesn't make much difference and it should be fine to import the entire app.
-- Similarly, avoid wide-reaching wildcards like `//...`. Do so only at a smaller scale to avoid too many targets from being picked up.
 
 ## Troubleshooting
 

@@ -22,6 +22,12 @@ def _setup_sourcekit_bsp_impl(ctx):
     for top_level_rule in ctx.attr.top_level_rules_to_discover:
         bsp_config_argv.append("--top-level-rule-to-discover")
         bsp_config_argv.append(top_level_rule)
+    for target in ctx.attr.top_level_targets_to_exclude:
+        bsp_config_argv.append("--top-level-target-to-exclude")
+        bsp_config_argv.append(target)
+    for target in ctx.attr.dependency_targets_to_exclude:
+        bsp_config_argv.append("--dependency-target-to-exclude")
+        bsp_config_argv.append(target)
     files_to_watch = ",".join(ctx.attr.files_to_watch)
     if files_to_watch:
         bsp_config_argv.append("--files-to-watch")
@@ -115,6 +121,14 @@ setup_sourcekit_bsp = rule(
         ),
         "top_level_rules_to_discover": attr.string_list(
             doc = "A list of top-level rule types to discover targets for (e.g. 'ios_application', 'ios_unit_test'). If not specified, all supported top-level rule types will be used for target discovery.",
+            default = [],
+        ),
+        "top_level_targets_to_exclude": attr.string_list(
+            doc = "A list of target patterns to exclude from top-level targets in the cquery.",
+            default = [],
+        ),
+        "dependency_targets_to_exclude": attr.string_list(
+            doc = "A list of target patterns to exclude from dependency targets in the cquery.",
             default = [],
         ),
         "index_build_batch_size": attr.int(

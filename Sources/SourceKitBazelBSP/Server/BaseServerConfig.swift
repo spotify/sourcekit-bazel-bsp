@@ -32,6 +32,8 @@ package struct BaseServerConfig: Equatable {
     let compileTopLevel: Bool
     let topLevelRulesToDiscover: [TopLevelRuleType]
     let dependencyRulesToDiscover: [DependencyRuleType]
+    let topLevelTargetsToExclude: [String]
+    let dependencyTargetsToExclude: [String]
 
     package init(
         bazelWrapper: String,
@@ -41,6 +43,8 @@ package struct BaseServerConfig: Equatable {
         compileTopLevel: Bool,
         topLevelRulesToDiscover: [TopLevelRuleType] = TopLevelRuleType.allCases,
         dependencyRulesToDiscover: [DependencyRuleType] = DependencyRuleType.allCases,
+        topLevelTargetsToExclude: [String] = [],
+        dependencyTargetsToExclude: [String] = []
     ) {
         self.bazelWrapper = bazelWrapper
         self.targets = targets
@@ -49,5 +53,7 @@ package struct BaseServerConfig: Equatable {
         self.compileTopLevel = compileTopLevel
         self.topLevelRulesToDiscover = topLevelRulesToDiscover
         self.dependencyRulesToDiscover = dependencyRulesToDiscover
+        self.topLevelTargetsToExclude = topLevelTargetsToExclude
+        self.dependencyTargetsToExclude = dependencyTargetsToExclude
     }
 }

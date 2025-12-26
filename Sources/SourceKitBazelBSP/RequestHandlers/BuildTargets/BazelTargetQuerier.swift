@@ -97,11 +97,23 @@ final class BazelTargetQuerier {
 
         // Collect the top-level targets -> collect these targets' dependencies
         let providedTargetsQuerySet = "set(\(userProvidedTargets.joined(separator: " ")))"
+
+        // Build exclusion clauses if filters are provided
+        let topLevelExclusions = config.baseConfig.topLevelTargetsToExclude
+        let dependencyExclusions = config.baseConfig.dependencyTargetsToExclude
+
+        let topLevelExceptClause =
+            topLevelExclusions.isEmpty
+            ? "" : " except set(\(topLevelExclusions.joined(separator: " ")))"
+        let dependencyExceptClause =
+            dependencyExclusions.isEmpty
+            ? "" : " except set(\(dependencyExclusions.joined(separator: " ")))"
+
         let topLevelTargetsQuery = """
-            let topLevelTargets = kind("\(topLevelKindsFilter.joined(separator: "|"))", \(providedTargetsQuerySet)) in \
+            let topLevelTargets = kind("\(topLevelKindsFilter.joined(separator: "|"))", \(providedTargetsQuerySet))\(topLevelExceptClause) in \
               $topLevelTargets \
               union \
-              kind("\(dependencyKindsFilter.joined(separator: "|"))", deps($topLevelTargets))
+              (kind("\(dependencyKindsFilter.joined(separator: "|"))", deps($topLevelTargets))\(dependencyExceptClause))
             """
 
         let cacheKey = "QUERY_TARGETS+\(topLevelTargetsQuery)"

@@ -65,6 +65,20 @@ struct Serve: ParsableCommand {
     )
     var compileTopLevel: Bool = false
 
+    @Option(
+        parsing: .singleValue,
+        help:
+            "A target pattern to exclude when discovering top-level targets. Can be specified multiple times."
+    )
+    var topLevelTargetToExclude: [String] = []
+
+    @Option(
+        parsing: .singleValue,
+        help:
+            "A target pattern to exclude when discovering dependency targets. Can be specified multiple times."
+    )
+    var dependencyTargetToExclude: [String] = []
+
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
@@ -82,7 +96,9 @@ struct Serve: ParsableCommand {
             filesToWatch: filesToWatch,
             compileTopLevel: compileTopLevel,
             topLevelRulesToDiscover: topLevelRulesToDiscover,
-            dependencyRulesToDiscover: dependencyRulesToDiscover
+            dependencyRulesToDiscover: dependencyRulesToDiscover,
+            topLevelTargetsToExclude: topLevelTargetToExclude,
+            dependencyTargetsToExclude: dependencyTargetToExclude
         )
 
         logger.debug("Initializing BSP with targets: \(targets)")
