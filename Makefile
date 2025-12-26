@@ -15,3 +15,5 @@ release_source_archive:
 		--exclude=.swift-format \
 		--exclude=.editorconfig \
 		-zcf "archives/release.tar.gz" .
+	rm -f archives/sourcekit-bazel-bsp || true
+	cp .build/release/sourcekit-bazel-bsp archives/sourcekit-bazel-bsp
