@@ -44,7 +44,7 @@ bazel_dep(name = "sourcekit_bazel_bsp", version = "0.5.0", repo_name = "sourceki
 - Define a `setup_sourcekit_bsp` rule in a BUILD.bazel file of your choice and [configure it](rules/setup_sourcekit_bsp.bzl#L86) for your desired setup:
 
 ```python
-load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl", "sourcekit_bazel_bsp")
+load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl", "setup_sourcekit_bsp")
 
 setup_sourcekit_bsp(
   name = "setup_sourcekit_bsp",
