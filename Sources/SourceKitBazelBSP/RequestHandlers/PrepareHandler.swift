@@ -107,7 +107,8 @@ final class PrepareHandler {
                         platform: labelToBuild.topLevelParentConfig.platform,
                         cpuArch: labelToBuild.topLevelParentConfig.cpuArch,
                         devDir: initializedConfig.devDir,
-                        xcodeVersion: initializedConfig.xcodeVersion
+                        xcodeVersion: initializedConfig.xcodeVersion,
+                        appleSupportRepoName: initializedConfig.baseConfig.appleSupportRepoName
                     )
                     argsToLabelsMap[args, default: []].append(labelToBuild.label)
                 }
@@ -200,7 +201,8 @@ final class PrepareHandler {
         platform: String,
         cpuArch: String,
         devDir: String,
-        xcodeVersion: String
+        xcodeVersion: String,
+        appleSupportRepoName: String
     ) -> [String] {
         // As of writing, Bazel does not provides a "build X as if it were a child of Y" flag.
         // This means that to compile individual libraries accurately, we need to replicate
@@ -223,7 +225,7 @@ final class PrepareHandler {
             return "cpus"
         }()
         return [
-            "--platforms=@build_bazel_apple_support//platforms:\(friendlyPlatName)_\(cpuArch)",
+            "--platforms=@\(appleSupportRepoName)//platforms:\(friendlyPlatName)_\(cpuArch)",
             "--\(friendlyPlatName)_\(cpuFlagName)=\(cpuArch)",
             "--apple_platform_type=\(friendlyPlatName)",
             "--apple_split_cpu=\(cpuArch)",
