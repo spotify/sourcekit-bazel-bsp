@@ -79,6 +79,12 @@ struct Serve: AsyncParsableCommand {
     )
     var dependencyTargetToExclude: [String] = []
 
+    @Option(
+        help:
+            "The name of the apple_support external repository in your workspace. Change this if using a different name."
+    )
+    var appleSupportRepoName: String = "apple_support"
+
     func run() async throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
@@ -98,7 +104,8 @@ struct Serve: AsyncParsableCommand {
             topLevelRulesToDiscover: topLevelRulesToDiscover,
             dependencyRulesToDiscover: dependencyRulesToDiscover,
             topLevelTargetsToExclude: topLevelTargetToExclude,
-            dependencyTargetsToExclude: dependencyTargetToExclude
+            dependencyTargetsToExclude: dependencyTargetToExclude,
+            appleSupportRepoName: appleSupportRepoName
         )
 
         logger.debug("Initializing BSP with targets: \(targets)")

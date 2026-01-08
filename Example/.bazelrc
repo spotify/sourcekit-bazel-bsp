@@ -4,8 +4,8 @@ common --watchos_cpus=arm64
 
 # rules_swift flags migration
 # --swiftcopt and --host_swiftcopt are deprecated
-common --flag_alias=swiftcopt=@build_bazel_rules_swift//swift:copt
-common --flag_alias=host_swiftcopt=@build_bazel_rules_swift//swift:exec_copt
+common --flag_alias=swiftcopt=@rules_swift//swift:copt
+common --flag_alias=host_swiftcopt=@rules_swift//swift:exec_copt
 common --swiftcopt=-whole-module-optimization
 common --host_swiftcopt=-whole-module-optimization
 

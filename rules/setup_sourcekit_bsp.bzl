@@ -35,6 +35,9 @@ def _setup_sourcekit_bsp_impl(ctx):
     if files_to_watch:
         bsp_config_argv.append("--files-to-watch")
         bsp_config_argv.append(files_to_watch)
+    if ctx.attr.apple_support_repo_name:
+        bsp_config_argv.append("--apple-support-repo-name")
+        bsp_config_argv.append(ctx.attr.apple_support_repo_name)
     ctx.actions.expand_template(
         template = ctx.file._bsp_config_template,
         output = rendered_bsp_config,
@@ -155,6 +158,10 @@ setup_sourcekit_bsp = rule(
         "lsp_timeout": attr.int(
             doc = "A custom timeout value to provide to sourcekit-lsp when waiting for responses from the BSP.",
             mandatory = False,
+        ),
+        "apple_support_repo_name": attr.string(
+            doc = "The name of the apple_support external repository in your workspace. Change this if using a different name.",
+            default = "apple_support",
         ),
     },
 )
