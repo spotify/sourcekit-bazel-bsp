@@ -35,6 +35,9 @@ def _setup_sourcekit_bsp_impl(ctx):
     if files_to_watch:
         bsp_config_argv.append("--files-to-watch")
         bsp_config_argv.append(files_to_watch)
+    if ctx.attr.apple_support_repo_name:
+        bsp_config_argv.append("--apple-support-repo-name")
+        bsp_config_argv.append(ctx.attr.apple_support_repo_name)
     ctx.actions.expand_template(
         template = ctx.file._bsp_config_template,
         output = rendered_bsp_config,
@@ -145,6 +148,10 @@ setup_sourcekit_bsp = rule(
         "compile_top_level": attr.bool(
             doc = "Instead of attempting to build targets individually, build the top-level parent. If your project contains build_test targets for your individual libraries and you're passing them as the top-level targets for the BSP, you can use this flag to build those targets directly for better predictability and caching.",
             default = False,
+        ),
+        "apple_support_repo_name": attr.string(
+            doc = "The name of the apple_support external repository in your workspace. Change this if using a different name.",
+            default = "apple_support",
         ),
     },
 )
