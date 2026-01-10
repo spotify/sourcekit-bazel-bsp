@@ -39,9 +39,6 @@ struct AqueryResult: Hashable {
                 logger.error(
                     "Duplicate target found when aquerying (\(target.label))! This is unexpected. Will ignore the duplicate."
                 )
-                extensionLogger.error(
-                    "Duplicate target found when aquerying (\(target.label))! This is unexpected. Will ignore the duplicate."
-                )
             }
             result[target.label] = target
         }

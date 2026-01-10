@@ -19,17 +19,8 @@
 
 import * as vscode from "vscode";
 
-let outputChannel: vscode.OutputChannel | undefined;
-
-export function initLogger(): vscode.OutputChannel {
-    outputChannel = vscode.window.createOutputChannel("SourceKit Bazel BSP");
-    return outputChannel;
-}
-
-export function getOutputChannel(): vscode.OutputChannel | undefined {
-    return outputChannel;
-}
+const outputChannel = vscode.window.createOutputChannel("SourceKit Bazel BSP");
 
 export function log(message: string) {
-    outputChannel?.appendLine(message);
+    outputChannel.appendLine(message);
 }

@@ -20,16 +20,7 @@
 import Foundation
 import OSLog
 
-private let bspSubsystem = "com.spotify.sourcekit-bazel-bsp"
-
 /// Simple helper to create loggers under the `com.spotify.sourcekit-bazel-bsp` subsystem.
 package func makeFileLevelBSPLogger(withCategory category: String = #fileID) -> Logger {
-    Logger(subsystem: bspSubsystem, category: category)
+    Logger(subsystem: "com.spotify.sourcekit-bazel-bsp", category: category)
 }
-
-/// Logger specifically for messages intended to be shown in the VSCode extension.
-/// Use this for user-facing status updates, not internal debugging.
-///
-/// The extension filters for this category using:
-/// `log stream --process sourcekit-bazel-bsp --predicate 'category == "extension"'`
-package let extensionLogger = Logger(subsystem: bspSubsystem, category: "extension")

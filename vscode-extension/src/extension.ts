@@ -17,28 +17,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import * as vscode from "vscode";
-import { initLogger, log } from "./logger";
-import { LogStreamManager } from "./logStream";
+import { log } from "./logger";
 
-let logStreamManager: LogStreamManager | undefined;
-
-export function activate(context: vscode.ExtensionContext) {
-    const outputChannel = initLogger();
+export function activate() {
     log("Extension activated ✅");
-
-    // Start capturing BSP server logs
-    logStreamManager = new LogStreamManager(outputChannel);
-    logStreamManager.start();
-
-    context.subscriptions.push({
-        dispose: () => {
-            logStreamManager?.stop();
-        },
-    });
 }
 
 export function deactivate() {
-    logStreamManager?.stop();
-    logStreamManager = undefined;
+    log("Extension deactivated ❌");
 }

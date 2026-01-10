@@ -95,7 +95,6 @@ final class WatchedFileChangeHandler {
                     }
                 } catch {
                     logger.error("Error calculating deleted targets: \(error, privacy: .public)")
-                    extensionLogger.error("Error calculating deleted targets: \(error, privacy: .public)")
                     return []
                 }
             }()
@@ -136,7 +135,6 @@ final class WatchedFileChangeHandler {
                     }
                 } catch {
                     logger.error("Error calculating created targets: \(error, privacy: .public)")
-                    extensionLogger.error("Error calculating created targets: \(error, privacy: .public)")
                     return []
                 }
             }()

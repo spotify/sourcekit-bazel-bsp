@@ -8,26 +8,6 @@
             "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
             "outFiles": ["${workspaceFolder}/out/**/*.js"],
             "preLaunchTask": "npm: compile"
-        },
-        {
-            "type": "swift",
-            "request": "launch",
-            "args": [],
-            "cwd": "${workspaceFolder:vscode-extension}",
-            "name": "Debug sourcekit-bazel-bsp",
-            "target": "sourcekit-bazel-bsp",
-            "configuration": "debug",
-            "preLaunchTask": "swift: Build Debug sourcekit-bazel-bsp"
-        },
-        {
-            "type": "swift",
-            "request": "launch",
-            "args": [],
-            "cwd": "${workspaceFolder:vscode-extension}",
-            "name": "Release sourcekit-bazel-bsp",
-            "target": "sourcekit-bazel-bsp",
-            "configuration": "release",
-            "preLaunchTask": "swift: Build Release sourcekit-bazel-bsp"
         }
     ]
 }
