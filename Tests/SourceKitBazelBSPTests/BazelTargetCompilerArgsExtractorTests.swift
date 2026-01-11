@@ -32,11 +32,12 @@ struct BazelTargetCompilerArgsExtractorTests {
     let helloWorldConfig: BazelTargetConfigurationInfo
 
     init() throws {
+        let configId: UInt32 = 1
         let aqueryResult = try BazelTargetQuerierParserImpl().processAquery(
             from: exampleAqueryOutput,
-            topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication)]
+            topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication, configId)]
         )
-        self.helloWorldConfig = try #require(aqueryResult.topLevelLabelToConfigMap["//HelloWorld:HelloWorld"])
+        self.helloWorldConfig = try #require(aqueryResult.topLevelConfigIdToInfoMap[configId])
         self.aqueryResult = aqueryResult
     }
 

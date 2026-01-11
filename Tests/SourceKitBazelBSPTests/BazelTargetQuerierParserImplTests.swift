@@ -50,126 +50,109 @@ struct BazelTargetQuerierParserImplTests {
             toolchainPath: Self.mockToolchainPath
         )
 
-        // Pre-create URIs
-        let baseDir = try URI(string: "file:///path/to/project/HelloWorld/")
-        let expandedTemplateUri = try URI(string: "file:///path/to/project/HelloWorld/ExpandedTemplate")
-        let generatedDummyUri = try URI(string: "file:///path/to/project/HelloWorld/GeneratedDummy")
-        let helloWorldLibUri = try URI(string: "file:///path/to/project/HelloWorld/HelloWorldLib")
-        let helloWorldTestsLibUri = try URI(string: "file:///path/to/project/HelloWorld/HelloWorldTestsLib")
-        let macAppLibUri = try URI(string: "file:///path/to/project/HelloWorld/MacAppLib")
-        let macAppTestsLibUri = try URI(string: "file:///path/to/project/HelloWorld/MacAppTestsLib")
-        let macCLIAppLibUri = try URI(string: "file:///path/to/project/HelloWorld/MacCLIAppLib")
-        let todoModelsUri = try URI(string: "file:///path/to/project/HelloWorld/TodoModels")
-        let todoObjCSupportUri = try URI(string: "file:///path/to/project/HelloWorld/TodoObjCSupport")
-        let todoCSupport = try URI(string: "file:///path/to/project/HelloWorld/TodoCSupport")
-        let watchAppLibUri = try URI(string: "file:///path/to/project/HelloWorld/WatchAppLib")
-        let watchAppTestsLibUri = try URI(string: "file:///path/to/project/HelloWorld/WatchAppTestsLib")
-
-        let expectedCapabilities = BuildTargetCapabilities(
-            canCompile: true,
-            canTest: false,
-            canRun: false,
-            canDebug: false
-        )
-
-        let toolchainUri = try URI(string: "file://" + Self.mockToolchainPath)
-        let expectedData = SourceKitBuildTarget(toolchain: toolchainUri).encodeToLSPAny()
-
-        func makeExpectedTarget(
-            uri: URI,
-            displayName: String,
-            language: Language = .swift,
-            dependencies: [URI] = []
-        ) -> BuildTarget {
-            BuildTarget(
-                id: BuildTargetIdentifier(uri: uri),
-                displayName: displayName,
-                baseDirectory: baseDir,
-                tags: [.library],
-                capabilities: expectedCapabilities,
-                languageIds: [language],
-                dependencies: dependencies.map { BuildTargetIdentifier(uri: $0) },
-                dataKind: .sourceKit,
-                data: expectedData
-            )
+        // Expected target properties (language and dependency labels)
+        // Note: With multi-variant support, targets can appear multiple times with different configs.
+        // URIs now include config IDs, so we verify by display name and check properties.
+        struct ExpectedTargetInfo {
+            let displayName: String
+            let language: Language
+            let dependencyLabels: Set<String>
         }
 
-        let expectedBuildTargets = [
-            makeExpectedTarget(uri: expandedTemplateUri, displayName: "//HelloWorld:ExpandedTemplate"),
-            makeExpectedTarget(uri: generatedDummyUri, displayName: "//HelloWorld:GeneratedDummy"),
-            makeExpectedTarget(
-                uri: helloWorldLibUri,
+        let expectedTargets: [ExpectedTargetInfo] = [
+            ExpectedTargetInfo(displayName: "//HelloWorld:ExpandedTemplate", language: .swift, dependencyLabels: []),
+            ExpectedTargetInfo(displayName: "//HelloWorld:GeneratedDummy", language: .swift, dependencyLabels: []),
+            ExpectedTargetInfo(
                 displayName: "//HelloWorld:HelloWorldLib",
-                dependencies: [todoModelsUri, todoObjCSupportUri, expandedTemplateUri, generatedDummyUri]
+                language: .swift,
+                dependencyLabels: [
+                    "//HelloWorld:TodoModels", "//HelloWorld:TodoObjCSupport",
+                    "//HelloWorld:ExpandedTemplate", "//HelloWorld:GeneratedDummy",
+                ]
             ),
-            makeExpectedTarget(
-                uri: helloWorldTestsLibUri,
+            ExpectedTargetInfo(
                 displayName: "//HelloWorld:HelloWorldTestsLib",
-                dependencies: [helloWorldLibUri]
+                language: .swift,
+                dependencyLabels: ["//HelloWorld:HelloWorldLib"]
             ),
-            makeExpectedTarget(
-                uri: macAppLibUri,
+            ExpectedTargetInfo(
                 displayName: "//HelloWorld:MacAppLib",
-                dependencies: [todoModelsUri]
+                language: .swift,
+                dependencyLabels: ["//HelloWorld:TodoModels"]
             ),
-            makeExpectedTarget(
-                uri: macAppTestsLibUri,
+            ExpectedTargetInfo(
                 displayName: "//HelloWorld:MacAppTestsLib",
-                dependencies: [macAppLibUri]
+                language: .swift,
+                dependencyLabels: ["//HelloWorld:MacAppLib"]
             ),
-            makeExpectedTarget(
-                uri: macCLIAppLibUri,
+            ExpectedTargetInfo(
                 displayName: "//HelloWorld:MacCLIAppLib",
-                dependencies: [todoModelsUri]
+                language: .swift,
+                dependencyLabels: ["//HelloWorld:TodoModels"]
             ),
-            makeExpectedTarget(uri: todoModelsUri, displayName: "//HelloWorld:TodoModels"),
-            makeExpectedTarget(
-                uri: todoObjCSupportUri,
+            ExpectedTargetInfo(displayName: "//HelloWorld:TodoModels", language: .swift, dependencyLabels: []),
+            ExpectedTargetInfo(
                 displayName: "//HelloWorld:TodoObjCSupport",
                 language: .objective_c,
-                dependencies: [todoCSupport]
+                dependencyLabels: ["//HelloWorld:TodoCSupport"]
             ),
-            makeExpectedTarget(
-                uri: todoCSupport,
-                displayName: "//HelloWorld:TodoCSupport",
-                language: .cpp
-            ),
-            makeExpectedTarget(
-                uri: watchAppLibUri,
+            ExpectedTargetInfo(displayName: "//HelloWorld:TodoCSupport", language: .cpp, dependencyLabels: []),
+            ExpectedTargetInfo(
                 displayName: "//HelloWorld:WatchAppLib",
-                dependencies: [todoModelsUri]
+                language: .swift,
+                dependencyLabels: ["//HelloWorld:TodoModels"]
             ),
-            makeExpectedTarget(
-                uri: watchAppTestsLibUri,
+            ExpectedTargetInfo(
                 displayName: "//HelloWorld:WatchAppTestsLib",
-                dependencies: [watchAppLibUri]
+                language: .swift,
+                dependencyLabels: ["//HelloWorld:WatchAppLib"]
             ),
         ]
-        #expect(result.buildTargets.count == expectedBuildTargets.count)
 
-        // Build a lookup map for actual targets by displayName
-        let actualTargetsByName = Dictionary(
-            uniqueKeysWithValues: result.buildTargets.compactMap { target -> (String, BuildTarget)? in
-                guard let name = target.displayName else { return nil }
-                return (name, target)
-            }
-        )
-
-        // Verify each expected target matches the actual target
-        for expected in expectedBuildTargets {
-            let displayName = try #require(expected.displayName)
-            let actual = try #require(actualTargetsByName[displayName], "Missing target: \(displayName)")
-
-            #expect(actual.id == expected.id, "ID mismatch for \(displayName)")
-            #expect(actual.displayName == expected.displayName, "displayName mismatch for \(displayName)")
-            #expect(actual.languageIds == expected.languageIds, "languageIds mismatch for \(displayName)")
-
-            let actualDeps = Set(actual.dependencies.map { $0.uri })
-            let expectedDeps = Set(expected.dependencies.map { $0.uri })
-            #expect(actualDeps == expectedDeps, "dependencies mismatch for \(displayName)")
+        // Group actual targets by displayName (same target can appear with multiple configs)
+        var actualTargetsByName: [String: [BuildTarget]] = [:]
+        for target in result.buildTargets {
+            guard let name = target.displayName else { continue }
+            actualTargetsByName[name, default: []].append(target)
         }
 
-        // Top level targets
+        // Verify all expected targets exist and have correct properties
+        for expected in expectedTargets {
+            let targets = try #require(
+                actualTargetsByName[expected.displayName],
+                "Missing target: \(expected.displayName)"
+            )
+            #expect(!targets.isEmpty, "No targets found for \(expected.displayName)")
+
+            // Verify each variant has the correct language
+            for target in targets {
+                #expect(
+                    target.languageIds == [expected.language],
+                    "languageIds mismatch for \(expected.displayName)"
+                )
+            }
+
+            // Verify dependencies by looking up the labels from the dependency URIs
+            // Each variant should have dependencies pointing to targets with the expected labels
+            for target in targets {
+                let actualDepLabels = Set(
+                    target.dependencies.compactMap { depId -> String? in
+                        result.bspURIsToBazelLabelsMap[depId.uri]
+                    }
+                )
+                #expect(
+                    actualDepLabels == expected.dependencyLabels,
+                    "dependencies mismatch for \(expected.displayName): got \(actualDepLabels), expected \(expected.dependencyLabels)"
+                )
+            }
+        }
+
+        // Verify we have the expected unique target labels
+        let expectedLabels = Set(expectedTargets.map { $0.displayName })
+        let actualLabels = Set(actualTargetsByName.keys)
+        #expect(actualLabels == expectedLabels, "Target label sets don't match")
+
+        // Top level targets - verify label and rule type (config IDs are assigned during parsing)
         let expectedTopLevelTargets: [(String, TopLevelRuleType)] = [
             ("//HelloWorld:HelloWorldMacTests", .macosUnitTest),
             ("//HelloWorld:HelloWorldTests", .iosUnitTest),
@@ -182,86 +165,70 @@ struct BazelTargetQuerierParserImplTests {
         ]
         #expect(result.topLevelTargets.count == expectedTopLevelTargets.count)
         for (index, expected) in expectedTopLevelTargets.enumerated() {
-            #expect(result.topLevelTargets[index] == expected)
+            let actual = result.topLevelTargets[index]
+            #expect(actual.0 == expected.0)
+            #expect(actual.1 == expected.1)
         }
 
-        // Top level label to rule map
-        let expectedTopLevelLabelToRuleMap: [String: TopLevelRuleType] = [
-            "//HelloWorld:HelloWorld": .iosApplication,
-            "//HelloWorld:HelloWorldMacApp": .macosApplication,
-            "//HelloWorld:HelloWorldMacCLIApp": .macosCommandLineApplication,
-            "//HelloWorld:HelloWorldMacTests": .macosUnitTest,
-            "//HelloWorld:HelloWorldTests": .iosUnitTest,
-            "//HelloWorld:HelloWorldWatchApp": .watchosApplication,
-            "//HelloWorld:HelloWorldWatchExtension": .watchosExtension,
-            "//HelloWorld:HelloWorldWatchTests": .watchosUnitTest,
-        ]
-        #expect(result.topLevelLabelToRuleMap == expectedTopLevelLabelToRuleMap)
+        // Verify bspURIsToBazelLabelsMap contains all expected labels
+        // With multi-variant support, the same label may have multiple URIs
+        let actualLabelSet = Set(result.bspURIsToBazelLabelsMap.values)
+        #expect(actualLabelSet == expectedLabels, "bspURIsToBazelLabelsMap labels don't match")
 
-        // BSP URIs to Bazel Labels map
-        #expect(
-            result.bspURIsToBazelLabelsMap == [
-                expandedTemplateUri: "//HelloWorld:ExpandedTemplate",
-                generatedDummyUri: "//HelloWorld:GeneratedDummy",
-                helloWorldLibUri: "//HelloWorld:HelloWorldLib",
-                helloWorldTestsLibUri: "//HelloWorld:HelloWorldTestsLib",
-                macAppLibUri: "//HelloWorld:MacAppLib",
-                macAppTestsLibUri: "//HelloWorld:MacAppTestsLib",
-                macCLIAppLibUri: "//HelloWorld:MacCLIAppLib",
-                todoModelsUri: "//HelloWorld:TodoModels",
-                todoObjCSupportUri: "//HelloWorld:TodoObjCSupport",
-                todoCSupport: "//HelloWorld:TodoCSupport",
-                watchAppLibUri: "//HelloWorld:WatchAppLib",
-                watchAppTestsLibUri: "//HelloWorld:WatchAppTestsLib",
-            ]
-        )
+        // Verify counts - with multi-variant support, targets can have multiple URIs (one per config)
+        #expect(result.bspURIsToSrcsMap.keys.count == 14, "bspURIsToSrcsMap should have 14 target URIs")
+        #expect(result.srcToBspURIsMap.count == 23, "srcToBspURIsMap should have 23 source files")
 
-        #expect(result.bspURIsToSrcsMap.keys.count == 12)
-        #expect(result.srcToBspURIsMap.count == 23)
-
-        // Bazel label to parent config map - verify labels map to configs
-        #expect(result.bazelLabelToParentConfigMap.count == 20)
+        // BSP URI to parent config map - verify URIs map to configs
+        #expect(result.bspUriToParentConfigMap.count == 14, "bspUriToParentConfigMap should have 14 entries")
 
         // Helper to get parent labels for a given label through the config mapping
-        func getParentLabels(for label: String) -> Set<String> {
-            guard let configHash = result.bazelLabelToParentConfigMap[label],
-                let parentLabels = result.configurationToTopLevelLabelsMap[configHash]
-            else {
-                return []
+        // Finds all URIs for a label and returns the union of their parent labels
+        func getParentLabels(forLabel label: String) -> Set<String> {
+            var parentLabels = Set<String>()
+            for (uri, targetLabel) in result.bspURIsToBazelLabelsMap where targetLabel == label {
+                guard let configHash = result.bspUriToParentConfigMap[uri],
+                    let labels = result.configurationToTopLevelLabelsMap[configHash]
+                else {
+                    continue
+                }
+                parentLabels.formUnion(labels)
             }
-            return Set(parentLabels)
+            return parentLabels
         }
 
+        // iOS targets should have iOS top-level parents
         #expect(
-            getParentLabels(for: "//HelloWorld:ExpandedTemplate")
+            getParentLabels(forLabel: "//HelloWorld:ExpandedTemplate")
                 == Set([
                     "//HelloWorld:HelloWorldTests",
                     "//HelloWorld:HelloWorld",
                 ])
         )
         #expect(
-            getParentLabels(for: "//HelloWorld:GeneratedDummy")
+            getParentLabels(forLabel: "//HelloWorld:GeneratedDummy")
                 == Set([
                     "//HelloWorld:HelloWorldTests",
                     "//HelloWorld:HelloWorld",
                 ])
         )
         #expect(
-            getParentLabels(for: "//HelloWorld:HelloWorldLib")
+            getParentLabels(forLabel: "//HelloWorld:HelloWorldLib")
                 == Set([
                     "//HelloWorld:HelloWorldTests",
                     "//HelloWorld:HelloWorld",
                 ])
         )
         #expect(
-            getParentLabels(for: "//HelloWorld:HelloWorldTestsLib")
+            getParentLabels(forLabel: "//HelloWorld:HelloWorldTestsLib")
                 == Set([
                     "//HelloWorld:HelloWorldTests",
                     "//HelloWorld:HelloWorld",
                 ])
         )
+        // macOS targets
         #expect(
-            getParentLabels(for: "//HelloWorld:MacAppLib")
+            getParentLabels(forLabel: "//HelloWorld:MacAppLib")
                 == Set([
                     "//HelloWorld:HelloWorldMacTests",
                     "//HelloWorld:HelloWorldMacCLIApp",
@@ -269,7 +236,7 @@ struct BazelTargetQuerierParserImplTests {
                 ])
         )
         #expect(
-            getParentLabels(for: "//HelloWorld:MacAppTestsLib")
+            getParentLabels(forLabel: "//HelloWorld:MacAppTestsLib")
                 == Set([
                     "//HelloWorld:HelloWorldMacTests",
                     "//HelloWorld:HelloWorldMacCLIApp",
@@ -277,30 +244,37 @@ struct BazelTargetQuerierParserImplTests {
                 ])
         )
         #expect(
-            getParentLabels(for: "//HelloWorld:MacCLIAppLib")
+            getParentLabels(forLabel: "//HelloWorld:MacCLIAppLib")
                 == Set([
                     "//HelloWorld:HelloWorldMacTests",
                     "//HelloWorld:HelloWorldMacCLIApp",
                     "//HelloWorld:HelloWorldMacApp",
                 ])
         )
+        // TodoModels is used by multiple platforms (iOS, macOS, watchOS)
         #expect(
-            getParentLabels(for: "//HelloWorld:TodoModels")
+            getParentLabels(forLabel: "//HelloWorld:TodoModels")
                 == Set([
                     "//HelloWorld:HelloWorldMacTests",
                     "//HelloWorld:HelloWorldMacCLIApp",
                     "//HelloWorld:HelloWorldMacApp",
-                ])
-        )
-        #expect(
-            getParentLabels(for: "//HelloWorld:TodoObjCSupport")
-                == Set([
+                    "//HelloWorld:HelloWorldWatchApp",
+                    "//HelloWorld:HelloWorldWatchTests",
+                    "//HelloWorld:HelloWorldWatchExtension",
                     "//HelloWorld:HelloWorldTests",
                     "//HelloWorld:HelloWorld",
                 ])
         )
         #expect(
-            getParentLabels(for: "//HelloWorld:WatchAppLib")
+            getParentLabels(forLabel: "//HelloWorld:TodoObjCSupport")
+                == Set([
+                    "//HelloWorld:HelloWorldTests",
+                    "//HelloWorld:HelloWorld",
+                ])
+        )
+        // watchOS targets
+        #expect(
+            getParentLabels(forLabel: "//HelloWorld:WatchAppLib")
                 == Set([
                     "//HelloWorld:HelloWorldWatchExtension",
                     "//HelloWorld:HelloWorldWatchApp",
@@ -308,7 +282,7 @@ struct BazelTargetQuerierParserImplTests {
                 ])
         )
         #expect(
-            getParentLabels(for: "//HelloWorld:WatchAppTestsLib")
+            getParentLabels(forLabel: "//HelloWorld:WatchAppTestsLib")
                 == Set([
                     "//HelloWorld:HelloWorldWatchExtension",
                     "//HelloWorld:HelloWorldWatchApp",
@@ -322,15 +296,16 @@ struct BazelTargetQuerierParserImplTests {
         let parser = BazelTargetQuerierParserImpl()
 
         // These details are meant to match the provided aquery pb example.
-        let topLevelTargets: [(String, TopLevelRuleType)] = [
-            ("//HelloWorld:HelloWorld", .iosApplication),
-            ("//HelloWorld:HelloWorldMacApp", .macosApplication),
-            ("//HelloWorld:HelloWorldMacCLIApp", .macosCommandLineApplication),
-            ("//HelloWorld:HelloWorldMacTests", .macosUnitTest),
-            ("//HelloWorld:HelloWorldTests", .iosUnitTest),
-            ("//HelloWorld:HelloWorldWatchApp", .watchosApplication),
-            ("//HelloWorld:HelloWorldWatchExtension", .watchosExtension),
-            ("//HelloWorld:HelloWorldWatchTests", .watchosUnitTest),
+        // Config IDs: 1 = iOS, 2 = macOS, 3 = watchOS
+        let topLevelTargets: [(String, TopLevelRuleType, UInt32)] = [
+            ("//HelloWorld:HelloWorld", .iosApplication, 1),
+            ("//HelloWorld:HelloWorldMacApp", .macosApplication, 2),
+            ("//HelloWorld:HelloWorldMacCLIApp", .macosCommandLineApplication, 2),
+            ("//HelloWorld:HelloWorldMacTests", .macosUnitTest, 2),
+            ("//HelloWorld:HelloWorldTests", .iosUnitTest, 1),
+            ("//HelloWorld:HelloWorldWatchApp", .watchosApplication, 3),
+            ("//HelloWorld:HelloWorldWatchExtension", .watchosExtension, 3),
+            ("//HelloWorld:HelloWorldWatchTests", .watchosUnitTest, 3),
         ]
 
         let result = try parser.processAquery(
@@ -338,93 +313,45 @@ struct BazelTargetQuerierParserImplTests {
             topLevelTargets: topLevelTargets
         )
 
-        #expect(result.topLevelLabelToConfigMap.count == 8)
+        // 3 unique config IDs (iOS, macOS, watchOS)
+        #expect(result.topLevelConfigIdToInfoMap.count == 3)
 
+        // iOS config (config ID 1)
         #expect(
-            result.topLevelLabelToConfigMap["//HelloWorld:HelloWorld"]
+            result.topLevelConfigIdToInfoMap[1]
                 == BazelTargetConfigurationInfo(
                     configurationName: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f",
                     effectiveConfigurationName: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0",
                     minimumOsVersion: "17.0",
                     platform: "ios",
-                    cpuArch: "sim_arm64"
+                    cpuArch: "sim_arm64",
+                    sdkName: "iphonesimulator"
                 )
         )
 
+        // macOS config (config ID 2)
         #expect(
-            result.topLevelLabelToConfigMap["//HelloWorld:HelloWorldMacApp"]
+            result.topLevelConfigIdToInfoMap[2]
                 == BazelTargetConfigurationInfo(
                     configurationName: "darwin_arm64-dbg-macos-arm64-min15.0-applebin_macos-ST-d1334902beb6",
                     effectiveConfigurationName: "darwin_arm64-dbg-macos-arm64-min15.0",
                     minimumOsVersion: "15.0",
                     platform: "darwin",
-                    cpuArch: "arm64"
+                    cpuArch: "arm64",
+                    sdkName: "macosx"
                 )
         )
 
+        // watchOS config (config ID 3)
         #expect(
-            result.topLevelLabelToConfigMap["//HelloWorld:HelloWorldMacCLIApp"]
-                == BazelTargetConfigurationInfo(
-                    configurationName: "darwin_arm64-dbg-macos-arm64-min15.0-applebin_macos-ST-d1334902beb6",
-                    effectiveConfigurationName: "darwin_arm64-dbg-macos-arm64-min15.0",
-                    minimumOsVersion: "15.0",
-                    platform: "darwin",
-                    cpuArch: "arm64"
-                )
-        )
-
-        #expect(
-            result.topLevelLabelToConfigMap["//HelloWorld:HelloWorldMacTests"]
-                == BazelTargetConfigurationInfo(
-                    configurationName: "darwin_arm64-dbg-macos-arm64-min15.0-applebin_macos-ST-d1334902beb6",
-                    effectiveConfigurationName: "darwin_arm64-dbg-macos-arm64-min15.0",
-                    minimumOsVersion: "15.0",
-                    platform: "darwin",
-                    cpuArch: "arm64"
-                )
-        )
-
-        #expect(
-            result.topLevelLabelToConfigMap["//HelloWorld:HelloWorldTests"]
-                == BazelTargetConfigurationInfo(
-                    configurationName: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f",
-                    effectiveConfigurationName: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0",
-                    minimumOsVersion: "17.0",
-                    platform: "ios",
-                    cpuArch: "sim_arm64"
-                )
-        )
-
-        #expect(
-            result.topLevelLabelToConfigMap["//HelloWorld:HelloWorldWatchApp"]
+            result.topLevelConfigIdToInfoMap[3]
                 == BazelTargetConfigurationInfo(
                     configurationName: "watchos_x86_64-dbg-watchos-x86_64-min7.0-applebin_watchos-ST-74f4ed91ef5d",
                     effectiveConfigurationName: "watchos_x86_64-dbg-watchos-x86_64-min7.0",
                     minimumOsVersion: "7.0",
                     platform: "watchos",
-                    cpuArch: "x86_64"
-                )
-        )
-
-        #expect(
-            result.topLevelLabelToConfigMap["//HelloWorld:HelloWorldWatchExtension"]
-                == BazelTargetConfigurationInfo(
-                    configurationName: "watchos_x86_64-dbg-watchos-x86_64-min7.0-applebin_watchos-ST-74f4ed91ef5d",
-                    effectiveConfigurationName: "watchos_x86_64-dbg-watchos-x86_64-min7.0",
-                    minimumOsVersion: "7.0",
-                    platform: "watchos",
-                    cpuArch: "x86_64"
-                )
-        )
-
-        #expect(
-            result.topLevelLabelToConfigMap["//HelloWorld:HelloWorldWatchTests"]
-                == BazelTargetConfigurationInfo(
-                    configurationName: "watchos_x86_64-dbg-watchos-x86_64-min7.0-applebin_watchos-ST-74f4ed91ef5d",
-                    effectiveConfigurationName: "watchos_x86_64-dbg-watchos-x86_64-min7.0",
-                    minimumOsVersion: "7.0",
-                    platform: "watchos",
-                    cpuArch: "x86_64"
+                    cpuArch: "x86_64",
+                    sdkName: "watchsimulator"
                 )
         )
     }

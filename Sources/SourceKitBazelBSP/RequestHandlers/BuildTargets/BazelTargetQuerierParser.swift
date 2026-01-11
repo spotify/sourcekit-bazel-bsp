@@ -47,7 +47,8 @@ enum BazelTargetQuerierParserError: Error, LocalizedError {
         case .parentActionNotFound(let parent, let id):
             return "Parent action \(id) for parent \(parent) not found in the aquery output."
         case .multipleParentActions(let parent):
-            return "Multiple parent actions found for \(parent) in the aquery output. This means your project is building multiple variants of the same top-level target, which the BSP cannot handle today."
+            return
+                "Multiple parent actions found for \(parent) in the aquery output. This means your project is building multiple variants of the same top-level target, which the BSP cannot handle today."
         case .configurationNotFound(let id):
             return "Configuration \(id) not found in the aquery output."
         case .sdkNameNotFound(let label):
@@ -471,7 +472,9 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             }
             // When a dependency is available over multiple configs, we need to find the one matching the parent.
             guard let depUri = depUris.first(where: { $0.1 == config }) else {
-                logger.info("No dependency found for \(label) with config \(config). Falling back to first available config.")
+                logger.info(
+                    "No dependency found for \(label) with config \(config). Falling back to first available config."
+                )
                 return depUris.first?.0
             }
             return depUri.0
@@ -570,7 +573,8 @@ extension BazelTargetQuerierParserImpl {
         guard let fullConfig = aqueryConfigurations[configId]?.mnemonic else {
             throw BazelTargetQuerierParserError.configurationNotFound(configId)
         }
-        guard let sdkName = parentAction.environmentVariables.first(where: { $0.key == "APPLE_SDK_PLATFORM" })?.value else {
+        guard let sdkName = parentAction.environmentVariables.first(where: { $0.key == "APPLE_SDK_PLATFORM" })?.value
+        else {
             throw BazelTargetQuerierParserError.sdkNameNotFound(effectiveParentLabel)
         }
         let configComponents = fullConfig.components(separatedBy: "-")
@@ -620,7 +624,12 @@ extension String {
     /// For local labels: file://<path-to-root>/<package-name>___<target-name>
     /// For external labels: file://<execution-root>/external/<repo-name>/<package-name>___<target-name>
     ///
-    fileprivate func toTargetId(rootUri: String, workspaceName: String, executionRoot: String, config: UInt32) throws -> URI {
+    fileprivate func toTargetId(
+        rootUri: String,
+        workspaceName: String,
+        executionRoot: String,
+        config: UInt32
+    ) throws -> URI {
         let (repoName, packageName, targetName) = try splitTargetLabel(workspaceName: workspaceName)
         let packagePath = packageName.isEmpty ? "" : "/" + packageName
         let path: String
@@ -628,7 +637,9 @@ extension String {
             path = "file://" + rootUri + packagePath + "/" + targetName + "_" + String(config)
         } else {
             // External repo: use execution root + external path
-            path = "file://" + executionRoot + "/external/" + repoName + packagePath + "/" + targetName + "_" + String(config)
+            path =
+                "file://" + executionRoot + "/external/" + repoName + packagePath + "/" + targetName + "_"
+                + String(config)
         }
         guard let uri = try? URI(string: path) else {
             throw BazelTargetQuerierParserError.convertUriFailed(path)
