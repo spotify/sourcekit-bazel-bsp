@@ -584,11 +584,17 @@ extension BazelTargetQuerierParserImpl {
         let cpuComponents = try configComponents.getIndexThrowing(0).split(separator: "_", maxSplits: 1)
         let platform = try cpuComponents.getIndexThrowing(0)
         let cpuArch = try cpuComponents.getIndexThrowing(1)
+
         // To support compiling libraries directly, we need to additionally strip out
         // the transition and distinguisher parts of the configuration name, as those will not
         // be present when compiling directly.
-        let configWithoutTransitionOrDistinguisher = configComponents.dropLast(3)
+
+        // Edge case: rules_apple 4.3.3 dropped configuration distinguishers
+        let stepsToDrop = try configComponents.getIndexThrowing(5).hasPrefix("applebin_") ? 3 : 2
+
+        let configWithoutTransitionOrDistinguisher = configComponents.dropLast(stepsToDrop)
         let effectiveConfigurationName = configWithoutTransitionOrDistinguisher.joined(separator: "-")
+
         return BazelTargetConfigurationInfo(
             configurationName: fullConfig,
             effectiveConfigurationName: effectiveConfigurationName,

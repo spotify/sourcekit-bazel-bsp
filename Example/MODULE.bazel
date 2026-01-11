@@ -6,13 +6,13 @@ local_path_override(
 
 bazel_dep(
     name = "rules_swift",
-    version = "3.3.0",
+    version = "3.4.0",
     repo_name = "build_bazel_rules_swift",
 )
 
 bazel_dep(
     name = "rules_apple",
-    version = "4.3.2",
+    version = "4.3.3",
     repo_name = "build_bazel_rules_apple",
 )
 
