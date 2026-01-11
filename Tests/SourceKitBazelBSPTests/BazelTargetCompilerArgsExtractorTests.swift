@@ -87,7 +87,6 @@ struct BazelTargetCompilerArgsExtractorTests {
             forTarget: BazelTargetPlatformInfo(
                 label: "//HelloWorld:HelloWorldLib",
                 topLevelParentLabel: "//HelloWorld:HelloWorld",
-                topLevelParentRuleType: .iosApplication,
                 topLevelParentConfig: helloWorldConfig
             ),
             withStrategy: .swiftModule,
@@ -103,7 +102,6 @@ struct BazelTargetCompilerArgsExtractorTests {
             forTarget: BazelTargetPlatformInfo(
                 label: "//HelloWorld:TodoObjCSupport",
                 topLevelParentLabel: "//HelloWorld:HelloWorld",
-                topLevelParentRuleType: .iosApplication,
                 topLevelParentConfig: helloWorldConfig
             ),
             withStrategy: .cImpl("HelloWorld/TodoObjCSupport/Sources/SKObjCUtils.m", "objective-c"),
@@ -120,7 +118,6 @@ struct BazelTargetCompilerArgsExtractorTests {
                 forTarget: BazelTargetPlatformInfo(
                     label: "//HelloWorld:TodoObjCSupport",
                     topLevelParentLabel: "//HelloWorld:HelloWorld",
-                    topLevelParentRuleType: .iosApplication,
                     topLevelParentConfig: helloWorldConfig
                 ),
                 withStrategy: .cImpl("HelloWorld/TodoObjCSupport/Sources/SomethingElse.m", "objective-c"),
@@ -140,7 +137,6 @@ struct BazelTargetCompilerArgsExtractorTests {
             forTarget: BazelTargetPlatformInfo(
                 label: "//HelloWorld:TodoObjCSupport",
                 topLevelParentLabel: "//HelloWorld:HelloWorld",
-                topLevelParentRuleType: .iosApplication,
                 topLevelParentConfig: helloWorldConfig
             ),
             withStrategy: .cHeader,
@@ -232,7 +228,6 @@ struct BazelTargetCompilerArgsExtractorTests {
                 forTarget: BazelTargetPlatformInfo(
                     label: "//HelloWorld:SomethingElseLib",
                     topLevelParentLabel: "//HelloWorld:HelloWorld",
-                    topLevelParentRuleType: .iosApplication,
                     topLevelParentConfig: helloWorldConfig
                 ),
                 withStrategy: .swiftModule,
@@ -253,7 +248,6 @@ struct BazelTargetCompilerArgsExtractorTests {
             forTarget: BazelTargetPlatformInfo(
                 label: "//HelloWorld:HelloWorldLib",
                 topLevelParentLabel: "//HelloWorld:HelloWorld",
-                topLevelParentRuleType: .iosApplication,
                 topLevelParentConfig: helloWorldConfig
             ),
             withStrategy: .swiftModule,

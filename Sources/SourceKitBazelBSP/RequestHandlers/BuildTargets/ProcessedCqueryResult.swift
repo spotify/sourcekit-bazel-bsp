@@ -25,11 +25,10 @@ private let logger = makeFileLevelBSPLogger()
 
 struct ProcessedCqueryResult {
     let buildTargets: [BuildTarget]
-    let topLevelTargets: [(String, TopLevelRuleType)]
+    let topLevelTargets: [(String, TopLevelRuleType, UInt32)]
     let bspURIsToBazelLabelsMap: [URI: String]
     let bspURIsToSrcsMap: [URI: SourcesItem]
     let srcToBspURIsMap: [URI: [URI]]
-    let topLevelLabelToRuleMap: [String: TopLevelRuleType]
     let configurationToTopLevelLabelsMap: [UInt32: [String]]
-    let bazelLabelToParentConfigMap: [String: UInt32]
+    let bspUriToParentConfigMap: [URI: UInt32]
 }

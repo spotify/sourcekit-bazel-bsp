@@ -31,6 +31,7 @@ enum BazelTargetQuerierParserError: Error, LocalizedError {
     case parentActionNotFound(String, UInt32)
     case multipleParentActions(String)
     case configurationNotFound(UInt32)
+    case sdkNameNotFound(String)
     case indexOutOfBounds(Int, Int)
     case unexpectedLanguageRule(String, String)
     case unexpectedTargetType(Int)
@@ -46,10 +47,11 @@ enum BazelTargetQuerierParserError: Error, LocalizedError {
         case .parentActionNotFound(let parent, let id):
             return "Parent action \(id) for parent \(parent) not found in the aquery output."
         case .multipleParentActions(let parent):
-            return
-                "Multiple parent actions found for \(parent). This means your project is somehow building multiple variants of the same top-level target, which the BSP cannot handle at the moment. This can happen for example if you are building for multiple platforms."
+            return "Multiple parent actions found for \(parent) in the aquery output. This means your project is building multiple variants of the same top-level target, which the BSP cannot handle today."
         case .configurationNotFound(let id):
             return "Configuration \(id) not found in the aquery output."
+        case .sdkNameNotFound(let label):
+            return "SDK info not found for \(label) in the aquery output."
         case .indexOutOfBounds(let index, let line):
             return "Index \(index) is out of bounds for array at line \(line)"
         case .unexpectedLanguageRule(let target, let ruleClass):
@@ -80,7 +82,7 @@ protocol BazelTargetQuerierParser: AnyObject {
 
     func processAquery(
         from data: Data,
-        topLevelTargets: [(String, TopLevelRuleType)],
+        topLevelTargets: [(String, TopLevelRuleType, UInt32)],
     ) throws -> ProcessedAqueryResult
 }
 
@@ -105,9 +107,9 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         // Separate / categorize all the data we received from the cquery.
         let supportedTopLevelRuleTypesSet = Set(supportedTopLevelRuleTypes)
         let supportedTestBundleRulesSet = Set(testBundleRules)
-        var topLevelTargets: [(BlazeQuery_Target, TopLevelRuleType)] = []
+        var topLevelLabelToConfigMap: [String: UInt32] = [:]
         var configurationToTopLevelLabelsMap: [UInt32: [String]] = [:]
-        var bazelLabelToParentConfigMap: [String: UInt32] = [:]
+        var allTopLevelLabels = [(String, TopLevelRuleType)]()
         var allAliases = [BlazeQuery_Target]()
         var allTestBundles = [BlazeQuery_Target]()
         var unfilteredDependencyTargets = [Analysis_ConfiguredTarget]()
@@ -120,12 +122,13 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 let kind = target.rule.ruleClass
                 if let topLevelRuleType = TopLevelRuleType(rawValue: kind) {
                     if supportedTopLevelRuleTypesSet.contains(topLevelRuleType) {
-                        topLevelTargets.append((target, topLevelRuleType))
+                        let label = target.rule.name
+                        allTopLevelLabels.append((label, topLevelRuleType))
                         // If this rule generates a bundle target, the real information we're looking for will be available
                         // on said bundle target and will be handled below.
                         if topLevelRuleType.testBundleRule == nil {
-                            configurationToTopLevelLabelsMap[configuration, default: []].append(target.rule.name)
-                            bazelLabelToParentConfigMap[target.rule.name] = configuration
+                            configurationToTopLevelLabelsMap[configuration, default: []].append(label)
+                            topLevelLabelToConfigMap[label] = configuration
                         }
                     }
                 } else if kind == "alias" {
@@ -141,7 +144,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                         target.rule.name.dropLast(TopLevelRuleType.testBundleRuleSuffix.count)
                     )
                     configurationToTopLevelLabelsMap[configuration, default: []].append(realTopLevelName)
-                    bazelLabelToParentConfigMap[realTopLevelName] = configuration
+                    topLevelLabelToConfigMap[realTopLevelName] = configuration
                 } else {
                     unfilteredDependencyTargets.append(configuredTarget)
                 }
@@ -159,6 +162,16 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             }
         }
 
+        // We can now properly connect each top-level label to its configuration id.
+        var topLevelTargets: [(String, TopLevelRuleType, UInt32)] = []
+        for (label, ruleType) in allTopLevelLabels {
+            guard let configId = topLevelLabelToConfigMap[label] else {
+                logger.error("Missing info for \(label) in topLevelLabelToConfigMap. This should not happen.")
+                continue
+            }
+            topLevelTargets.append((label, ruleType, configId))
+        }
+
         guard !topLevelTargets.isEmpty else {
             throw BazelTargetQuerierParserError.noTopLevelTargets(supportedTopLevelRuleTypes)
         }
@@ -170,7 +183,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         logger.logFullObjectInMultipleLogMessages(
             level: .info,
             header: "Top-level targets",
-            String(topLevelTargets.map { $0.0.rule.name }.joined(separator: ", "))
+            String(topLevelTargets.map { $0.0 }.joined(separator: ", "))
         )
 
         // The cquery will contain data about bundled apps (e.g extensions, companion watchOS apps) regardless of our filters.
@@ -179,8 +192,8 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         // matches what we've parsed above as a valid top-level target.
         // We also use this opportunity to match which targets belong to which top-level targets.
         let supportedDependencyRuleTypesSet = Set(supportedDependencyRuleTypes)
-        var dependencyTargets: [(BlazeQuery_Target, DependencyRuleType)] = []
-        var seenDependencyLabels = Set<String>()
+        var dependencyTargets: [(BlazeQuery_Target, DependencyRuleType, BuildTargetIdentifier, UInt32)] = []
+        var bspUriToParentConfigMap: [URI: UInt32] = [:]
         for configuredTarget in unfilteredDependencyTargets {
             let configuration = configuredTarget.configurationID
             guard configurationToTopLevelLabelsMap[configuration] != nil else {
@@ -192,19 +205,14 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             else {
                 continue
             }
-            guard !seenDependencyLabels.contains(label) else {
-                // FIXME: It should be possible to lift this limitation, I just didn't check deep enough how to structure it.
-                // We should notify sourcekit-lsp of all different target variants.
-                // Note: When fixing this, the aquery logic below also needs to be updated to handle multiple variants.
-                // Same for the logic in platformBuildLabelInfo.
-                logger.debug(
-                    "Skipping duplicate entry for dependency \(label, privacy: .public). This can happen if your configuration contains multiple variants of the same target and should be fine as long as the inputs are the same across all variants."
-                )
-                continue
-            }
-            bazelLabelToParentConfigMap[label] = configuration
-            seenDependencyLabels.insert(label)
-            dependencyTargets.append((configuredTarget.target, ruleType))
+            let id = try label.toTargetId(
+                rootUri: rootUri,
+                workspaceName: workspaceName,
+                executionRoot: executionRoot,
+                config: configuration
+            )
+            bspUriToParentConfigMap[id] = configuration
+            dependencyTargets.append((configuredTarget.target, ruleType, BuildTargetIdentifier(uri: id), configuration))
         }
 
         logger.debug("Parsed \(dependencyTargets.count, privacy: .public) dependency targets")
@@ -221,17 +229,10 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         // Do the same for the dependencies list.
         // This also defines which dependencies are "valid",
         // because the cquery result's deps field ignores the filters applied to the query.
-        var depLabelToUriMap: [String: BuildTargetIdentifier] = [:]
-        for (target, _) in dependencyTargets {
+        var depLabelToUriMap: [String: [(BuildTargetIdentifier, UInt32)]] = [:]
+        for (target, _, id, config) in dependencyTargets {
             let label = target.rule.name
-            depLabelToUriMap[label] =
-                (BuildTargetIdentifier(
-                    uri: try label.toTargetId(
-                        rootUri: rootUri,
-                        workspaceName: workspaceName,
-                        executionRoot: executionRoot
-                    )
-                ))
+            depLabelToUriMap[label, default: []].append((id, config))
         }
 
         // Similarly, process the list of aliases. The cquery result's deps field does not
@@ -263,24 +264,13 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             guard depLabelToUriMap.keys.contains(realLabel) else {
                 continue
             }
-            depLabelToUriMap[label] =
-                (BuildTargetIdentifier(
-                    uri: try realLabel.toTargetId(
-                        rootUri: rootUri,
-                        workspaceName: workspaceName,
-                        executionRoot: executionRoot
-                    )
-                ))
+            depLabelToUriMap[label] = depLabelToUriMap[realLabel]
         }
 
-        let buildTargets: [(BuildTarget, SourcesItem)] = try dependencyTargets.map { (target, ruleType) in
+        let buildTargets: [(BuildTarget, SourcesItem)] = try dependencyTargets.map { (target, ruleType, id, config) in
             let rule = target.rule
-            let idUri: URI = try rule.name.toTargetId(
-                rootUri: rootUri,
-                workspaceName: workspaceName,
-                executionRoot: executionRoot
-            )
-            let id = BuildTargetIdentifier(uri: idUri)
+            let idUri = id.uri
+
             let baseDirectory: URI? = idUri.toBaseDirectory()
 
             let sourcesItem = try processSrcsAttr(
@@ -293,7 +283,8 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             let deps = try processDependenciesAttr(
                 rule: rule,
                 isBuildTestRule: false,
-                depLabelToUriMap: depLabelToUriMap
+                depLabelToUriMap: depLabelToUriMap,
+                config: config
             )
 
             // AFAIK these settings serve no particular purpose today and are ignored by sourcekit-lsp.
@@ -332,7 +323,6 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         var bspURIsToBazelLabelsMap: [URI: String] = [:]
         var bspURIsToSrcsMap: [URI: SourcesItem] = [:]
         var srcToBspURIsMap: [URI: [URI]] = [:]
-        var topLevelLabelToRuleMap: [String: TopLevelRuleType] = [:]
         for dependencyTargetInfo in buildTargets {
             let target = dependencyTargetInfo.0
             let sourcesItem = dependencyTargetInfo.1
@@ -347,20 +337,15 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 srcToBspURIsMap[src.uri, default: []].append(uri)
             }
         }
-        for (target, ruleType) in topLevelTargets {
-            let label = target.rule.name
-            topLevelLabelToRuleMap[label] = ruleType
-        }
 
         return ProcessedCqueryResult(
             buildTargets: buildTargets.map { $0.0 },
-            topLevelTargets: topLevelTargets.map { ($0.0.rule.name, $0.1) },
+            topLevelTargets: topLevelTargets,
             bspURIsToBazelLabelsMap: bspURIsToBazelLabelsMap,
             bspURIsToSrcsMap: bspURIsToSrcsMap,
             srcToBspURIsMap: srcToBspURIsMap,
-            topLevelLabelToRuleMap: topLevelLabelToRuleMap,
             configurationToTopLevelLabelsMap: configurationToTopLevelLabelsMap,
-            bazelLabelToParentConfigMap: bazelLabelToParentConfigMap
+            bspUriToParentConfigMap: bspUriToParentConfigMap
         )
     }
 
@@ -474,16 +459,22 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
     private func processDependenciesAttr(
         rule: BlazeQuery_Rule,
         isBuildTestRule: Bool,
-        depLabelToUriMap: [String: BuildTargetIdentifier],
+        depLabelToUriMap: [String: [(BuildTargetIdentifier, UInt32)]],
+        config: UInt32
     ) throws -> [BuildTargetIdentifier] {
         let attrName = isBuildTestRule ? "targets" : "deps"
         let depsAttribute = rule.attribute.first { $0.name == attrName }?.stringListValue ?? []
         let implDeps = rule.attribute.first { $0.name == "implementation_deps" }?.stringListValue ?? []
         return (depsAttribute + implDeps).compactMap { label in
-            guard let depUri = depLabelToUriMap[label] else {
+            guard let depUris = depLabelToUriMap[label] else {
                 return nil
             }
-            return depUri
+            // When a dependency is available over multiple configs, we need to find the one matching the parent.
+            guard let depUri = depUris.first(where: { $0.1 == config }) else {
+                logger.info("No dependency found for \(label) with config \(config). Falling back to first available config.")
+                return depUris.first?.0
+            }
+            return depUri.0
         }
     }
 }
@@ -493,7 +484,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
 extension BazelTargetQuerierParserImpl {
     func processAquery(
         from data: Data,
-        topLevelTargets: [(String, TopLevelRuleType)],
+        topLevelTargets: [(String, TopLevelRuleType, UInt32)]
     ) throws -> ProcessedAqueryResult {
         let aquery = try BazelProtobufBindings.parseActionGraph(data: data)
 
@@ -524,8 +515,11 @@ extension BazelTargetQuerierParserImpl {
         }
 
         // Now, locate the Bazel config information for each of our top-level targets.
-        var topLevelLabelToConfigMap: [String: BazelTargetConfigurationInfo] = [:]
-        for (target, ruleType) in topLevelTargets {
+        var topLevelConfigIdToInfoMap: [UInt32: BazelTargetConfigurationInfo] = [:]
+        for (target, ruleType, configId) in topLevelTargets {
+            guard topLevelConfigIdToInfoMap[configId] == nil else {
+                continue
+            }
             let configInfo = try topLevelConfigInfo(
                 ofTarget: target,
                 withType: ruleType,
@@ -533,14 +527,14 @@ extension BazelTargetQuerierParserImpl {
                 aqueryActions: actions,
                 aqueryConfigurations: configurations
             )
-            topLevelLabelToConfigMap[target] = configInfo
+            topLevelConfigIdToInfoMap[configId] = configInfo
         }
 
         return ProcessedAqueryResult(
             targets: targets,
             actions: actions,
             configurations: configurations,
-            topLevelLabelToConfigMap: topLevelLabelToConfigMap
+            topLevelConfigIdToInfoMap: topLevelConfigIdToInfoMap
         )
     }
 
@@ -576,6 +570,9 @@ extension BazelTargetQuerierParserImpl {
         guard let fullConfig = aqueryConfigurations[configId]?.mnemonic else {
             throw BazelTargetQuerierParserError.configurationNotFound(configId)
         }
+        guard let sdkName = parentAction.environmentVariables.first(where: { $0.key == "APPLE_SDK_PLATFORM" })?.value else {
+            throw BazelTargetQuerierParserError.sdkNameNotFound(effectiveParentLabel)
+        }
         let configComponents = fullConfig.components(separatedBy: "-")
         // min15.0 -> 15.0
         let minTargetArg = String(try configComponents.getIndexThrowing(4).dropFirst(3))
@@ -601,6 +598,7 @@ extension BazelTargetQuerierParserImpl {
             minimumOsVersion: minTargetArg,
             platform: String(platform),
             cpuArch: String(cpuArch),
+            sdkName: sdkName.lowercased()
         )
     }
 }
@@ -622,15 +620,15 @@ extension String {
     /// For local labels: file://<path-to-root>/<package-name>___<target-name>
     /// For external labels: file://<execution-root>/external/<repo-name>/<package-name>___<target-name>
     ///
-    fileprivate func toTargetId(rootUri: String, workspaceName: String, executionRoot: String) throws -> URI {
+    fileprivate func toTargetId(rootUri: String, workspaceName: String, executionRoot: String, config: UInt32) throws -> URI {
         let (repoName, packageName, targetName) = try splitTargetLabel(workspaceName: workspaceName)
         let packagePath = packageName.isEmpty ? "" : "/" + packageName
         let path: String
         if repoName == workspaceName {
-            path = "file://" + rootUri + packagePath + "/" + targetName
+            path = "file://" + rootUri + packagePath + "/" + targetName + "_" + String(config)
         } else {
             // External repo: use execution root + external path
-            path = "file://" + executionRoot + "/external/" + repoName + packagePath + "/" + targetName
+            path = "file://" + executionRoot + "/external/" + repoName + packagePath + "/" + targetName + "_" + String(config)
         }
         guard let uri = try? URI(string: path) else {
             throw BazelTargetQuerierParserError.convertUriFailed(path)

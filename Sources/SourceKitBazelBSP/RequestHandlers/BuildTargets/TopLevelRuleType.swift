@@ -99,38 +99,4 @@ public enum TopLevelRuleType: String, CaseIterable, ExpressibleByArgument, Senda
         default: return false
         }
     }
-
-    // FIXME: Not the best way to handle this as we need to eventually
-    // handle device builds as well
-    var sdkName: String {
-        switch self {
-        case .iosApplication: return "iphonesimulator"
-        case .iosAppClip: return "iphonesimulator"
-        case .iosExtension: return "iphonesimulator"
-        case .iosUnitTest: return "iphonesimulator"
-        case .iosUiTest: return "iphonesimulator"
-        case .iosBuildTest: return "iphonesimulator"
-        case .watchosApplication: return "watchsimulator"
-        case .watchosExtension: return "watchsimulator"
-        case .watchosUnitTest: return "watchsimulator"
-        case .watchosUiTest: return "watchsimulator"
-        case .watchosBuildTest: return "watchsimulator"
-        case .macosApplication: return "macosx"
-        case .macosExtension: return "macosx"
-        case .macosCommandLineApplication: return "macosx"
-        case .macosUnitTest: return "macosx"
-        case .macosUiTest: return "macosx"
-        case .macosBuildTest: return "macosx"
-        case .tvosApplication: return "appletvsimulator"
-        case .tvosExtension: return "appletvsimulator"
-        case .tvosUnitTest: return "appletvsimulator"
-        case .tvosUiTest: return "appletvsimulator"
-        case .tvosBuildTest: return "appletvsimulator"
-        case .visionosApplication: return "xrsimulator"
-        case .visionosExtension: return "xrsimulator"
-        case .visionosUnitTest: return "xrsimulator"
-        case .visionosUiTest: return "xrsimulator"
-        case .visionosBuildTest: return "xrsimulator"
-        }
-    }
 }
