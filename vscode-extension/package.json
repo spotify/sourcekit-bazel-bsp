@@ -15,10 +15,94 @@
         "Programming Languages"
     ],
     "activationEvents": [
-        "onStartupFinished"
+        "workspaceContains:.bsp/skbsp_generated"
     ],
     "main": "./out/extension.js",
-    "contributes": {},
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "sourcekit-bazel-bsp",
+                    "title": "SourceKit Bazel BSP",
+                    "icon": "resources/icon.svg"
+                }
+            ]
+        },
+        "views": {
+            "sourcekit-bazel-bsp": [
+                {
+                    "type": "webview",
+                    "id": "bspTargets",
+                    "name": "Targets"
+                },
+                {
+                    "type": "webview",
+                    "id": "bspDevices",
+                    "name": "Devices"
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "sourcekit-bazel-bsp.refreshDevices",
+                "title": "Refresh Devices",
+                "category": "SourceKit Bazel BSP"
+            }
+        ],
+        "taskDefinitions": [
+            {
+                "type": "sourcekit-bazel-bsp",
+                "required": ["target"],
+                "properties": {
+                    "target": {
+                        "type": "string",
+                        "description": "The Bazel target to build"
+                    },
+                    "isLaunchTask": {
+                        "type": "boolean",
+                        "description": "Whether this is a launch task for debugging"
+                    }
+                }
+            }
+        ],
+        "configuration": {
+            "title": "SourceKit Bazel BSP",
+            "properties": {
+                "sourcekit-bazel-bsp.bspGraphPath": {
+                    "type": "string",
+                    "default": ".bsp/skbsp_generated/graph.json",
+                    "description": "Path to the BSP graph JSON file, relative to the workspace folder."
+                },
+                "sourcekit-bazel-bsp.logLevel": {
+                    "type": "string",
+                    "enum": ["error", "info", "debug"],
+                    "default": "error",
+                    "description": "Log level for the BSP server output. Higher levels include more verbose logging."
+                }
+            }
+        },
+        "problemMatchers": [
+            {
+                "name": "sourcekit-bazel-bsp-launch",
+                "owner": "sourcekit-bazel-bsp",
+                "source": "sourcekit-bazel-bsp",
+                "fileLocation": ["relative", "${workspaceFolder}"],
+                "pattern": {
+                    "regexp": "^(.+?):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^Starting launch task\\.\\.\\.$",
+                    "endsPattern": "^com.example.HelloWorld: .*"
+                }
+            }
+        ]
+    },
     "scripts": {
         "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
