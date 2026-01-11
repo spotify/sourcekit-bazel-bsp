@@ -58,7 +58,7 @@ final class WatchedFileChangeHandler {
         }
 
         guard !changes.isEmpty else {
-            logger.info("No (supported) file changes to process.")
+            logger.debug("No (supported) file changes to process.")
             return
         }
 
@@ -75,11 +75,11 @@ final class WatchedFileChangeHandler {
 
             // If we received this notification before the build graph was calculated, we should stop.
             guard targetStore.isInitialized else {
-                logger.info("Received file changes before the build graph was calculated. Ignoring.")
+                logger.debug("Received file changes before the build graph was calculated. Ignoring.")
                 return []
             }
 
-            logger.info("Received \(changes.count, privacy: .public) file changes")
+            logger.debug("Received \(changes.count, privacy: .public) file changes")
 
             let deletedFiles = changes.filter { $0.type == .deleted }
             let createdFiles = changes.filter { $0.type == .created }

@@ -25,12 +25,7 @@ import Foundation
 struct BazelTargetPlatformInfo {
     let label: String
     let topLevelParentLabel: String
-    let topLevelParentRuleType: TopLevelRuleType
     let topLevelParentConfig: BazelTargetConfigurationInfo
-
-    var platformSdkName: String {
-        topLevelParentRuleType.sdkName
-    }
 }
 
 // Information about a target's Bazel configuration, used to determine
@@ -48,4 +43,5 @@ struct BazelTargetConfigurationInfo: Hashable {
     let minimumOsVersion: String
     let platform: String
     let cpuArch: String
+    let sdkName: String
 }

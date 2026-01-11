@@ -32,11 +32,12 @@ struct BazelTargetCompilerArgsExtractorTests {
     let helloWorldConfig: BazelTargetConfigurationInfo
 
     init() throws {
+        let configId: UInt32 = 1
         let aqueryResult = try BazelTargetQuerierParserImpl().processAquery(
             from: exampleAqueryOutput,
-            topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication)]
+            topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication, configId)]
         )
-        self.helloWorldConfig = try #require(aqueryResult.topLevelLabelToConfigMap["//HelloWorld:HelloWorld"])
+        self.helloWorldConfig = try #require(aqueryResult.topLevelConfigIdToInfoMap[configId])
         self.aqueryResult = aqueryResult
     }
 
@@ -87,7 +88,6 @@ struct BazelTargetCompilerArgsExtractorTests {
             forTarget: BazelTargetPlatformInfo(
                 label: "//HelloWorld:HelloWorldLib",
                 topLevelParentLabel: "//HelloWorld:HelloWorld",
-                topLevelParentRuleType: .iosApplication,
                 topLevelParentConfig: helloWorldConfig
             ),
             withStrategy: .swiftModule,
@@ -103,7 +103,6 @@ struct BazelTargetCompilerArgsExtractorTests {
             forTarget: BazelTargetPlatformInfo(
                 label: "//HelloWorld:TodoObjCSupport",
                 topLevelParentLabel: "//HelloWorld:HelloWorld",
-                topLevelParentRuleType: .iosApplication,
                 topLevelParentConfig: helloWorldConfig
             ),
             withStrategy: .cImpl("HelloWorld/TodoObjCSupport/Sources/SKObjCUtils.m", "objective-c"),
@@ -120,7 +119,6 @@ struct BazelTargetCompilerArgsExtractorTests {
                 forTarget: BazelTargetPlatformInfo(
                     label: "//HelloWorld:TodoObjCSupport",
                     topLevelParentLabel: "//HelloWorld:HelloWorld",
-                    topLevelParentRuleType: .iosApplication,
                     topLevelParentConfig: helloWorldConfig
                 ),
                 withStrategy: .cImpl("HelloWorld/TodoObjCSupport/Sources/SomethingElse.m", "objective-c"),
@@ -140,7 +138,6 @@ struct BazelTargetCompilerArgsExtractorTests {
             forTarget: BazelTargetPlatformInfo(
                 label: "//HelloWorld:TodoObjCSupport",
                 topLevelParentLabel: "//HelloWorld:HelloWorld",
-                topLevelParentRuleType: .iosApplication,
                 topLevelParentConfig: helloWorldConfig
             ),
             withStrategy: .cHeader,
@@ -232,7 +229,6 @@ struct BazelTargetCompilerArgsExtractorTests {
                 forTarget: BazelTargetPlatformInfo(
                     label: "//HelloWorld:SomethingElseLib",
                     topLevelParentLabel: "//HelloWorld:HelloWorld",
-                    topLevelParentRuleType: .iosApplication,
                     topLevelParentConfig: helloWorldConfig
                 ),
                 withStrategy: .swiftModule,
@@ -253,7 +249,6 @@ struct BazelTargetCompilerArgsExtractorTests {
             forTarget: BazelTargetPlatformInfo(
                 label: "//HelloWorld:HelloWorldLib",
                 topLevelParentLabel: "//HelloWorld:HelloWorld",
-                topLevelParentRuleType: .iosApplication,
                 topLevelParentConfig: helloWorldConfig
             ),
             withStrategy: .swiftModule,

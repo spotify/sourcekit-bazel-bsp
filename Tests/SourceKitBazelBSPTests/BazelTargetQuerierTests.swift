@@ -33,16 +33,15 @@ struct BazelTargetQuerierTests {
         bspURIsToBazelLabelsMap: [:],
         bspURIsToSrcsMap: [:],
         srcToBspURIsMap: [:],
-        topLevelLabelToRuleMap: [:],
         configurationToTopLevelLabelsMap: [:],
-        bazelLabelToParentConfigMap: [:]
+        bspUriToParentConfigMap: [:]
     )
 
     private static let emptyProcessedAqueryResult = ProcessedAqueryResult(
         targets: [:],
         actions: [:],
         configurations: [:],
-        topLevelLabelToConfigMap: [:]
+        topLevelConfigIdToInfoMap: [:]
     )
 
     private static func makeInitializedConfig(
@@ -288,7 +287,7 @@ struct BazelTargetQuerierTests {
         runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleAqueryOutput)
 
         _ = try querier.aquery(
-            topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication)],
+            topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication, 1)],
             config: config,
             mnemonics: ["SwiftCompile"]
         )
@@ -312,8 +311,8 @@ struct BazelTargetQuerierTests {
 
         _ = try querier.aquery(
             topLevelTargets: [
-                ("//HelloWorld:HelloWorld", .iosApplication),
-                ("//Tests:Tests", .iosUnitTest),
+                ("//HelloWorld:HelloWorld", .iosApplication, 1),
+                ("//Tests:Tests", .iosUnitTest, 2),
             ],
             config: config,
             mnemonics: ["SwiftCompile", "ObjcCompile"]
@@ -347,7 +346,7 @@ struct BazelTargetQuerierTests {
 
         func run(mnemonics: [String]) throws {
             _ = try querier.aquery(
-                topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication)],
+                topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication, 1)],
                 config: config,
                 mnemonics: mnemonics
             )

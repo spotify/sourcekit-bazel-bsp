@@ -127,7 +127,7 @@ final class BazelTargetCompilerArgsExtractor {
             return []
         }
 
-        logger.info(
+        logger.debug(
             "Fetching SKOptions for \(platformInfo.label), strategy: \(strategy)",
         )
 
@@ -137,14 +137,14 @@ final class BazelTargetCompilerArgsExtractor {
             strategy: strategy
         )
 
-        logger.info("Fetching compiler args for \(cacheKey, privacy: .public)")
+        logger.debug("Fetching compiler args for \(cacheKey, privacy: .public)")
         if let cached = argsCache[cacheKey] {
             logger.debug("Returning cached results")
             return cached
         }
 
         // First, determine the SDK root based on the platform the target is built for.
-        let platformSdk = platformInfo.platformSdkName
+        let platformSdk = platformInfo.topLevelParentConfig.sdkName
         guard let sdkRoot: String = config.sdkRootPaths[platformSdk] else {
             throw BazelTargetCompilerArgsExtractorError.sdkRootNotFound(platformSdk)
         }
@@ -165,7 +165,7 @@ final class BazelTargetCompilerArgsExtractor {
             effectiveConfigName: platformInfo.topLevelParentConfig.effectiveConfigurationName
         )
 
-        logger.info("Finished processing compiler arguments")
+        logger.debug("Finished processing compiler arguments")
         logger.logFullObjectInMultipleLogMessages(
             level: .debug,
             header: "Parsed compiler arguments",

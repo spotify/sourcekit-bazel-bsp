@@ -60,7 +60,7 @@ final class BSPMessageHandler: MessageHandler {
     }
 
     func handle<Notification: NotificationType>(_ notification: Notification) {
-        logger.info("Received notification: \(Notification.method, privacy: .public)")
+        logger.debug("Received notification: \(Notification.method, privacy: .public)")
         do {
             let handler = try getHandler(for: notification, state: state)
             try handler(notification)
@@ -74,13 +74,13 @@ final class BSPMessageHandler: MessageHandler {
         id: RequestID,
         reply: @escaping (LSPResult<Request.Response>) -> Void
     ) {
-        logger.info("Received request: \(Request.method, privacy: .public)")
+        logger.debug("Received request: \(Request.method, privacy: .public)")
         do {
             let handler = try getHandler(for: request, id, reply, state: state)
             handler(request, id) { [buildLSPError] result in
                 do {
                     let response = try result.get()
-                    logger.info("Replying to \(Request.method, privacy: .public)")
+                    logger.debug("Replying to \(Request.method, privacy: .public)")
                     reply(.success(response))
                 } catch {
                     logger.error(

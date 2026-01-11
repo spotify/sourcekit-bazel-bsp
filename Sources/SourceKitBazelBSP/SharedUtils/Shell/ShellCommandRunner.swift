@@ -55,7 +55,7 @@ struct ShellCommandRunner: CommandRunner {
 
         runningProcess.attachPipes()
 
-        logger.info("Running shell: \(cmd, privacy: .public)")
+        logger.debug("Running shell: \(cmd, privacy: .public)")
         try process.run()
 
         return runningProcess

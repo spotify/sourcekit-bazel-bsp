@@ -154,7 +154,17 @@ final class InitializeHandler {
     }
 
     func getSDKRootPaths(with commandRunner: CommandRunner) -> [String: String] {
-        let supportedSDKTypes = Set(baseConfig.topLevelRulesToDiscover.map { $0.sdkName }).sorted()
+        let supportedSDKTypes = [
+            "appletvsimulator",
+            "appletvos",
+            "iphonesimulator",
+            "iphoneos",
+            "macosx",
+            "watchsimulator",
+            "watchos",
+            "xrsimulator",
+            "xros",
+        ]
         let sdkRootPaths: [String: String] = supportedSDKTypes.reduce(into: [:]) { result, sdkType in
             // This will fail if the user doesn't have the SDK installed, which is fine.
             guard let sdkRootPath: String? = try? commandRunner.run("xcrun --sdk \(sdkType) --show-sdk-path") else {

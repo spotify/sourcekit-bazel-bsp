@@ -68,7 +68,7 @@ final class PrepareHandler {
     ) {
         let targetsToBuild = request.targets
         guard !targetsToBuild.isEmpty else {
-            logger.info("No targets to build.")
+            logger.debug("No targets to build.")
             reply(.success(VoidResponse()))
             return
         }
@@ -143,9 +143,9 @@ final class PrepareHandler {
         completion: @escaping ((ResponseError?) -> Void)
     ) throws {
         if labelsToBuild.count == 1 {
-            logger.info("Will build \(labelsToBuild[0].joined(separator: ", "), privacy: .public)")
+            logger.debug("Will build \(labelsToBuild[0].joined(separator: ", "), privacy: .public)")
         } else {
-            logger.info(
+            logger.debug(
                 "Will build \(labelsToBuild.flatMap { $0 }.joined(separator: ", "), privacy: .public) over \(labelsToBuild.count, privacy: .public) invocations"
             )
         }
@@ -175,11 +175,11 @@ final class PrepareHandler {
             )
             process.setTerminationHandler { code, stderr in
                 if code == 0 {
-                    logger.info("Finished building! (Request ID: \(id.description, privacy: .public))")
+                    logger.debug("Finished building! (Request ID: \(id.description, privacy: .public))")
                     completion(nil)
                 } else {
                     if code == 8 {
-                        logger.info("Build (Request ID: \(id.description, privacy: .public)) was cancelled.")
+                        logger.debug("Build (Request ID: \(id.description, privacy: .public)) was cancelled.")
                         completion(ResponseError.cancelled)
                     } else {
                         logger.logFullObjectInMultipleLogMessages(

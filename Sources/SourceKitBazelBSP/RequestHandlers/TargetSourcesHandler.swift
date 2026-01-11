@@ -38,13 +38,13 @@ final class TargetSourcesHandler {
         _: RequestID
     ) throws -> BuildTargetSourcesResponse {
         let targets = request.targets
-        logger.info("Fetching sources for \(targets.count, privacy: .public) targets")
+        logger.debug("Fetching sources for \(targets.count, privacy: .public) targets")
 
         let srcs: [SourcesItem] = try targetStore.stateLock.withLockUnchecked {
             try targets.map { try targetStore.bazelTargetSrcs(forBSPURI: $0.uri) }
         }
 
-        logger.info(
+        logger.debug(
             "Returning \(srcs.count, privacy: .public) source specs"
         )
 
