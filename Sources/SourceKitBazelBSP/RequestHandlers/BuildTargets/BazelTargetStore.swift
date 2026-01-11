@@ -231,9 +231,9 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 
         reportQueue.async { [weak self] in
             guard let self = self else { return }
-            let outputPath: String = self.initializedConfig.outputPath
-            let fileName = "sourcekit-bazel-bsp-graph.json"
-            self.writeReport(toPath: outputPath + "/" + fileName)
+            let graphDir = self.initializedConfig.rootUri + "/.bsp/skbsp_generated"
+            let graphPath = graphDir + "/graph.json"
+            self.writeReport(toPath: graphPath, creatingDirectoryAt: graphDir)
         }
 
         return result
@@ -248,7 +248,12 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 }
 
 extension BazelTargetStoreImpl {
-    private func writeReport(toPath path: String) {
+    private func writeReport(toPath path: String, creatingDirectoryAt directoryPath: String) {
+        try? FileManager.default.createDirectory(
+            atPath: directoryPath,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
         do {
@@ -272,8 +277,7 @@ extension BazelTargetStoreImpl {
             reportTopLevel.append(
                 .init(
                     label: label,
-                    ruleType: ruleType.rawValue,
-                    isTest: ruleType.testBundleRule != nil,
+                    launchType: ruleType.testBundleRule != nil ? .test : .app,
                     configId: configId
                 )
             )
@@ -287,8 +291,9 @@ extension BazelTargetStoreImpl {
             )
         }
         var reportDependencies: [BazelTargetGraphReport.DependencyTarget] = []
-        let dependencyTargets = cqueryResult?.buildTargets.compactMap { $0.displayName } ?? []
-        for label in dependencyTargets {
+        let dependencyTargets = cqueryResult?.buildTargets ?? []
+        for target in dependencyTargets {
+            guard let label = target.displayName else { continue }
             let configId = try parentConfig(forBazelLabel: label)
             reportDependencies.append(.init(label: label, configId: configId))
         }

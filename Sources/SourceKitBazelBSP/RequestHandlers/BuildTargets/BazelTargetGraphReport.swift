@@ -24,9 +24,12 @@ import Foundation
 struct BazelTargetGraphReport: Codable, Equatable {
 
     struct TopLevelTarget: Codable, Equatable {
+        enum LaunchType: String, Codable, Equatable {
+            case app
+            case test
+        }
         let label: String
-        let ruleType: String
-        let isTest: Bool
+        let launchType: LaunchType
         let configId: UInt32
     }
 
