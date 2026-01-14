@@ -44,6 +44,7 @@ struct BazelTargetGraphReport: Codable, Equatable {
         let minimumOsVersion: String
         let cpuArch: String
         let sdkName: String
+        let dependencyBuildArgs: [String]
     }
 
     let topLevelTargets: [TopLevelTarget]

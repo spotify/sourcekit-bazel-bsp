@@ -133,8 +133,7 @@ struct PrepareHandlerTests {
     }
 
     func providesCorrectFlagsForiOSTargets() {
-        let handler = Self.makeHandler().0
-        let actualFlags = handler.buildArgs(
+        let actualFlags = PrepareHandler.buildArgs(
             minimumOsVersion: "15.0",
             platform: "ios",
             cpuArch: "arm64",
@@ -147,20 +146,19 @@ struct PrepareHandlerTests {
                 "--ios_multi_cpus=arm64",
                 "--apple_platform_type=ios",
                 "--apple_split_cpu=arm64",
-                "--ios_minimum_os=\"15.0\"",
+                "--ios_minimum_os=15.0",
                 "--cpu=ios_arm64",
-                "--minimum_os_version=\"15.0\"",
-                "--xcode_version=\"17B100\"",
-                "--repo_env=DEVELOPER_DIR=\"/Applications/Xcode.app/Contents/Developer\"",
-                "--repo_env=USE_CLANG_CL=\"17B100\"",
-                "--repo_env=XCODE_VERSION=\"17B100\"",
+                "--minimum_os_version=15.0",
+                "--xcode_version=17B100",
+                "--repo_env=DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer",
+                "--repo_env=USE_CLANG_CL=17B100",
+                "--repo_env=XCODE_VERSION=17B100",
             ]
         )
     }
 
     func providesCorrectFlagsForWatchOSTargets() {
-        let handler = Self.makeHandler().0
-        let actualFlags = handler.buildArgs(
+        let actualFlags = PrepareHandler.buildArgs(
             minimumOsVersion: "15.0",
             platform: "watchos",
             cpuArch: "x86_64",
@@ -173,20 +171,19 @@ struct PrepareHandlerTests {
                 "--watchos_cpus=x86_64",
                 "--apple_platform_type=watchos",
                 "--apple_split_cpu=x86_64",
-                "--watchos_minimum_os=\"15.0\"",
+                "--watchos_minimum_os=15.0",
                 "--cpu=watchos_x86_64",
-                "--minimum_os_version=\"15.0\"",
-                "--xcode_version=\"17B100\"",
-                "--repo_env=DEVELOPER_DIR=\"/Applications/Xcode.app/Contents/Developer\"",
-                "--repo_env=USE_CLANG_CL=\"17B100\"",
-                "--repo_env=XCODE_VERSION=\"17B100\"",
+                "--minimum_os_version=15.0",
+                "--xcode_version=17B100",
+                "--repo_env=DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer",
+                "--repo_env=USE_CLANG_CL=17B100",
+                "--repo_env=XCODE_VERSION=17B100",
             ]
         )
     }
 
     func providesCorrectFlagsForMacOSTargets() {
-        let handler = Self.makeHandler().0
-        let actualFlags = handler.buildArgs(
+        let actualFlags = PrepareHandler.buildArgs(
             minimumOsVersion: "15.0",
             platform: "darwin",
             cpuArch: "arm64",
@@ -199,20 +196,19 @@ struct PrepareHandlerTests {
                 "--macos_cpus=arm64",
                 "--apple_platform_type=macos",
                 "--apple_split_cpu=arm64",
-                "--macos_minimum_os=\"15.0\"",
+                "--macos_minimum_os=15.0",
                 "--cpu=darwin_arm64",
-                "--minimum_os_version=\"15.0\"",
-                "--xcode_version=\"17B100\"",
-                "--repo_env=DEVELOPER_DIR=\"/Applications/Xcode.app/Contents/Developer\"",
-                "--repo_env=USE_CLANG_CL=\"17B100\"",
-                "--repo_env=XCODE_VERSION=\"17B100\"",
+                "--minimum_os_version=15.0",
+                "--xcode_version=17B100",
+                "--repo_env=DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer",
+                "--repo_env=USE_CLANG_CL=17B100",
+                "--repo_env=XCODE_VERSION=17B100",
             ]
         )
     }
 
     func providesCorrectFlagsForTVOSTargets() {
-        let handler = Self.makeHandler().0
-        let actualFlags = handler.buildArgs(
+        let actualFlags = PrepareHandler.buildArgs(
             minimumOsVersion: "15.0",
             platform: "tvos",
             cpuArch: "sim_arm64",
@@ -225,20 +221,19 @@ struct PrepareHandlerTests {
                 "--tvos_cpus=sim_arm64",
                 "--apple_platform_type=tvos",
                 "--apple_split_cpu=sim_arm64",
-                "--tvos_minimum_os=\"15.0\"",
+                "--tvos_minimum_os=15.0",
                 "--cpu=tvos_sim_arm64",
-                "--minimum_os_version=\"15.0\"",
-                "--xcode_version=\"17B100\"",
-                "--repo_env=DEVELOPER_DIR=\"/Applications/Xcode.app/Contents/Developer\"",
-                "--repo_env=USE_CLANG_CL=\"17B100\"",
-                "--repo_env=XCODE_VERSION=\"17B100\"",
+                "--minimum_os_version=15.0",
+                "--xcode_version=17B100",
+                "--repo_env=DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer",
+                "--repo_env=USE_CLANG_CL=17B100",
+                "--repo_env=XCODE_VERSION=17B100",
             ]
         )
     }
 
     func providesCorrectFlagsForVisionOSTargets() {
-        let handler = Self.makeHandler().0
-        let actualFlags = handler.buildArgs(
+        let actualFlags = PrepareHandler.buildArgs(
             minimumOsVersion: "15.0",
             platform: "visionos",
             cpuArch: "sim_arm64",
@@ -251,13 +246,13 @@ struct PrepareHandlerTests {
                 "--visionos_cpus=sim_arm64",
                 "--apple_platform_type=visionos",
                 "--apple_split_cpu=sim_arm64",
-                "--visionos_minimum_os=\"15.0\"",
+                "--visionos_minimum_os=15.0",
                 "--cpu=visionos_sim_arm64",
-                "--minimum_os_version=\"15.0\"",
-                "--xcode_version=\"17B100\"",
-                "--repo_env=DEVELOPER_DIR=\"/Applications/Xcode.app/Contents/Developer\"",
-                "--repo_env=USE_CLANG_CL=\"17B100\"",
-                "--repo_env=XCODE_VERSION=\"17B100\"",
+                "--minimum_os_version=15.0",
+                "--xcode_version=17B100",
+                "--repo_env=DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer",
+                "--repo_env=USE_CLANG_CL=17B100",
+                "--repo_env=XCODE_VERSION=17B100",
             ]
         )
     }
