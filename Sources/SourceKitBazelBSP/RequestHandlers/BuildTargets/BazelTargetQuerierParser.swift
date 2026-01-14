@@ -51,8 +51,8 @@ enum BazelTargetQuerierParserError: Error, LocalizedError {
                 "Multiple parent actions found for \(parent) in the aquery output. This means your project is building multiple variants of the same top-level target, which the BSP cannot handle today."
         case .configurationNotFound(let id):
             return "Configuration \(id) not found in the aquery output."
-        case .sdkNameNotFound(let label):
-            return "SDK info not found for \(label) in the aquery output."
+        case .sdkNameNotFound(let cpuAndArch):
+            return "SDK info could not be inferred for \(cpuAndArch)."
         case .indexOutOfBounds(let index, let line):
             return "Index \(index) is out of bounds for array at line \(line)"
         case .unexpectedLanguageRule(let target, let ruleClass):
@@ -573,18 +573,16 @@ extension BazelTargetQuerierParserImpl {
         guard let fullConfig = aqueryConfigurations[configId]?.mnemonic else {
             throw BazelTargetQuerierParserError.configurationNotFound(configId)
         }
-        guard let sdkName = parentAction.environmentVariables.first(where: { $0.key == "APPLE_SDK_PLATFORM" })?.value
-        else {
-            throw BazelTargetQuerierParserError.sdkNameNotFound(effectiveParentLabel)
-        }
         let configComponents = fullConfig.components(separatedBy: "-")
         // min15.0 -> 15.0
         let minTargetArg = String(try configComponents.getIndexThrowing(4).dropFirst(3))
         // The first component contains the platform and arch info.
         // e.g darwin_arm64 -> (darwin, arm64)
-        let cpuComponents = try configComponents.getIndexThrowing(0).split(separator: "_", maxSplits: 1)
-        let platform = try cpuComponents.getIndexThrowing(0)
-        let cpuArch = try cpuComponents.getIndexThrowing(1)
+        let cpuAndArch = try configComponents.getIndexThrowing(0)
+        let sdkName = try inferSdkName(from: cpuAndArch)
+        let cpuComponents = cpuAndArch.split(separator: "_", maxSplits: 1)
+        let platform = String(try cpuComponents.getIndexThrowing(0))
+        let cpuArch = String(try cpuComponents.getIndexThrowing(1))
 
         // To support compiling libraries directly, we need to additionally strip out
         // the transition and distinguisher parts of the configuration name, as those will not
@@ -600,10 +598,43 @@ extension BazelTargetQuerierParserImpl {
             configurationName: fullConfig,
             effectiveConfigurationName: effectiveConfigurationName,
             minimumOsVersion: minTargetArg,
-            platform: String(platform),
-            cpuArch: String(cpuArch),
+            platform: platform,
+            cpuArch: cpuArch,
             sdkName: sdkName.lowercased()
         )
+    }
+
+    private func inferSdkName(from cpuAndArch: String) throws -> String {
+        // Source: https://github.com/bazelbuild/apple_support/blob/main/crosstool/cc_toolchain_config.bzl
+        // We can't rely on APPLE_SDK_PLATFORM in all cases because build_test rules won't have it at the top-level.
+        if cpuAndArch.hasPrefix("darwin") {
+            return "macosx"
+        } else if cpuAndArch.hasPrefix("ios") {
+            switch cpuAndArch {
+            case "ios_arm64", "ios_arm64e": return "iphoneos"
+            case "ios_sim_arm64", "ios_x86_64": return "iphonesimulator"
+            default: break
+            }
+        } else if cpuAndArch.hasPrefix("tvos") {
+            switch cpuAndArch {
+            case "tvos_arm64": return "appletvos"
+            case "tvos_sim_arm64", "tvos_x86_64": return "appletvsimulator"
+            default: break
+            }
+        } else if cpuAndArch.hasPrefix("watchos") {
+            switch cpuAndArch {
+            case "watchos_arm64_32", "watchos_armv7k", "watchos_device_arm64", "watchos_device_arm64e": return "watchos"
+            case "watchos_arm64", "watchos_x86_64": return "watchsimulator"
+            default: break
+            }
+        } else if cpuAndArch.hasPrefix("visionos") {
+            switch cpuAndArch {
+            case "visionos_arm64": return "xros"
+            case "visionos_sim_arm64": return "xrsimulator"
+            default: break
+            }
+        }
+        throw BazelTargetQuerierParserError.sdkNameNotFound(cpuAndArch)
     }
 }
 

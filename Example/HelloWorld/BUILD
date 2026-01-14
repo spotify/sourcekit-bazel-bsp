@@ -1,5 +1,5 @@
 load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template_rule")
-load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test")
+load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test", "ios_build_test")
 load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application", "macos_command_line_application", "macos_unit_test")
 load("@build_bazel_rules_apple//apple:watchos.bzl", "watchos_application", "watchos_extension", "watchos_unit_test")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_interop_hint", "swift_library")
@@ -240,6 +240,12 @@ macos_command_line_application(
     infoplists = ["Resources/MacCLIApp-Info.plist"],
     minimum_os_version = MACOS_MINIMUM_OS_VERSION,
     deps = [":MacCLIAppLib"],
+)
+
+ios_build_test(
+    name = "HelloWorldLibBuildTest",
+    minimum_os_version = IOS_MINIMUM_OS_VERSION,
+    targets = [":HelloWorldLib"],
 )
 
 # Project setup
