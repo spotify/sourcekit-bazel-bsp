@@ -273,16 +273,25 @@ extension BazelTargetStoreImpl {
                     platform: topLevelConfig.platform,
                     minimumOsVersion: topLevelConfig.minimumOsVersion,
                     cpuArch: topLevelConfig.cpuArch,
-                    sdkName: topLevelConfig.sdkName
+                    sdkName: topLevelConfig.sdkName,
+                    dependencyBuildArgs: PrepareHandler.buildArgs(
+                        minimumOsVersion: topLevelConfig.minimumOsVersion,
+                        platform: topLevelConfig.platform,
+                        cpuArch: topLevelConfig.cpuArch,
+                        devDir: initializedConfig.devDir,
+                        xcodeVersion: initializedConfig.xcodeVersion
+                    )
                 )
             )
         }
         var reportDependencies: [BazelTargetGraphReport.DependencyTarget] = []
-        let dependencyTargets = cqueryResult?.buildTargets ?? []
-        for target in dependencyTargets {
-            guard let label = target.displayName else { continue }
-            let configId = try parentConfig(forBSPURI: target.id.uri)
-            reportDependencies.append(.init(label: label, configId: configId))
+        if !initializedConfig.baseConfig.compileTopLevel {
+            let dependencyTargets = cqueryResult?.buildTargets ?? []
+            for target in dependencyTargets {
+                guard let label = target.displayName else { continue }
+                let configId = try parentConfig(forBSPURI: target.id.uri)
+                reportDependencies.append(.init(label: label, configId: configId))
+            }
         }
         return BazelTargetGraphReport(
             topLevelTargets: reportTopLevel,

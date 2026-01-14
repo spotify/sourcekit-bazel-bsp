@@ -102,7 +102,7 @@ final class PrepareHandler {
                 // we split the request into multiple Bazel invocations if needed.
                 var argsToLabelsMap: [[String]: [String]] = [:]
                 for labelToBuild in platformInfo {
-                    let args = buildArgs(
+                    let args = Self.buildArgs(
                         minimumOsVersion: labelToBuild.topLevelParentConfig.minimumOsVersion,
                         platform: labelToBuild.topLevelParentConfig.platform,
                         cpuArch: labelToBuild.topLevelParentConfig.cpuArch,
@@ -195,7 +195,7 @@ final class PrepareHandler {
         }
     }
 
-    func buildArgs(
+    static func buildArgs(
         minimumOsVersion: String,
         platform: String,
         cpuArch: String,
@@ -227,13 +227,13 @@ final class PrepareHandler {
             "--\(friendlyPlatName)_\(cpuFlagName)=\(cpuArch)",
             "--apple_platform_type=\(friendlyPlatName)",
             "--apple_split_cpu=\(cpuArch)",
-            "--\(friendlyPlatName)_minimum_os=\"\(minimumOsVersion)\"",
+            "--\(friendlyPlatName)_minimum_os=\(minimumOsVersion)",
             "--cpu=\(platform)_\(cpuArch)",
-            "--minimum_os_version=\"\(minimumOsVersion)\"",
-            "--xcode_version=\"\(xcodeVersion)\"",
-            "--repo_env=DEVELOPER_DIR=\"\(devDir)\"",
-            "--repo_env=USE_CLANG_CL=\"\(xcodeVersion)\"",
-            "--repo_env=XCODE_VERSION=\"\(xcodeVersion)\"",
+            "--minimum_os_version=\(minimumOsVersion)",
+            "--xcode_version=\(xcodeVersion)",
+            "--repo_env=DEVELOPER_DIR=\(devDir)",
+            "--repo_env=USE_CLANG_CL=\(xcodeVersion)",
+            "--repo_env=XCODE_VERSION=\(xcodeVersion)",
         ]
     }
 
