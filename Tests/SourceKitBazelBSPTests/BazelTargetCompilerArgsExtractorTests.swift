@@ -258,7 +258,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                 == expectedSwiftResult.map {
                     $0.replacingOccurrences(
                         of: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0",
-                        with: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f"
+                        with: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300"
                     )
                 }
         )

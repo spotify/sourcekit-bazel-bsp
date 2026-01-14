@@ -154,14 +154,14 @@ struct BazelTargetQuerierParserImplTests {
 
         // Top level targets - verify label and rule type (config IDs are assigned during parsing)
         let expectedTopLevelTargets: [(String, TopLevelRuleType)] = [
-            ("//HelloWorld:HelloWorldMacTests", .macosUnitTest),
-            ("//HelloWorld:HelloWorldTests", .iosUnitTest),
-            ("//HelloWorld:HelloWorld", .iosApplication),
-            ("//HelloWorld:HelloWorldWatchExtension", .watchosExtension),
             ("//HelloWorld:HelloWorldWatchTests", .watchosUnitTest),
-            ("//HelloWorld:HelloWorldMacCLIApp", .macosCommandLineApplication),
+            ("//HelloWorld:HelloWorld", .iosApplication),
             ("//HelloWorld:HelloWorldMacApp", .macosApplication),
+            ("//HelloWorld:HelloWorldTests", .iosUnitTest),
+            ("//HelloWorld:HelloWorldMacTests", .macosUnitTest),
             ("//HelloWorld:HelloWorldWatchApp", .watchosApplication),
+            ("//HelloWorld:HelloWorldWatchExtension", .watchosExtension),
+            ("//HelloWorld:HelloWorldMacCLIApp", .macosCommandLineApplication),
         ]
         #expect(result.topLevelTargets.count == expectedTopLevelTargets.count)
         for (index, expected) in expectedTopLevelTargets.enumerated() {
@@ -320,7 +320,7 @@ struct BazelTargetQuerierParserImplTests {
         #expect(
             result.topLevelConfigIdToInfoMap[1]
                 == BazelTargetConfigurationInfo(
-                    configurationName: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-applebin_ios-ST-faa571ec622f",
+                    configurationName: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300",
                     effectiveConfigurationName: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0",
                     minimumOsVersion: "17.0",
                     platform: "ios",
@@ -333,7 +333,7 @@ struct BazelTargetQuerierParserImplTests {
         #expect(
             result.topLevelConfigIdToInfoMap[2]
                 == BazelTargetConfigurationInfo(
-                    configurationName: "darwin_arm64-dbg-macos-arm64-min15.0-applebin_macos-ST-d1334902beb6",
+                    configurationName: "darwin_arm64-dbg-macos-arm64-min15.0-ST-3b9f41d61db6",
                     effectiveConfigurationName: "darwin_arm64-dbg-macos-arm64-min15.0",
                     minimumOsVersion: "15.0",
                     platform: "darwin",
@@ -346,11 +346,11 @@ struct BazelTargetQuerierParserImplTests {
         #expect(
             result.topLevelConfigIdToInfoMap[3]
                 == BazelTargetConfigurationInfo(
-                    configurationName: "watchos_x86_64-dbg-watchos-x86_64-min7.0-applebin_watchos-ST-74f4ed91ef5d",
-                    effectiveConfigurationName: "watchos_x86_64-dbg-watchos-x86_64-min7.0",
+                    configurationName: "watchos_arm64-dbg-watchos-arm64-min7.0-ST-f4f2bb7e56ed",
+                    effectiveConfigurationName: "watchos_arm64-dbg-watchos-arm64-min7.0",
                     minimumOsVersion: "7.0",
                     platform: "watchos",
-                    cpuArch: "x86_64",
+                    cpuArch: "arm64",
                     sdkName: "watchsimulator"
                 )
         )
