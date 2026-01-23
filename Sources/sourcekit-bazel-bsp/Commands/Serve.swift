@@ -24,7 +24,7 @@ import SourceKitBazelBSP
 
 private let logger = makeFileLevelBSPLogger()
 
-struct Serve: ParsableCommand {
+struct Serve: AsyncParsableCommand {
     @Option(help: "The name of the Bazel CLI to invoke (e.g. 'bazelisk')")
     var bazelWrapper: String = "bazel"
 
@@ -79,7 +79,7 @@ struct Serve: ParsableCommand {
     )
     var dependencyTargetToExclude: [String] = []
 
-    func run() throws {
+    func run() async throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
         let topLevelRulesToDiscover: [TopLevelRuleType] =
