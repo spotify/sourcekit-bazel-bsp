@@ -260,10 +260,19 @@ extension BazelTargetStoreImpl {
         let topLevelTargets = cqueryResult?.topLevelTargets ?? []
         for (label, ruleType, configId) in topLevelTargets {
             let topLevelConfig = try topLevelConfigInfo(forConfig: configId)
+            let launchType: BazelTargetGraphReport.TopLevelTarget.LaunchType? = {
+                if ruleType.testBundleRule != nil {
+                    return .test
+                } else if ruleType.isLaunchableApp {
+                    return .app
+                } else {
+                    return nil
+                }
+            }()
             reportTopLevel.append(
                 .init(
                     label: label,
-                    launchType: ruleType.testBundleRule != nil ? .test : .app,
+                    launchType: launchType,
                     configId: configId
                 )
             )

@@ -99,4 +99,15 @@ public enum TopLevelRuleType: String, CaseIterable, ExpressibleByArgument, Senda
         default: return false
         }
     }
+
+    /// Whether or not this is an app rule that supports `bazel run`.
+    /// Standalone watchOS apps are not executable as of writing.
+    var isLaunchableApp: Bool {
+        switch self {
+        case .iosApplication, .iosAppClip, .macosApplication, .macosCommandLineApplication, .tvosApplication,
+            .visionosApplication:
+            return true
+        default: return false
+        }
+    }
 }
