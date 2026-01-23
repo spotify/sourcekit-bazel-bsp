@@ -29,7 +29,7 @@ struct BazelTargetGraphReport: Codable, Equatable {
             case test
         }
         let label: String
-        let launchType: LaunchType
+        let launchType: LaunchType?
         let configId: UInt32
     }
 
