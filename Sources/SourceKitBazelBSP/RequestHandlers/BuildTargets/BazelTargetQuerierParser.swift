@@ -116,6 +116,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         var unfilteredDependencyTargets = [Analysis_ConfiguredTarget]()
         var seenSourceFiles = Set<String>()
         var allSrcs = [BlazeQuery_Target]()
+        var testBundleToRealNameMap: [String: String] = [:]
         for configuredTarget in cquery.results {
             let target = configuredTarget.target
             let configuration = configuredTarget.configurationID
@@ -144,6 +145,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                     let realTopLevelName = String(
                         target.rule.name.dropLast(TopLevelRuleType.testBundleRuleSuffix.count)
                     )
+                    testBundleToRealNameMap[target.rule.name] = realTopLevelName
                     configurationToTopLevelLabelsMap[configuration, default: []].append(realTopLevelName)
                     topLevelLabelToConfigMap[realTopLevelName] = configuration
                 } else {
@@ -322,6 +324,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         }
 
         var bspURIsToBazelLabelsMap: [URI: String] = [:]
+        var displayNameToURIMap: [String: URI] = [:]
         var bspURIsToSrcsMap: [URI: SourcesItem] = [:]
         var srcToBspURIsMap: [URI: [URI]] = [:]
         for dependencyTargetInfo in buildTargets {
@@ -333,10 +336,25 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             }
             let uri = target.id.uri
             bspURIsToBazelLabelsMap[uri] = displayName
+            displayNameToURIMap[displayName] = uri
             bspURIsToSrcsMap[uri] = sourcesItem
             for src in sourcesItem.sources {
                 srcToBspURIsMap[src.uri, default: []].append(uri)
             }
+        }
+
+        // Use the previously parsed test bundle info to infer which files
+        // belong to which test targets. Used to power test tabs in IDE integrations.
+        var bazelLabelToTestFilesMap: [String: [URI]] = [:]
+        for (testBundle, realTestTarget) in testBundleToRealNameMap {
+            let targetHoldingSources = resolveAlias(label: testBundle, from: aliasToLabelMap)
+            guard let targetUri = displayNameToURIMap[targetHoldingSources] else {
+                continue
+            }
+            guard let sourcesItem = bspURIsToSrcsMap[targetUri] else {
+                continue
+            }
+            bazelLabelToTestFilesMap[realTestTarget] = sourcesItem.sources.map { $0.uri }
         }
 
         return ProcessedCqueryResult(
@@ -346,7 +364,8 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             bspURIsToSrcsMap: bspURIsToSrcsMap,
             srcToBspURIsMap: srcToBspURIsMap,
             configurationToTopLevelLabelsMap: configurationToTopLevelLabelsMap,
-            bspUriToParentConfigMap: bspUriToParentConfigMap
+            bspUriToParentConfigMap: bspUriToParentConfigMap,
+            bazelLabelToTestFilesMap: bazelLabelToTestFilesMap
         )
     }
 

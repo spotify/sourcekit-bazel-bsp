@@ -269,11 +269,16 @@ extension BazelTargetStoreImpl {
                     return nil
                 }
             }()
+            let testSources: [String]? = {
+                guard launchType == .test else { return nil }
+                return cqueryResult?.bazelLabelToTestFilesMap[label]?.map { $0.stringValue }
+            }()
             reportTopLevel.append(
                 .init(
                     label: label,
                     launchType: launchType,
-                    configId: configId
+                    configId: configId,
+                    testSources: testSources
                 )
             )
             reportConfigurations[configId] = .init(
