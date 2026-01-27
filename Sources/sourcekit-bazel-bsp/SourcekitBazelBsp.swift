@@ -23,7 +23,7 @@ import SourceKitBazelBSP
 private let logger = makeFileLevelBSPLogger()
 
 @main
-struct SourcekitBazelBspCommand: ParsableCommand {
+struct SourcekitBazelBspCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "A Build Server Protocol server for Bazel, for usage with SourceKit-LSP.",
         version: sourcekitBazelBSPVersion,
@@ -33,7 +33,7 @@ struct SourcekitBazelBspCommand: ParsableCommand {
 }
 
 extension SourcekitBazelBspCommand {
-    static func main() throws {
+    static func main() async throws {
         var command: ParsableCommand
         do {
             command = try parseAsRoot()
@@ -42,7 +42,11 @@ extension SourcekitBazelBspCommand {
             exit(withError: error)
         }
         do {
-            try command.run()
+            if var asyncCommand = command as? AsyncParsableCommand {
+                try await asyncCommand.run()
+            } else {
+                try command.run()
+            }
         } catch {
             logger.fault("Failed to initialize the BSP: \(error, privacy: .public)")
             exit(withError: error)
