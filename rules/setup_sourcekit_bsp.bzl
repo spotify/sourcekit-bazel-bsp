@@ -48,14 +48,20 @@ def _setup_sourcekit_bsp_impl(ctx):
         "backgroundIndexing": True,
         "backgroundPreparationMode": "build",
         "defaultWorkspaceType": "buildServer",
-        "buildServerWorkspaceRequestsTimeout": 999, # Temporary while we don't follow the recommendation of returning from buildTargets as fast as possible + use notifications
-        "buildSettingsTimeout": 999, # Temporary while we don't follow the recommendation of returning from buildTargets as fast as possible + use notifications
     }
     if ctx.attr.index_build_batch_size:
         lsp_config_json["preparationBatchingStrategy"] = {
             "strategy": "fixedTargetBatchSize",
             "batchSize": ctx.attr.index_build_batch_size
         }
+    else:
+        lsp_config_json["preparationBatchingStrategy"] = None
+    if ctx.attr.lsp_timeout:
+        lsp_config_json["buildServerWorkspaceRequestsTimeout"] = ctx.attr.lsp_timeout
+        lsp_config_json["buildSettingsTimeout"] = ctx.attr.lsp_timeout
+    else:
+        lsp_config_json["buildServerWorkspaceRequestsTimeout"] = None
+        lsp_config_json["buildSettingsTimeout"] = None
     ctx.actions.write(rendered_lsp_config, json.encode_indent(lsp_config_json, indent = "  "))
 
     # Generating the script that ties everything together
@@ -145,6 +151,10 @@ setup_sourcekit_bsp = rule(
         "compile_top_level": attr.bool(
             doc = "Instead of attempting to build targets individually, build the top-level parent. If your project contains build_test targets for your individual libraries and you're passing them as the top-level targets for the BSP, you can use this flag to build those targets directly for better predictability and caching.",
             default = False,
+        ),
+        "lsp_timeout": attr.int(
+            doc = "A custom timeout value to provide to sourcekit-lsp when waiting for responses from the BSP.",
+            mandatory = False,
         ),
     },
 )
