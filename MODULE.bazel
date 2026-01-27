@@ -1,5 +1,5 @@
 module(
     name = "sourcekit_bazel_bsp",
-    version = "0.5.2",
+    version = "0.5.3",
     compatibility_level = 0,
 )

@@ -1,6 +1,6 @@
 {
 	"name": "sourcekit-bazel-bsp",
-	"version": "0.5.2",
+	"version": "0.5.3",
 	"bspVersion": "2.2.0",
 	"languages": [
 		"c",
