@@ -35,6 +35,8 @@ def _setup_sourcekit_bsp_impl(ctx):
     if files_to_watch:
         bsp_config_argv.append("--files-to-watch")
         bsp_config_argv.append(files_to_watch)
+    if ctx.attr.no_extra_output_base:
+        bsp_config_argv.append("--no-extra-output-base")
     ctx.actions.expand_template(
         template = ctx.file._bsp_config_template,
         output = rendered_bsp_config,
@@ -144,6 +146,10 @@ setup_sourcekit_bsp = rule(
         ),
         "compile_top_level": attr.bool(
             doc = "Instead of attempting to build targets individually, build the top-level parent. If your project contains build_test targets for your individual libraries and you're passing them as the top-level targets for the BSP, you can use this flag to build those targets directly for better predictability and caching.",
+            default = False,
+        ),
+        "no_extra_output_base": attr.bool(
+            doc = "If enabled, the BSP will not create a separate output base for its indexing actions. You can use this in conjunction with rules_swift's `index_while_building` and `use_global_module_cache` to improve indexing performance and reduce disk usage at the cost of potentially slower builds.",
             default = False,
         ),
     },
