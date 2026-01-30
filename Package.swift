@@ -19,16 +19,15 @@ let package = Package(
         .package(
             url:
             "https://github.com/swiftlang/swift-tools-protocols",
-            revision: "88612c51de4cbf636a6b948c64ea5ebd55b8a0ad"
+            .upToNextMinor(from: "0.0.10")
         ),
-
         .package(
             url: "https://github.com/apple/swift-argument-parser",
-            revision: "1.6.2"
+            .upToNextMajor(from: "1.6.2")
         ),
         .package(
             url: "https://github.com/apple/swift-protobuf.git",
-            revision: "1.33.3"
+            .upToNextMajor(from: "1.33.3")
         ),
     ],
     targets: [
