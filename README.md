@@ -28,7 +28,7 @@ https://github.com/user-attachments/assets/ca5a448d-03b1-4f8e-9de1-e403cc08953c
 ### Cursor / VSCode
 
 - Download and install the official [Swift](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) and [LLDB-DAP](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.lldb-dap) extensions.
-  - We recommend disabling the SwiftPM integration (in the Swift extension's settings) as that can interfere with the BSP.
+  - We recommend disabling the SwiftPM and Swiftly integrations (in the Swift extension's settings) as they can interfere with the BSP.
   - Note: (Cursor) As of writing, you won't be able to install these extensions directly from Cursor's Marketplace. You will need to download the `.vsix` files separatedly and install them by either dragging them into Cursor or using the Cursor CLI. One way to obtain the `.vsix` files is by finding the extensions in **VSCode** and right clicking them -> `Download VSIX`.
 - **(Optional)** Configure your workspace to use a custom `sourcekit-lsp` binary by placing the provided binary from the release archive (or compiling/providing one of your own) at a place of your choice, creating a `.vscode/settings.json` JSON file at the root of your repository, and adding the following entry to it: `"swift.sourcekit-lsp.serverPath": "(absolute path to the sourcekit-lsp binary to use)"`
   - This is not strictly necessary. However, as we currently make use of LSP features that are not yet shipped with Xcode, you may face performance and other usability issues when using the version that is shipped with Xcode. Consider using the version provided alongside sourcekit-bazel-bsp (or compiling/providing your own) for the best experience.
@@ -41,40 +41,48 @@ The next step is to integrate sourcekit-bazel-bsp with your project:
 bazel_dep(name = "sourcekit_bazel_bsp", version = "0.5.3", repo_name = "sourcekit_bazel_bsp")
 ```
 
-- Define a `setup_sourcekit_bsp` rule in a BUILD.bazel file of your choice and [configure it](rules/setup_sourcekit_bsp.bzl#L89) for your desired setup:
+- Define a `setup_sourcekit_bsp` rule in a BUILD.bazel file of your choice. [You can find the full list of arguments here](rules/setup_sourcekit_bsp.bzl). Although the exact setup differs from project to project, here's what an example setup would look like:
 
 ```python
 load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl", "setup_sourcekit_bsp")
 
 setup_sourcekit_bsp(
-  name = "setup_sourcekit_bsp",
-  ...
+    name = "setup_sourcekit_bsp_example_project",
+    bazel_wrapper = "bazelisk",
+    files_to_watch = [
+        "HelloWorld/**/*.swift",
+        "HelloWorld/**/*.h",
+        "HelloWorld/**/*.m",
+        "HelloWorld/**/*.mm",
+        "HelloWorld/**/*.c",
+        "HelloWorld/**/*.hpp",
+        "HelloWorld/**/*.cpp"
+    ],
+    index_flags = [
+        "config=index_build",
+    ],
+    index_build_batch_size = 10,
+    targets = [
+        "//HelloWorld/...",
+    ],
 )
 ```
 
 - Run `bazel run {path to the rule, e.g //:setup_sourcekit_bsp}`.
 
-This will result in the necessary configuration files being added to your repository. Users should then re-run the above command whenever the rule's parameters changes.
+This will result in the necessary configuration files being added to your repository. Users should then re-run the above command whenever the rule's parameters changes. We recommend adding `.bsp/skbsp_generated` as well as the copied binaries and `.bsp/skbsp.json` to your `.gitignore`.
 
 #### After Integrating
 
-- On the IDE, open a workspace containing the repository in question. If you already had one open, either restart the language server (`Cmd+Shift+P -> Swift: Restart LSP Server`) or reload the entire window (`Cmd+Shift+P -> Reload Window`) if you don't see the previous option.
+- On the IDE, open a workspace containing the repository in question. If you already had one open, either restart the language server (`Cmd+Shift+P -> Swift: Restart LSP Server`) or reload the entire window (`Cmd+Shift+P -> Reload Window`) if you don't see the previous option. The BSP will then automatically bootstrap itself upon interacting with a Swift file.
 
-After following these steps, the `SourceKit Language Server` output tab (_Cmd+Shift+U_) should eventually show up (this will take a couple of seconds if the Swift extension needs to be launched on that window), and indexing-related actions will start popping up at the bottom of the IDE after a while alongside a new `SourceKit-LSP: Indexing` output tab when working with those files.
+While a complete indexing run can take a very long time on large projects, keep in mind that you don't need one. As long as the individual target you're working with is indexed (which happens automatically as you start working on it, as the LSP prioritizes targets you're actively modifying), all of the usual indexing features will work as you'd expect. Make sure to also check the best practices below to further optimize the BSP's performance.
 
-While a complete indexing run can take a very long time on large projects, keep in mind that you don't need one. As long as the individual target you're working with is indexed (which happens automatically as you start working on it, as the LSP prioritizes targets you're actively modifying), all of the usual indexing features will work as you'd expect.
+If you experience any trouble trying to get it to work, check out the [Example/ folder](./Example) for a test project with a pre-configured Bazel and `.bsp/` folder setup. The _Troubleshooting_ section below also contains instructions on how to make sure the integration is working and debug sourcekit-bazel-bsp.
 
-If you experience any trouble trying to get it to work, check out the [Example/ folder](./Example) for a test project with a pre-configured Bazel and `.bsp/` folder setup. The _Troubleshooting_ section below also contains instructions on how to debug sourcekit-bazel-bsp.
+### Other IDEs, and Claude Code
 
-### Other IDEs
-
-The setup instructions depend on how the IDE integrates with LSPs. You should then search for instructions on how to install sourcekit-lsp on your IDE of choice and enable background indexing. After that, follow the `.bsp/` related steps from the above instructions. Keep in mind that this since project is developed specifically with Cursor / VSCode in mind, we cannot say how well sourcekit-bazel-bsp would work with other IDEs.
-
-## Bazel Caching Implications
-
-The BSP by default works by attempting to build your library targets individually with a set of platform flags based on the library's parent app, which is an action that currently does not share action cache keys with the compilation of the apps themselves. If your goal is to have index builds share cache with regular app builds, this would mean that as of writing you would end up with two sets of artifacts.
-
-If this is undesirable, you can pass the `--compile-top-level` flag to make the BSP compile the target's **parent** instead, without any special flags. We recommend using this for projects that define fine-grained `*_build_test` targets and providing them as top-level targets for the BSP, as those don't suffer from this issue and thus enables maximum predictability and cacheability.
+The setup instructions for other IDEs (and by extension, Claude Code) will depend on how the IDE integrates with LSPs. You should then search for instructions on how to install sourcekit-lsp on your IDE of choice and enable background indexing. After that, follow the `.bsp/` related steps from the above instructions. Keep in mind that this since project is developed specifically with Cursor / VSCode in mind, we cannot say how well sourcekit-bazel-bsp would work with other IDEs.
 
 ## Best Practices
 
@@ -82,7 +90,22 @@ If this is undesirable, you can pass the `--compile-top-level` flag to make the 
     - The BSP's many filtering arguments can be particularly useful for more complex cases.
     - For smaller apps, this doesn't make much difference and it should be fine to import the entire app.
 
+## Bazel Caching Implications
+
+The BSP by default works by attempting to build your library targets individually with a set of platform flags based on the library's parent app, which is an action that currently does not share action cache keys with the compilation of the apps themselves. If your goal is to have index builds share cache with regular app builds, this would mean that as of writing you would end up with two sets of artifacts.
+
+If this is undesirable, you can pass the `--compile-top-level` flag to make the BSP compile the target's **parent** instead, without any special flags. We recommend using this for projects that define fine-grained `*_build_test` targets and providing them as top-level targets for the BSP, as those don't suffer from this issue and thus enables maximum predictability and cacheability.
+
 ## Troubleshooting
+
+### (Cursor / VSCode) Making sure the integration is working
+
+The integration will generally display errors on the IDE if something went wrong, but if you see nothing, try the following:
+
+- Check if you have a `Swift` option on on the Output tab of the IDE. This should say something like "Activating Swift for...". After a while, the output will update to state that the extension activated successfully ("Extension activation completed"). You should also see an entry that says `(found 1 packages)` and another one saying `Added package folder (your_workspace_folder).` These indicate that the Swift extension has correctly recognized the workspace as a Swift project.
+- At this point, another option called `SourceKit Language Server` will show up, with progress indicators popping up at the bottom of the IDE (e.g. "sourcekit-bazel-bsp: Initializing...") shortly after. This means the integration is working correctly.
+
+After a while, indexing logs will show up on a separate `SourceKit-LSP: Indexing` tab. These are particularly useful for uncovering issues with either your setup or the BSP itself as they display all individual compilations triggered by sourcekit-lsp.
 
 ### Seeing sourcekit-bazel-bsp's logs
 
@@ -92,7 +115,7 @@ Some logs may be redacted. To enable extended logging and expose those logs, ins
 
 If you wish for the logs to become redacted again, you can remove the configuration profile [as described here.](https://support.apple.com/guide/mac-help/configuration-profiles-standardize-settings-mh35561/mac#mchlpa04df41.)
 
-### Debugging
+### Debugging sourcekit-bazel-bsp itself
 
 Since sourcekit-bazel-bsp is initialized from within sourcekit-lsp, debugging it requires you to start a lldb session in advance. You can do it with the following command: `lldb --attach-name sourcekit-bazel-bsp --wait-for`
 

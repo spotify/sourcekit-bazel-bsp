@@ -13,9 +13,8 @@ This is a simple collection of iOS/watchOS/macOS apps that lets you see sourceki
   - `bazelisk run //HelloWorld:setup_sourcekit_bsp_example_project`
 - (Optional) Follow the instructions from the main README regarding configuring a custom SourceKit-LSP binary.
 - Follow the instructions from the main README regarding either opening or reloading a workspace targeting this folder.
-- (If reloading the entire window) Wait for the Swift extension to launch. We've seen that this can take a couple of seconds depending on the version of your extension.
 
-After performing these steps, you should already be able to see the basic indexing features in action. It may take a minute or two the first time, but you can see the progress at the bottom of the IDE. You should also be able to see a new `SourceKit Language Server` option on the `Output` tab that shows sourcekit-lsp's internal logs, and after modifying a file for the first time an additional `SourceKit-LSP: Indexing` tab will pop up containing more detailed logs from both tools.
+After performing these steps, you should already be able to see the basic indexing features in action. It may take a minute or two the first time, but you can see the progress at the bottom of the IDE. If in doubt that the integration is working, check the Troubleshooting section of the main README for instructions on how to confirm that.
 
 ## Building and Debugging
 
@@ -27,7 +26,3 @@ After performing these steps, you should already be able to see the basic indexi
 ## Considerations
 
 See the main README for a description of what is and isn't supported at the moment. This project is under active development, so certain features might not yet be available.
-
-## Troubleshooting
-
-If something weird (or nothing) happens, check the `SourceKit-LSP: Indexing` logs for details of what may have happened. If you don't see that option at all, first run `Cmd+S` on a source file to see if that does the trick, and if it's still not there, try logging sourcekit-bazel-bsp directly by following the troubleshooting instructions in the main README.
