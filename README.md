@@ -41,7 +41,7 @@ The next step is to integrate sourcekit-bazel-bsp with your project:
 bazel_dep(name = "sourcekit_bazel_bsp", version = "0.5.3", repo_name = "sourcekit_bazel_bsp")
 ```
 
-- Define a `setup_sourcekit_bsp` rule in a BUILD.bazel file of your choice and [configure it](rules/setup_sourcekit_bsp.bzl#L86) for your desired setup:
+- Define a `setup_sourcekit_bsp` rule in a BUILD.bazel file of your choice and [configure it](rules/setup_sourcekit_bsp.bzl#L89) for your desired setup:
 
 ```python
 load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl", "setup_sourcekit_bsp")

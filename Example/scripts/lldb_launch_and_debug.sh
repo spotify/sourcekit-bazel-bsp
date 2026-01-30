@@ -40,7 +40,7 @@ EOF
 # We need --remote_download_regex because the files that lldb needs won't usually be downloaded by Bazel
 # when using flags like --remote_download_toplevel and the such.
 ADDITIONAL_FLAGS+=("--remote_download_regex=.*\.indexstore/.*|.*\.(a|cfg|c|C|cc|cl|cpp|cu|cxx|c++|def|h|H|hh|hpp|hxx|h++|hmap|ilc|inc|inl|ipp|tcc|tlh|tli|tpp|m|modulemap|mm|pch|swift|swiftdoc|swiftmodule|swiftsourceinfo|yaml)$")
-ADDITIONAL_FLAGS+=("--@build_bazel_rules_apple//apple/build_settings:ios_device=${SIMULATOR_INFO}")
+ADDITIONAL_FLAGS+=("--@rules_apple//apple/build_settings:ios_device=${SIMULATOR_INFO}")
 
 # Remove the default lldbinit file created by rules_xcodeproj if it exists.
 # This prevents Xcode details from leaking over to our builds.

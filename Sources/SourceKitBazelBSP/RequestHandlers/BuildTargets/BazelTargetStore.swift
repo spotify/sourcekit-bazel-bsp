@@ -293,7 +293,8 @@ extension BazelTargetStoreImpl {
                         platform: topLevelConfig.platform,
                         cpuArch: topLevelConfig.cpuArch,
                         devDir: initializedConfig.devDir,
-                        xcodeVersion: initializedConfig.xcodeVersion
+                        xcodeVersion: initializedConfig.xcodeVersion,
+                        appleSupportRepoName: initializedConfig.baseConfig.appleSupportRepoName
                     )
                 )
             )
