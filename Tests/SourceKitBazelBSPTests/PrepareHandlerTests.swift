@@ -138,11 +138,12 @@ struct PrepareHandlerTests {
             platform: "ios",
             cpuArch: "arm64",
             devDir: "/Applications/Xcode.app/Contents/Developer",
-            xcodeVersion: "17B100"
+            xcodeVersion: "17B100",
+            appleSupportRepoName: "apple_support"
         )
         #expect(
             actualFlags == [
-                "--platforms=@build_bazel_apple_support//platforms:ios_arm64",
+                "--platforms=@apple_support//platforms:ios_arm64",
                 "--ios_multi_cpus=arm64",
                 "--apple_platform_type=ios",
                 "--apple_split_cpu=arm64",
@@ -163,11 +164,12 @@ struct PrepareHandlerTests {
             platform: "watchos",
             cpuArch: "x86_64",
             devDir: "/Applications/Xcode.app/Contents/Developer",
-            xcodeVersion: "17B100"
+            xcodeVersion: "17B100",
+            appleSupportRepoName: "apple_support"
         )
         #expect(
             actualFlags == [
-                "--platforms=@build_bazel_apple_support//platforms:watchos_x86_64",
+                "--platforms=@apple_support//platforms:watchos_x86_64",
                 "--watchos_cpus=x86_64",
                 "--apple_platform_type=watchos",
                 "--apple_split_cpu=x86_64",
@@ -188,11 +190,12 @@ struct PrepareHandlerTests {
             platform: "darwin",
             cpuArch: "arm64",
             devDir: "/Applications/Xcode.app/Contents/Developer",
-            xcodeVersion: "17B100"
+            xcodeVersion: "17B100",
+            appleSupportRepoName: "apple_support"
         )
         #expect(
             actualFlags == [
-                "--platforms=@build_bazel_apple_support//platforms:macos_arm64",
+                "--platforms=@apple_support//platforms:macos_arm64",
                 "--macos_cpus=arm64",
                 "--apple_platform_type=macos",
                 "--apple_split_cpu=arm64",
@@ -213,11 +216,12 @@ struct PrepareHandlerTests {
             platform: "tvos",
             cpuArch: "sim_arm64",
             devDir: "/Applications/Xcode.app/Contents/Developer",
-            xcodeVersion: "17B100"
+            xcodeVersion: "17B100",
+            appleSupportRepoName: "apple_support"
         )
         #expect(
             actualFlags == [
-                "--platforms=@build_bazel_apple_support//platforms:tvos_sim_arm64",
+                "--platforms=@apple_support//platforms:tvos_sim_arm64",
                 "--tvos_cpus=sim_arm64",
                 "--apple_platform_type=tvos",
                 "--apple_split_cpu=sim_arm64",
@@ -238,11 +242,12 @@ struct PrepareHandlerTests {
             platform: "visionos",
             cpuArch: "sim_arm64",
             devDir: "/Applications/Xcode.app/Contents/Developer",
-            xcodeVersion: "17B100"
+            xcodeVersion: "17B100",
+            appleSupportRepoName: "apple_support"
         )
         #expect(
             actualFlags == [
-                "--platforms=@build_bazel_apple_support//platforms:visionos_sim_arm64",
+                "--platforms=@apple_support//platforms:visionos_sim_arm64",
                 "--visionos_cpus=sim_arm64",
                 "--apple_platform_type=visionos",
                 "--apple_split_cpu=sim_arm64",
