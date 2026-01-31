@@ -2,10 +2,12 @@ load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template_rule")
 load("@rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test", "ios_build_test")
 load("@rules_apple//apple:macos.bzl", "macos_application", "macos_command_line_application", "macos_unit_test")
 load("@rules_apple//apple:watchos.bzl", "watchos_application", "watchos_extension", "watchos_unit_test")
-load("@rules_swift//swift:swift.bzl", "swift_interop_hint", "swift_library")
 load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_multirun//:defs.bzl", "command", "multirun")
+load("@rules_swift//swift:swift.bzl", "swift_interop_hint", "swift_library")
 load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl", "setup_sourcekit_bsp")
 load("//tools:apple.bzl", "IOS_MINIMUM_OS_VERSION", "WATCHOS_MINIMUM_OS_VERSION", "MACOS_MINIMUM_OS_VERSION")
+load("//tools/vscode:settings.bzl", "setup_vscode_settings_for_bsp")
 
 ## MARK: iOS / Shared targets
 
@@ -268,5 +270,30 @@ setup_sourcekit_bsp(
     index_build_batch_size = 10,
     targets = [
         "//HelloWorld/...",
+    ],
+)
+
+command(
+    name = "setup_sourcekit_bsp_example_project_command",
+    command = ":setup_sourcekit_bsp_example_project",
+)
+
+# VSCode settings
+
+setup_vscode_settings_for_bsp(
+    name = "setup_sourcekit_bsp_example_vscode_settings",
+    sourcekit_lsp = "@sourcekit_lsp_binary//:sourcekit-lsp",
+)
+
+command(
+    name = "setup_sourcekit_bsp_example_vscode_settings_command",
+    command = ":setup_sourcekit_bsp_example_vscode_settings",
+)
+
+multirun(
+    name = "vscode",
+    commands = [
+        ":setup_sourcekit_bsp_example_project_command",
+        ":setup_sourcekit_bsp_example_vscode_settings_command",
     ],
 )

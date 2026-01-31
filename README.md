@@ -1,6 +1,6 @@
 # iOS Development (and more) in alternative IDEs like Cursor / VSCode, for Bazel projects
 
-**sourcekit-bazel-bsp** is a [Build Server Protocol](https://build-server-protocol.github.io/) implementation that serves as a bridge between [sourcekit-lsp](https://github.com/swiftlang/sourcekit-lsp) (Swift's official [Language Server Protocol](https://microsoft.github.io/language-server-protocol/)) and your Bazel-based code, giving you the power to break free from the IDE side of Xcode and **develop for Apple platforms like iOS in any IDE that has support for LSPs**, such as Cursor and VSCode.
+**sourcekit-bazel-bsp** is a [Build Server Protocol](https://build-server-protocol.github.io/) implementation that serves as a bridge between [sourcekit-lsp](https://github.com/swiftlang/sourcekit-lsp) (Swift's official [Language Server Protocol](https://microsoft.github.io/language-server-protocol/)) and your Bazel-based code, giving you the power to break free from the IDE side of Xcode and **develop for Apple platforms like iOS in any IDE that has support for LSPs**, such as Cursor, VSCode, Sublime Text, and even Claude Code itself.
 
 > [!IMPORTANT]
 > sourcekit-bazel-bsp is designed specifically for projects that use the [Bazel build system](https://bazel.build/) under the hood. It will not work for regular Xcode projects. For Xcode, check out projects like [xcode-build-server](https://github.com/SolaWing/xcode-build-server) (unrelated to this project and Spotify).
@@ -9,13 +9,8 @@ https://github.com/user-attachments/assets/ca5a448d-03b1-4f8e-9de1-e403cc08953c
 
 ## Features
 
-- [x] All of the usual indexing features such as code completion, jump to definition, error annotations and so on, for both Swift and Obj-C (via the official [sourcekit-lsp](https://github.com/swiftlang/sourcekit-lsp))
-- [x] (Cursor / VSCode): Building and launching, all from within the IDE and directly via Bazel (no project generation required!)
-- [x] (Cursor / VSCode): Full `lldb` integration, allowing debugging from within the IDE just like Xcode (via [lldb-dap](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.lldb-dap), automatically provided by the official Swift extension)
-- [x] (Cursor / VSCode): Simulator selection from within the IDE (via custom IDE tasks)
-- [ ] (Cursor / VSCode): Automatic generation of build, launch, and debug tasks
-- [ ] (Cursor / VSCode): Test explorer & ability to run tests from within the IDE by clicking the tests individually, similarly to Xcode
-- [ ] Automatic index and build graph updates when adding / deleting files and targets (in other words, allowing the user to make heavy changes to the project without needing to restart the IDE)
+- (All IDEs) All of the usual indexing features such as code completion, jump to definition, error annotations, refactoring and more, for Swift, Obj-C, and C++ (via the official [sourcekit-lsp](https://github.com/swiftlang/sourcekit-lsp))
+- (Cursor / VSCode): Building, launching, debugging (via [lldb-dap](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.lldb-dap)), testing (both via the _Testing_ tab and via the source file itself), as well as simulator management, all from within the IDE (via our [companion extension](ide/vscode/README.md))
 
 ## Requirements
 
@@ -25,20 +20,12 @@ https://github.com/user-attachments/assets/ca5a448d-03b1-4f8e-9de1-e403cc08953c
 
 ## Initial Setup Instructions
 
-### Cursor / VSCode
-
-- Download and install the official [Swift](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) and [LLDB-DAP](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.lldb-dap) extensions.
-  - We recommend disabling the SwiftPM and Swiftly integrations (in the Swift extension's settings) as they can interfere with the BSP.
-  - Note: (Cursor) As of writing, you won't be able to install these extensions directly from Cursor's Marketplace. You will need to download the `.vsix` files separatedly and install them by either dragging them into Cursor or using the Cursor CLI. One way to obtain the `.vsix` files is by finding the extensions in **VSCode** and right clicking them -> `Download VSIX`.
-- **(Optional)** Configure your workspace to use a custom `sourcekit-lsp` binary by placing the provided binary from the release archive (or compiling/providing one of your own) at a place of your choice, creating a `.vscode/settings.json` JSON file at the root of your repository, and adding the following entry to it: `"swift.sourcekit-lsp.serverPath": "(absolute path to the sourcekit-lsp binary to use)"`
-  - This is not strictly necessary. However, as we currently make use of LSP features that are not yet shipped with Xcode, you may face performance and other usability issues when using the version that is shipped with Xcode. Consider using the version provided alongside sourcekit-bazel-bsp (or compiling/providing your own) for the best experience.
-
-The next step is to integrate sourcekit-bazel-bsp with your project:
+### Shared Instructions for All IDEs
 
 - Add sourcekit-bazel-bsp as a dependency on your `MODULE.bazel` file:
 
 ```python
-bazel_dep(name = "sourcekit_bazel_bsp", version = "0.5.3", repo_name = "sourcekit_bazel_bsp")
+bazel_dep(name = "sourcekit_bazel_bsp", version = "0.6.0", repo_name = "sourcekit_bazel_bsp")
 ```
 
 - Define a `setup_sourcekit_bsp` rule in a BUILD.bazel file of your choice. [You can find the full list of arguments here](rules/setup_sourcekit_bsp.bzl). Although the exact setup differs from project to project, here's what an example setup would look like:
@@ -48,7 +35,6 @@ load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl", "setup_sourcekit_bsp
 
 setup_sourcekit_bsp(
     name = "setup_sourcekit_bsp_example_project",
-    bazel_wrapper = "bazelisk",
     files_to_watch = [
         "HelloWorld/**/*.swift",
         "HelloWorld/**/*.h",
@@ -72,17 +58,29 @@ setup_sourcekit_bsp(
 
 This will result in the necessary configuration files being added to your repository. Users should then re-run the above command whenever the rule's parameters changes. We recommend adding `.bsp/skbsp_generated` as well as the copied binaries and `.bsp/skbsp.json` to your `.gitignore`.
 
+The next step depends on which IDE you want to use this integration with. Follow the instructions below that match your choice.
+
+### Cursor / VSCode
+
+- Download and install the official [Swift](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) and [LLDB-DAP](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.lldb-dap) extensions.
+  - Note: (Cursor) As of writing, you won't be able to install these extensions directly from Cursor's Marketplace. You will need to download the `.vsix` files separatedly and install them by either dragging them into Cursor or using the Cursor CLI. One way to obtain the `.vsix` files is by finding the extensions in **VSCode** and right clicking them -> `Download VSIX`.
+  - For the Swift extension, we recommend disabling the SwiftPM and Swiftly integrations as they can interfere with the BSP, as well as enabling the IDE's native auto-save function for a better experience. It's also a good idea to set up your `files.exclude` setting to cover all Bazel symlinks. For a complete list of recommended settings, check out the setup script from our [Example project](./Example/tools/vscode/setup_sourcekit_vscode_settings.sh). You can see them after running the project generation.
+- **(Optional)** Configure your workspace to use a custom `sourcekit-lsp` binary by placing the provided binary from the release archive (or compiling/providing one of your own) at a place of your choice, creating a `.vscode/settings.json` JSON file at the root of your repository, and adding the following entry to it: `"swift.sourcekit-lsp.serverPath": "(absolute path to the sourcekit-lsp binary to use)"`
+  - This is not strictly necessary. However, as we currently make use of LSP features that are not yet shipped with Xcode, you may face performance and other usability issues when using the version that is shipped with Xcode. Consider using the version provided alongside sourcekit-bazel-bsp (or compiling/providing your own) for the best experience.
+- **(Optional)** To enable features like building and testing from within the IDE, follow the setup instructions for our [companion extension](ide/vscode/README.md). You can skip this if you're only interested in the indexing features such as jump-to-definition.
+- On the IDE, open a workspace containing the repository in question. If you already had one open, either restart the language server (`Cmd+Shift+P -> Swift: Restart LSP Server`) or reload the entire window (`Cmd+Shift+P -> Reload Window`) if you don't see the previous option. The BSP will then automatically bootstrap itself, with several progress indicators showing at the bottom of the IDE. It may take a while for the indexing features to kick in the first time you use it due to the lack of cache, but subsequent runs should be much faster.
+
 #### After Integrating
 
-- On the IDE, open a workspace containing the repository in question. If you already had one open, either restart the language server (`Cmd+Shift+P -> Swift: Restart LSP Server`) or reload the entire window (`Cmd+Shift+P -> Reload Window`) if you don't see the previous option. The BSP will then automatically bootstrap itself upon interacting with a Swift file.
-
-While a complete indexing run can take a very long time on large projects, keep in mind that you don't need one. As long as the individual target you're working with is indexed (which happens automatically as you start working on it, as the LSP prioritizes targets you're actively modifying), all of the usual indexing features will work as you'd expect. Make sure to also check the best practices below to further optimize the BSP's performance.
+While a *complete* indexing run can take a very long time on large projects, **keep in mind that you don't need one.** As long as the individual target you're working with is indexed (which happens automatically as you start working on it, as the LSP prioritizes targets you're actively modifying), all of the usual indexing features will work as you'd expect. Make sure to also check the best practices below to further optimize the BSP's performance.
 
 If you experience any trouble trying to get it to work, check out the [Example/ folder](./Example) for a test project with a pre-configured Bazel and `.bsp/` folder setup. The _Troubleshooting_ section below also contains instructions on how to make sure the integration is working and debug sourcekit-bazel-bsp.
 
 ### Other IDEs, and Claude Code
 
-The setup instructions for other IDEs (and by extension, Claude Code) will depend on how the IDE integrates with LSPs. You should then search for instructions on how to install sourcekit-lsp on your IDE of choice and enable background indexing. After that, follow the `.bsp/` related steps from the above instructions. Keep in mind that this since project is developed specifically with Cursor / VSCode in mind, we cannot say how well sourcekit-bazel-bsp would work with other IDEs.
+The setup instructions for other IDEs (and by extension, Claude Code) will depend on how the IDE integrates with LSPs. You should then search for instructions on how to install sourcekit-lsp on your IDE of choice and enable background indexing. We also recommend finding a way to override the sourcekit-lsp binary itself for the same reasons described in the Cursor / VSCode instructions.
+
+Although the main focus of this project is specifically Cursor / VSCode, we are very interested in knowing what your experience was integrating it with other IDEs. If you've found concrete setup steps for a particular IDE, you are welcome to open a PR including it in this README file.
 
 ## Best Practices
 
@@ -109,7 +107,7 @@ After a while, indexing logs will show up on a separate `SourceKit-LSP: Indexing
 
 ### Seeing sourcekit-bazel-bsp's logs
 
-sourcekit-bazel-bsp uses Apple's OSLog infrastructure under the hood. To see the tool's logs, run `log stream --process sourcekit-bazel-bsp --debug` on a terminal session.
+sourcekit-bazel-bsp uses Apple's OSLog infrastructure under the hood. To see the tool's logs, run `log stream --process sourcekit-bazel-bsp --debug` on a terminal session. (Alternatively, if you're using our Cursor / VSCode companion extension, you can see these logs directly from the special `SourceKit Bazel BSP (Server)` output tab.)
 
 Some logs may be redacted. To enable extended logging and expose those logs, install the configuration profile at [as described here](https://support.apple.com/guide/mac-help/configuration-profiles-standardize-settings-mh35561/mac#mchlp41bd550) You will then able to see the redacted logs.
 

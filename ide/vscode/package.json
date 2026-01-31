@@ -1,0 +1,188 @@
+{
+    "name": "sourcekit-bazel-bsp",
+    "displayName": "SourceKit Bazel BSP",
+    "description": "Companion extension for sourcekit-bazel-bsp",
+    "version": "0.0.19",
+    "publisher": "spotify",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/spotify/sourcekit-bazel-bsp"
+    },
+    "engines": {
+        "vscode": "^1.85.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "activationEvents": [
+        "workspaceContains:.bsp/sourcekit-bazel-bsp"
+    ],
+    "extensionDependencies": [
+        "swiftlang.swift-vscode"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "sourcekit-bazel-bsp",
+                    "title": "SourceKit Bazel BSP",
+                    "icon": "$(record)"
+                }
+            ]
+        },
+        "views": {
+            "sourcekit-bazel-bsp": [
+                {
+                    "id": "skbspTargets",
+                    "name": "Targets",
+                    "type": "webview"
+                }
+            ]
+        },
+        "configuration": {
+            "title": "SourceKit Bazel BSP",
+            "properties": {
+                "sourcekit-bazel-bsp.extraBuildFlags": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Extra build flags to pass to Bazel when building targets (e.g., --config=apple_cursor_build)"
+                },
+                "sourcekit-bazel-bsp.extraTestBuildFlags": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Extra build flags to pass to Bazel when building tests (added on top of extraBuildFlags)"
+                },
+                "sourcekit-bazel-bsp.launchArgs": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Arguments to pass to the app when launching (BAZEL_LAUNCH_ARGS)"
+                },
+                "sourcekit-bazel-bsp.testArgs": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Arguments to pass when running tests (added on top of launchArgs)"
+                },
+                "sourcekit-bazel-bsp.processedGraphPath": {
+                    "type": "string",
+                    "default": ".bsp/skbsp_generated/graph-processed.json",
+                    "description": "Path to the processed graph JSON file (relative to workspace root)"
+                },
+                "sourcekit-bazel-bsp.appsToAlwaysInclude": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [],
+                    "description": "Bazel labels that should always be treated as top-level apps (only added if not already in the graph)"
+                },
+                "sourcekit-bazel-bsp.enableTestDiscovery": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable automatic test discovery for gutter icons. When enabled, test gutter icons appear next to test classes and methods in Swift and Objective-C files."
+                },
+                "sourcekit-bazel-bsp.rulesAppleName": {
+                    "type": "string",
+                    "default": "rules_apple",
+                    "description": "The name of the rules_apple external repository (e.g., rules_apple)"
+                },
+                "sourcekit-bazel-bsp.testDiscoveryConcurrency": {
+                    "type": "number",
+                    "default": 10,
+                    "minimum": 1,
+                    "maximum": 50,
+                    "description": "Maximum number of test files to parse concurrently during test discovery. Higher values may speed up discovery but can consume more system resources."
+                }
+            }
+        },
+        "taskDefinitions": [
+            {
+                "type": "sourcekit-bazel-bsp-build",
+                "required": [
+                    "target"
+                ],
+                "properties": {
+                    "target": {
+                        "type": "string",
+                        "description": "The Bazel target label to build"
+                    }
+                }
+            }
+        ],
+        "problemMatchers": [
+            {
+                "name": "sourcekit-bazel-bsp-bazelisk",
+                "owner": "sourcekit-bazel-bsp-bazelisk",
+                "source": "sourcekit-bazel-bsp-bazelisk",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
+                "pattern": {
+                    "regexp": "^(.+?):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            },
+            {
+                "name": "sourcekit-bazel-bsp-launcher",
+                "owner": "sourcekit-bazel-bsp-bazelisk",
+                "source": "sourcekit-bazel-bsp-bazelisk",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
+                "pattern": {
+                    "regexp": "launcher_error in (.*): (.*)",
+                    "kind": "file",
+                    "file": 1,
+                    "message": 2
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^Starting launch task\\.\\.\\.$",
+                    "endsPattern": "^.*Successfully written launch info to: .*"
+                }
+            },
+            {
+                "name": "sourcekit-bazel-bsp-launcher-bazelisk",
+                "owner": "sourcekit-bazel-bsp-bazelisk",
+                "source": "sourcekit-bazel-bsp-bazelisk",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
+                "pattern": {
+                    "regexp": "^(.+?):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^Starting launch task\\.\\.\\.$",
+                    "endsPattern": "^.*Launched with PID: .*"
+                }
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./"
+    },
+    "dependencies": {
+        "vscode-languageclient": "^9.0.1"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@types/vscode": "^1.85.0",
+        "@vscode/vsce": "^2.32.0",
+        "typescript": "^5.3.0"
+    }
+}
