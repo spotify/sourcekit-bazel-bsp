@@ -263,7 +263,7 @@ extension BazelTargetStoreImpl {
             let launchType: BazelTargetGraphReport.TopLevelTarget.LaunchType? = {
                 if ruleType.testBundleRule != nil {
                     return .test
-                } else if ruleType.isLaunchableApp {
+                } else if !ruleType.isBuildTestRule {
                     return .app
                 } else {
                     return nil
