@@ -9,6 +9,7 @@
 /.ijwb/
 /.project
 /.settings
+/.vscode/
 /bazel.iml
 /bazel-*
 /custom-*
@@ -18,5 +19,6 @@
 user.bazelrc
 /.bsp/skbsp.json
 /.bsp/sourcekit-bazel-bsp
+/.bsp/sourcekit-lsp
 /.bsp/skbsp_generated/
 /.sourcekit-lsp/config.json

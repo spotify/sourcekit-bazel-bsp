@@ -1,0 +1,3 @@
+exports_files([
+    "setup_sourcekit_vscode_settings.sh.tpl",
+])

@@ -30,7 +30,7 @@ jobs:
       - name: Example project setup integration test
         run: |
           cd Example
-          bazelisk run //HelloWorld:setup_sourcekit_bsp_example_project
+          bazelisk run //HelloWorld:vscode
       - name: Build example //HelloWorld iOS app
         run: |
           cd Example
@@ -39,9 +39,9 @@ jobs:
         run: |
           cd Example
           bazelisk test //HelloWorld:HelloWorldTests
-      - name: Build VSCode extension
+      - name: Build VSCode companion extension
         run: |
-          cd vscode-extension
+          cd ide/vscode
           npm install
           npm run compile
       - name: Build release source archive
