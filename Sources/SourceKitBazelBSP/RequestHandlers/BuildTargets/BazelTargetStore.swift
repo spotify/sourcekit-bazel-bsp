@@ -311,7 +311,8 @@ extension BazelTargetStoreImpl {
         return BazelTargetGraphReport(
             topLevelTargets: reportTopLevel,
             dependencyTargets: reportDependencies,
-            configurations: reportConfigurations.values.sorted(by: { $0.id < $1.id })
+            configurations: reportConfigurations.values.sorted(by: { $0.id < $1.id }),
+            bazelWrapper: initializedConfig.baseConfig.bazelWrapper
         )
     }
 }

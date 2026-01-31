@@ -51,4 +51,5 @@ struct BazelTargetGraphReport: Codable, Equatable {
     let topLevelTargets: [TopLevelTarget]
     let dependencyTargets: [DependencyTarget]
     let configurations: [Configuration]
+    let bazelWrapper: String
 }
