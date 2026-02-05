@@ -1,6 +1,7 @@
 def _setup_sourcekit_bsp_impl(ctx):
     # Config of the BSP itself, a.k.a .bsp/skbsp.json
     rendered_bsp_config = ctx.actions.declare_file("skbsp.json")
+
     # Configs for sourcekit-lsp, a.k.a .sourcekit-lsp/config.json
     rendered_lsp_config = ctx.actions.declare_file("config.json")
 
@@ -55,16 +56,11 @@ def _setup_sourcekit_bsp_impl(ctx):
     if ctx.attr.index_build_batch_size:
         lsp_config_json["preparationBatchingStrategy"] = {
             "strategy": "fixedTargetBatchSize",
-            "batchSize": ctx.attr.index_build_batch_size
+            "batchSize": ctx.attr.index_build_batch_size,
         }
-    else:
-        lsp_config_json["preparationBatchingStrategy"] = None
     if ctx.attr.lsp_timeout:
         lsp_config_json["buildServerWorkspaceRequestsTimeout"] = ctx.attr.lsp_timeout
         lsp_config_json["buildSettingsTimeout"] = ctx.attr.lsp_timeout
-    else:
-        lsp_config_json["buildServerWorkspaceRequestsTimeout"] = None
-        lsp_config_json["buildSettingsTimeout"] = None
     ctx.actions.write(rendered_lsp_config, json.encode_indent(lsp_config_json, indent = "  "))
 
     # Generating the script that ties everything together
