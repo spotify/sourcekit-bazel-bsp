@@ -17,12 +17,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { log } from "./logger";
-
-export function activate() {
-    log("Extension activated ✅");
-}
-
-export function deactivate() {
-    log("Extension deactivated ❌");
+export interface FailureInfo {
+    message: string;
+    file?: string;
+    line?: number;
 }

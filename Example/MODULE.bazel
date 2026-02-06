@@ -6,14 +6,28 @@ local_path_override(
 
 bazel_dep(
     name = "rules_swift",
-    version = "3.4.0",
+)
+archive_override(
+    module_name = "rules_swift",
+    sha256 = "895f80824f2a97fc24b756cac591702df115b2c791a0a8af91404f91646b42dd",
+    strip_prefix = "rules_swift-9d385fd7613cc595d682516b796cf72ff328478a",
+    url = "https://github.com/bazelbuild/rules_swift/archive/9d385fd7613cc595d682516b796cf72ff328478a.zip",
 )
 
 bazel_dep(
     name = "rules_apple",
-    version = "4.3.3",
+)
+archive_override(
+    module_name = "rules_apple",
+    sha256 = "ba7aa10aa13f6faf84c307e0822deebcc80d25bbea8abb658a2b94a225be55b4",
+    strip_prefix = "rules_apple-c26e9b758d756a3470a495907952c27f421480f8",
+    url = "https://github.com/bazelbuild/rules_apple/archive/c26e9b758d756a3470a495907952c27f421480f8.zip",
 )
 
-bazel_dep(name = "apple_support", version = "1.24.5")
+bazel_dep(name = "apple_support", version = "2.2.0")
 bazel_dep(name = "rules_cc", version = "0.2.16")
 bazel_dep(name = "aspect_bazel_lib", version = "2.13.0")
+bazel_dep(name = "rules_multirun", version = "0.13.0")
+
+sourcekit_lsp_binary = use_extension("//tools:sourcekit_lsp_binary.bzl", "sourcekit_lsp_binary")
+use_repo(sourcekit_lsp_binary, "sourcekit_lsp_binary")

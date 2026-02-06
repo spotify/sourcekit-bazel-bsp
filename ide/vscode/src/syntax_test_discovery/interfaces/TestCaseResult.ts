@@ -17,10 +17,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import * as vscode from "vscode";
+import { FailureInfo } from './FailureInfo';
 
-const outputChannel = vscode.window.createOutputChannel("SourceKit Bazel BSP");
-
-export function log(message: string) {
-    outputChannel.appendLine(message);
+export interface TestCaseResult {
+    className: string;
+    methodName: string;
+    passed: boolean;
+    time: number;
+    failures: FailureInfo[];
 }
