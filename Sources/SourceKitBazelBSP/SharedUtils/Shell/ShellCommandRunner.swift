@@ -55,7 +55,8 @@ struct ShellCommandRunner: CommandRunner {
 
         runningProcess.attachPipes()
 
-        logger.debug("Running shell: \(cmd, privacy: .public)")
+        logger.logFullObjectInMultipleLogMessages(level: .debug, header: "Running shell", cmd)
+
         try process.run()
 
         return runningProcess
