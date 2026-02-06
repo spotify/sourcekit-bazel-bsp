@@ -15,6 +15,7 @@ lsp_config_path="%lsp_config_path%"
 
 bsp_folder_path="$BUILD_WORKSPACE_DIRECTORY/.bsp"
 lsp_folder_path="$BUILD_WORKSPACE_DIRECTORY/.sourcekit-lsp"
+should_merge_lsp_config="%merge_lsp_config_env%"
 
 mkdir -p "$bsp_folder_path"
 mkdir -p "$lsp_folder_path"
@@ -32,7 +33,11 @@ fi
 # Update the LSP config if needed
 # For merging, we need to compare the merged result (not the source template)
 if [ -f "$target_lsp_config_path" ] && command -v jq &> /dev/null; then
-    jq -S -s '.[0] * .[1]' "$target_lsp_config_path" "$lsp_config_path" > "$target_lsp_config_path.tmp"
+    if [ "$should_merge_lsp_config" = "1" ]; then
+        jq -S -s '.[0] * .[1]' "$target_lsp_config_path" "$lsp_config_path" > "$target_lsp_config_path.tmp"
+    else
+        cp "$lsp_config_path" "$target_lsp_config_path.tmp"
+    fi
     if ! cmp -s "$target_lsp_config_path.tmp" "$target_lsp_config_path"; then
         mv "$target_lsp_config_path.tmp" "$target_lsp_config_path"
         chmod +w "$target_lsp_config_path"
