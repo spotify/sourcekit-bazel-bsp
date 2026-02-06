@@ -61,6 +61,13 @@ def _setup_sourcekit_bsp_impl(ctx):
     if ctx.attr.lsp_timeout:
         lsp_config_json["buildServerWorkspaceRequestsTimeout"] = ctx.attr.lsp_timeout
         lsp_config_json["buildSettingsTimeout"] = ctx.attr.lsp_timeout
+
+    prefixMap = {
+        "./OUTPUT_PATH_NAME_PLACEHOLDER": "OUTPUT_PATH_PLACEHOLDER",
+        "./external": "EXTERNAL_ROOT_PLACEHOLDER"
+    }
+    lsp_config_json["index"] = {"indexPrefixMap": prefixMap}
+
     ctx.actions.write(rendered_lsp_config, json.encode_indent(lsp_config_json, indent = "  "))
 
     merge_lsp_config_env = "1" if ctx.attr.merge_lsp_config else ""
@@ -76,6 +83,7 @@ def _setup_sourcekit_bsp_impl(ctx):
             "%lsp_config_path%": rendered_lsp_config.short_path,
             "%sourcekit_bazel_bsp_path%": ctx.executable.sourcekit_bazel_bsp.short_path,
             "%merge_lsp_config_env%": merge_lsp_config_env,
+            "%bazel_wrapper%": ctx.attr.bazel_wrapper
         },
     )
     tools_runfiles = ctx.runfiles(
