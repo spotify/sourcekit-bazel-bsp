@@ -671,8 +671,8 @@ extension Array {
 extension String {
     /// Converts a Bazel label into a URI and returns a unique target id.
     ///
-    /// For local labels: file://<path-to-root>/<package-name>___<target-name>
-    /// For external labels: file://<execution-root>/external/<repo-name>/<package-name>___<target-name>
+    /// For local labels: bazel://<path-to-root>/<package-name>___<target-name>
+    /// For external labels: bazel://<execution-root>/external/<repo-name>/<package-name>___<target-name>
     ///
     fileprivate func toTargetId(
         rootUri: String,
@@ -684,11 +684,11 @@ extension String {
         let packagePath = packageName.isEmpty ? "" : "/" + packageName
         let path: String
         if repoName == workspaceName {
-            path = "file://" + rootUri + packagePath + "/" + targetName + "_" + String(config)
+            path = "bazel://" + rootUri + packagePath + "/" + targetName + "_" + String(config)
         } else {
             // External repo: use execution root + external path
             path =
-                "file://" + executionRoot + "/external/" + repoName + packagePath + "/" + targetName + "_"
+                "bazel://" + executionRoot + "/external/" + repoName + packagePath + "/" + targetName + "_"
                 + String(config)
         }
         guard let uri = try? URI(string: path) else {
