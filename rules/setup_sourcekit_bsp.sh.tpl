@@ -12,6 +12,7 @@ function needs_update() {
 sourcekit_bazel_bsp_path="%sourcekit_bazel_bsp_path%"
 bsp_config_path="%bsp_config_path%"
 lsp_config_path="%lsp_config_path%"
+bazel_wrapper="%bazel_wrapper%"
 
 bsp_folder_path="$BUILD_WORKSPACE_DIRECTORY/.bsp"
 lsp_folder_path="$BUILD_WORKSPACE_DIRECTORY/.sourcekit-lsp"
@@ -30,10 +31,31 @@ if needs_update "$bsp_config_path" "$target_bsp_config_path"; then
     chmod +w "$target_bsp_config_path"
 fi
 
+# Update placeholder values in the LSP config if needed
+WORKSPACE_ROOT="$BUILD_WORKSPACE_DIRECTORY"
+output_base=$(cd "$WORKSPACE_ROOT" && $bazel_wrapper info output_base)
+output_path=$(cd "$WORKSPACE_ROOT" && $bazel_wrapper info output_path)
+output_path_difference=$(echo "$output_path" | sed "s|$output_base/||")
+exec_root=$(cd "$WORKSPACE_ROOT" && $bazel_wrapper info execution_root)
+exec_root_difference=$(echo "$exec_root" | sed "s|$output_base/||")
+output_path_name=$(echo "$output_path" | sed "s|$exec_root/||")
+bsp_output_base="${output_base}-sourcekit-bazel-bsp"
+output_path="${bsp_output_base}/${output_path_difference}"
+external_root="${bsp_output_base}/${exec_root_difference}/external"
+
+# Copy to a temp file first since the source may be a symlink in runfiles
+lsp_config_tmp=$(mktemp)
+cp "$lsp_config_path" "$lsp_config_tmp"
+sed -i '' 's|OUTPUT_PATH_PLACEHOLDER|'"$output_path"'|g' "$lsp_config_tmp"
+sed -i '' 's|EXTERNAL_ROOT_PLACEHOLDER|'"$external_root"'|g' "$lsp_config_tmp"
+sed -i '' 's|OUTPUT_PATH_NAME_PLACEHOLDER|'"$output_path_name"'|g' "$lsp_config_tmp"
+lsp_config_path="${lsp_config_tmp}"
+
 # Update the LSP config if needed
 # For merging, we need to compare the merged result (not the source template)
 if [ -f "$target_lsp_config_path" ] && command -v jq &> /dev/null; then
-    if [ "$should_merge_lsp_config" = "1" ]; then
+    is_curr_file_valid_json=$(jq -e . "$target_lsp_config_path" > /dev/null 2>&1 && echo "true" || echo "false")
+    if [ "$should_merge_lsp_config" = "1" ] && [ "$is_curr_file_valid_json" = "true" ]; then
         jq -S -s '.[0] * .[1]' "$target_lsp_config_path" "$lsp_config_path" > "$target_lsp_config_path.tmp"
     else
         cp "$lsp_config_path" "$target_lsp_config_path.tmp"
@@ -56,3 +78,5 @@ if needs_update "$sourcekit_bazel_bsp_path" "$target_sourcekit_bazel_bsp_path"; 
     cp "$sourcekit_bazel_bsp_path" "$target_sourcekit_bazel_bsp_path"
     chmod +w "$target_sourcekit_bazel_bsp_path"
 fi
+
+rm -f "$lsp_config_tmp" || true
