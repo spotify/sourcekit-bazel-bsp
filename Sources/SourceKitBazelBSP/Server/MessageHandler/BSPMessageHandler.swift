@@ -83,14 +83,20 @@ final class BSPMessageHandler: MessageHandler {
                     logger.debug("Replying to \(Request.method, privacy: .public)")
                     reply(.success(response))
                 } catch {
-                    logger.error(
-                        "Error while replying to \(Request.method, privacy: .public): \(error.localizedDescription, privacy: .public)"
+                    logger.logFullObjectInMultipleLogMessages(
+                        level: .error,
+                        header: "Error while replying to request",
+                        "Error while replying to \(Request.method): \(error.localizedDescription)"
                     )
                     reply(.failure(buildLSPError(error)))
                 }
             }
         } catch {
-            logger.error("Error while handling BSP request: \(error.localizedDescription, privacy: .public)")
+            logger.logFullObjectInMultipleLogMessages(
+                level: .error,
+                header: "Error while handling BSP request",
+                "Error while handling BSP request \(Request.method): \(error.localizedDescription)"
+            )
             reply(.failure(buildLSPError(from: error)))
         }
     }
