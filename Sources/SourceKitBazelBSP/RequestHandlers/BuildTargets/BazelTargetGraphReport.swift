@@ -30,17 +30,17 @@ struct BazelTargetGraphReport: Codable, Equatable {
         }
         let label: String
         let launchType: LaunchType?
-        let configChecksum: String
+        let configMnemonic: String
         let testSources: [String]?
     }
 
     struct DependencyTarget: Codable, Equatable {
         let label: String
-        let configChecksum: String
+        let configMnemonic: String
     }
 
     struct Configuration: Codable, Equatable {
-        let checksum: String
+        let mnemonic: String
         let platform: String
         let minimumOsVersion: String
         let cpuArch: String

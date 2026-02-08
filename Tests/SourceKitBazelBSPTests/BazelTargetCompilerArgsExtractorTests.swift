@@ -32,12 +32,12 @@ struct BazelTargetCompilerArgsExtractorTests {
     let helloWorldConfig: BazelTargetConfigurationInfo
 
     init() throws {
-        let configChecksum = "67b25b5da4a32f875d5441b55c9c8e798ebd3f2a13dd405eddf72e85c573b670"
+        let configMnemonic = "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300"
         let aqueryResult = try BazelTargetQuerierParserImpl().processAquery(
             from: exampleAqueryOutput,
-            topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication, configChecksum)]
+            topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication, configMnemonic)]
         )
-        self.helloWorldConfig = try #require(aqueryResult.topLevelConfigChecksumToInfoMap[configChecksum])
+        self.helloWorldConfig = try #require(aqueryResult.topLevelConfigMnemonicToInfoMap[configMnemonic])
         self.aqueryResult = aqueryResult
     }
 

@@ -43,9 +43,9 @@ protocol BazelTargetStore: AnyObject {
 enum BazelTargetStoreError: Error, LocalizedError {
     case unknownBSPURI(URI)
     case unableToMapBazelLabelToParents(String)
-    case unableToMapConfigChecksumToTopLevelConfig(String)
+    case unableToMapConfigMnemonicToTopLevelConfig(String)
     case unableToMapBSPURIToParentConfig(URI)
-    case unableToMapConfigChecksumToTopLevelLabels(String)
+    case unableToMapConfigMnemonicToTopLevelLabels(String)
     case unableToMapTopLevelLabelToConfig(String)
     case noCachedAquery
 
@@ -55,12 +55,12 @@ enum BazelTargetStoreError: Error, LocalizedError {
             return "Unable to map '\(uri)' to a Bazel target label"
         case .unableToMapBazelLabelToParents(let label):
             return "Unable to map '\(label)' to its parents"
-        case .unableToMapConfigChecksumToTopLevelConfig(let config):
-            return "Unable to map config checksum '\(config)' to its top-level configuration"
+        case .unableToMapConfigMnemonicToTopLevelConfig(let config):
+            return "Unable to map config mnemonic '\(config)' to its top-level configuration"
         case .unableToMapBSPURIToParentConfig(let uri):
             return "Unable to map '\(uri)' to its parent configuration"
-        case .unableToMapConfigChecksumToTopLevelLabels(let config):
-            return "Unable to map config checksum '\(config)' to its top-level labels"
+        case .unableToMapConfigMnemonicToTopLevelLabels(let config):
+            return "Unable to map config mnemonic '\(config)' to its top-level labels"
         case .unableToMapTopLevelLabelToConfig(let label):
             return "Unable to map top-level label '\(label)' to its configuration"
         case .noCachedAquery:
@@ -133,25 +133,25 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
     }
 
     /// Retrieves the configuration information for a given Bazel **top-level** target label.
-    func topLevelConfigInfo(forConfigChecksum checksum: String) throws -> BazelTargetConfigurationInfo {
-        guard let config = aqueryResult?.topLevelConfigChecksumToInfoMap[checksum] else {
-            throw BazelTargetStoreError.unableToMapConfigChecksumToTopLevelConfig(checksum)
+    func topLevelConfigInfo(forConfigMnemonic mnemonic: String) throws -> BazelTargetConfigurationInfo {
+        guard let config = aqueryResult?.topLevelConfigMnemonicToInfoMap[mnemonic] else {
+            throw BazelTargetStoreError.unableToMapConfigMnemonicToTopLevelConfig(mnemonic)
         }
         return config
     }
 
     /// Retrieves the available configurations for a given Bazel target label.
     func parentConfig(forBSPURI uri: URI) throws -> String {
-        guard let configChecksum = cqueryResult?.bspUriToParentConfigMap[uri] else {
+        guard let configMnemonic = cqueryResult?.bspUriToParentConfigMap[uri] else {
             throw BazelTargetStoreError.unableToMapBSPURIToParentConfig(uri)
         }
-        return configChecksum
+        return configMnemonic
     }
 
     /// Retrieves the list of top-level labels for a given configuration.
-    func topLevelLabels(forConfig configChecksum: String) throws -> [String] {
-        guard let labels = cqueryResult?.configurationToTopLevelLabelsMap[configChecksum] else {
-            throw BazelTargetStoreError.unableToMapConfigChecksumToTopLevelLabels(configChecksum)
+    func topLevelLabels(forConfig configMnemonic: String) throws -> [String] {
+        guard let labels = cqueryResult?.configurationToTopLevelLabelsMap[configMnemonic] else {
+            throw BazelTargetStoreError.unableToMapConfigMnemonicToTopLevelLabels(configMnemonic)
         }
         return labels
     }
@@ -160,9 +160,9 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
     /// This is used to determine the correct set of compiler flags for the target / platform combo.
     func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo {
         let bazelLabel = try bazelTargetLabel(forBSPURI: uri)
-        let configChecksum = try parentConfig(forBSPURI: uri)
-        let config = try topLevelConfigInfo(forConfigChecksum: configChecksum)
-        let parents = try topLevelLabels(forConfig: configChecksum)
+        let configMnemonic = try parentConfig(forBSPURI: uri)
+        let config = try topLevelConfigInfo(forConfigMnemonic: configMnemonic)
+        let parents = try topLevelLabels(forConfig: configMnemonic)
         // Since the config of these parents are all the same, it doesn't matter which one we pick here.
         let parentToUse = parents[0]
         return BazelTargetPlatformInfo(
@@ -258,8 +258,8 @@ extension BazelTargetStoreImpl {
         var reportTopLevel: [BazelTargetGraphReport.TopLevelTarget] = []
         var reportConfigurations: [String: BazelTargetGraphReport.Configuration] = [:]
         let topLevelTargets = cqueryResult?.topLevelTargets ?? []
-        for (label, ruleType, configChecksum) in topLevelTargets {
-            let topLevelConfig = try topLevelConfigInfo(forConfigChecksum: configChecksum)
+        for (label, ruleType, configMnemonic) in topLevelTargets {
+            let topLevelConfig = try topLevelConfigInfo(forConfigMnemonic: configMnemonic)
             let launchType: BazelTargetGraphReport.TopLevelTarget.LaunchType? = {
                 if ruleType.testBundleRule != nil {
                     return .test
@@ -277,13 +277,13 @@ extension BazelTargetStoreImpl {
                 .init(
                     label: label,
                     launchType: launchType,
-                    configChecksum: configChecksum,
+                    configMnemonic: configMnemonic,
                     testSources: testSources
                 )
             )
-            reportConfigurations[configChecksum] = .init(
+            reportConfigurations[configMnemonic] = .init(
                 .init(
-                    checksum: configChecksum,
+                    mnemonic: configMnemonic,
                     platform: topLevelConfig.platform,
                     minimumOsVersion: topLevelConfig.minimumOsVersion,
                     cpuArch: topLevelConfig.cpuArch,
@@ -304,14 +304,14 @@ extension BazelTargetStoreImpl {
             let dependencyTargets = cqueryResult?.buildTargets ?? []
             for target in dependencyTargets {
                 guard let label = target.displayName else { continue }
-                let configChecksum = try parentConfig(forBSPURI: target.id.uri)
-                reportDependencies.append(.init(label: label, configChecksum: configChecksum))
+                let configMnemonic = try parentConfig(forBSPURI: target.id.uri)
+                reportDependencies.append(.init(label: label, configMnemonic: configMnemonic))
             }
         }
         return BazelTargetGraphReport(
             topLevelTargets: reportTopLevel,
             dependencyTargets: reportDependencies,
-            configurations: reportConfigurations.values.sorted(by: { $0.checksum < $1.checksum }),
+            configurations: reportConfigurations.values.sorted(by: { $0.mnemonic < $1.mnemonic }),
             bazelWrapper: initializedConfig.baseConfig.bazelWrapper
         )
     }

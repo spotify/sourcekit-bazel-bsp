@@ -35,10 +35,6 @@ struct BazelTargetConfigurationInfo: Hashable {
     /// e.g. darwin_arm64-dbg-macos-arm64-min15.0-applebin_macos-ST-d1334902beb6
     let configurationName: String
 
-    /// The configuration checksum as stated in the aquery,
-    /// e.g. d1334902beb6
-    let configurationChecksum: String
-
     /// The configuration name that should actually apply when compiling a library.
     /// Only relevant when not passing --compile-top-level.
     /// e.g. darwin_arm64-dbg-macos-arm64-min15.0
