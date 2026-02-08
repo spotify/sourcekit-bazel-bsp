@@ -28,6 +28,7 @@ package struct BaseServerConfig: Equatable {
     let bazelWrapper: String
     let targets: [String]
     let indexFlags: [String]
+    let aqueryFlags: [String]
     let filesToWatch: String?
     let compileTopLevel: Bool
     let topLevelRulesToDiscover: [TopLevelRuleType]
@@ -40,6 +41,7 @@ package struct BaseServerConfig: Equatable {
         bazelWrapper: String,
         targets: [String],
         indexFlags: [String],
+        aqueryFlags: [String] = [],
         filesToWatch: String?,
         compileTopLevel: Bool,
         topLevelRulesToDiscover: [TopLevelRuleType] = TopLevelRuleType.allCases,
@@ -51,6 +53,7 @@ package struct BaseServerConfig: Equatable {
         self.bazelWrapper = bazelWrapper
         self.targets = targets
         self.indexFlags = indexFlags
+        self.aqueryFlags = aqueryFlags
         self.filesToWatch = filesToWatch
         self.compileTopLevel = compileTopLevel
         self.topLevelRulesToDiscover = topLevelRulesToDiscover
