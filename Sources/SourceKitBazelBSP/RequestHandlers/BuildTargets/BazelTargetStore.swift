@@ -26,17 +26,39 @@ import struct os.OSAllocatedUnfairLock
 
 private let logger = makeFileLevelBSPLogger()
 
-// Represents a type that can query, processes, and store
-// the project's dependency graph and its files.
+/// Abstraction that can queries, processes, and stores the project's dependency graph and its files.
+/// Used by many of the requests to calculate and provide data about the project's targets.
 protocol BazelTargetStore: AnyObject {
+    /// Users of BazelTargetStore are expected to acquire this lock before reading or writing any of the internal state.
+    /// This is to prevent race conditions between concurrent requests. It's easier to have each request handle critical sections
+    /// on their own instead of trying to solve it entirely within this class.
     var stateLock: OSAllocatedUnfairLock<Void> { get }
+    /// Returns true if the store has actually processed something.
     var isInitialized: Bool { get }
+    /// Processes the project's dependency graph according to the user's configuration.
     func fetchTargets() throws -> [BuildTarget]
+    /// Converts a BSP BuildTarget URI to its underlying Bazel target label.
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String
+    /// Retrieves the SourcesItem for a given a BSP BuildTarget URI.
     func bazelTargetSrcs(forBSPURI uri: URI) throws -> SourcesItem
+    /// Retrieves the list of BSP BuildTarget URIs that contain a given source file.
     func bspURIs(containingSrc src: URI) throws -> [URI]
+    /// Provides the bazel label containing **platform information** for a given BSP URI.
+    /// This is used to determine the correct set of compiler flags for the target / platform combo.
     func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo
+    /// Returns the processed broad aquery containing compiler arguments for all targets we're interested in.
     func targetsAqueryForArgsExtraction() throws -> ProcessedAqueryResult
+    /// Determines which targets an added/removed file belongs to and updates the store accordingly.
+    /// Files that don't belong to any known targets are ignored.
+    /// Returns the set of targets that were invalidated by the changes.
+    func process(fileChanges: [FileEvent]) throws -> Set<BuildTargetIdentifier>
+    /// Retrieves the configuration information for a given Bazel **top-level** target label.
+    func topLevelConfigInfo(forConfigMnemonic mnemonic: String) throws -> BazelTargetConfigurationInfo
+    /// Retrieves the available configurations for a given Bazel target label.
+    func parentConfig(forBSPURI uri: URI) throws -> String
+    /// Retrieves the list of top-level labels for a given configuration.
+    func topLevelLabels(forConfig configMnemonic: String) throws -> [String]
+    /// Clears the cache of the store.
     func clearCache()
 }
 
@@ -69,12 +91,7 @@ enum BazelTargetStoreError: Error, LocalizedError {
     }
 }
 
-/// Abstraction that can queries, processes, and stores the project's dependency graph and its files.
-/// Used by many of the requests to calculate and provide data about the project's targets.
 final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
-    // Users of BazelTargetStore are expected to acquire this lock before reading or writing any of the internal state.
-    // This is to prevent race conditions between concurrent requests. It's easier to have each request handle critical sections
-    // on their own instead of trying to solve it entirely within this class.
     let stateLock = OSAllocatedUnfairLock()
 
     private let initializedConfig: InitializedServerConfig
@@ -103,12 +120,10 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
             .sorted()
     }
 
-    /// Returns true if the store has actually processed something.
     var isInitialized: Bool {
         return cachedTargets != nil
     }
 
-    /// Converts a BSP BuildTarget URI to its underlying Bazel target label.
     func bazelTargetLabel(forBSPURI uri: URI) throws -> String {
         guard let label = cqueryResult?.bspURIsToBazelLabelsMap[uri] else {
             throw BazelTargetStoreError.unknownBSPURI(uri)
@@ -116,7 +131,6 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         return label
     }
 
-    /// Retrieves the SourcesItem for a given a BSP BuildTarget URI.
     func bazelTargetSrcs(forBSPURI uri: URI) throws -> SourcesItem {
         guard let sourcesItem = cqueryResult?.bspURIsToSrcsMap[uri] else {
             throw BazelTargetStoreError.unknownBSPURI(uri)
@@ -124,7 +138,6 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         return sourcesItem
     }
 
-    /// Retrieves the list of BSP BuildTarget URIs that contain a given source file.
     func bspURIs(containingSrc src: URI) throws -> [URI] {
         guard let bspURIs = cqueryResult?.srcToBspURIsMap[src] else {
             throw BazelTargetStoreError.unknownBSPURI(src)
@@ -132,7 +145,6 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         return bspURIs
     }
 
-    /// Retrieves the configuration information for a given Bazel **top-level** target label.
     func topLevelConfigInfo(forConfigMnemonic mnemonic: String) throws -> BazelTargetConfigurationInfo {
         guard let config = aqueryResult?.topLevelConfigMnemonicToInfoMap[mnemonic] else {
             throw BazelTargetStoreError.unableToMapConfigMnemonicToTopLevelConfig(mnemonic)
@@ -140,7 +152,6 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         return config
     }
 
-    /// Retrieves the available configurations for a given Bazel target label.
     func parentConfig(forBSPURI uri: URI) throws -> String {
         guard let configMnemonic = cqueryResult?.bspUriToParentConfigMap[uri] else {
             throw BazelTargetStoreError.unableToMapBSPURIToParentConfig(uri)
@@ -148,7 +159,6 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         return configMnemonic
     }
 
-    /// Retrieves the list of top-level labels for a given configuration.
     func topLevelLabels(forConfig configMnemonic: String) throws -> [String] {
         guard let labels = cqueryResult?.configurationToTopLevelLabelsMap[configMnemonic] else {
             throw BazelTargetStoreError.unableToMapConfigMnemonicToTopLevelLabels(configMnemonic)
@@ -156,8 +166,6 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         return labels
     }
 
-    /// Provides the bazel label containing **platform information** for a given BSP URI.
-    /// This is used to determine the correct set of compiler flags for the target / platform combo.
     func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo {
         let bazelLabel = try bazelTargetLabel(forBSPURI: uri)
         let configMnemonic = try parentConfig(forBSPURI: uri)
@@ -172,7 +180,6 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         )
     }
 
-    /// Returns the processed broad aquery containing compiler arguments for all targets we're interested in.
     func targetsAqueryForArgsExtraction() throws -> ProcessedAqueryResult {
         guard let targetsAqueryResult = aqueryResult else {
             throw BazelTargetStoreError.noCachedAquery
@@ -204,13 +211,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         // We pass top-level mnemonics in addition to compile ones as a method to gain access to the parent's configuration id.
         // We can then use this to locate the exact variant of the target we are looking for.
         // BundleTreeApp is used by most rule types, while SignBinary is for macOS CLI apps specifically.
-        let aqueryResult = try bazelTargetQuerier.aquery(
-            topLevelTargets: cqueryResult.topLevelTargets,
-            config: initializedConfig,
-            mnemonics: compileMnemonicsToFilter + topLevelMnemonicsToFilter
-        )
-
-        self.aqueryResult = aqueryResult
+        self.aqueryResult = try processCompilerArguments(from: cqueryResult)
         self.cqueryResult = cqueryResult
 
         let result = cqueryResult.buildTargets
@@ -226,8 +227,50 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         return result
     }
 
+    func process(fileChanges: [FileEvent]) throws -> Set<BuildTargetIdentifier> {
+        guard let cqueryResult = cqueryResult else {
+            return []
+        }
+
+        // We only care about added and deleted files.
+        // We also need to remove events that cancel each other out.
+        let addedAndDeletedFiles = fileChanges.filter { $0.type != .changed }.cleaned()
+        let addedFiles = addedAndDeletedFiles.filter { $0.type == .created }
+        let deletedFiles = addedAndDeletedFiles.filter { $0.type == .deleted }
+
+        // For the added files, we need to run an cquery to determine which targets they belong to.
+        // This is not necessary for the deleted ones.
+        let addedFilesResult = try bazelTargetQuerier.cqueryTargets(
+            forAddedSrcs: addedFiles.map { $0.uri },
+            inTopLevelTargets: cqueryResult.topLevelTargets.map { $0.0 },
+            config: initializedConfig
+        )
+        guard
+            let (newCqueryResult, invalidatedTargets) = cqueryResult.processFileChanges(
+                addedFilesResult: addedFilesResult,
+                deletedFiles: deletedFiles.map { $0.uri }
+            )
+        else {
+            // If the files were all irrelevant, then there's nothing to do here.
+            return []
+        }
+        // FIXME: We should try to edit the existing aquery instead of running a new one.
+        self.aqueryResult = try processCompilerArguments(from: newCqueryResult)
+        self.cqueryResult = newCqueryResult
+        return invalidatedTargets
+    }
+
+    private func processCompilerArguments(
+        from cqueryResult: ProcessedCqueryResult
+    ) throws -> ProcessedAqueryResult {
+        return try bazelTargetQuerier.aquery(
+            topLevelTargets: cqueryResult.topLevelTargets,
+            config: initializedConfig,
+            mnemonics: compileMnemonicsToFilter + topLevelMnemonicsToFilter
+        )
+    }
+
     func clearCache() {
-        bazelTargetQuerier.clearCache()
         cachedTargets = nil
         aqueryResult = nil
         cqueryResult = nil

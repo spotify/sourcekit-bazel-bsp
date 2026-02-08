@@ -45,9 +45,16 @@ struct Serve: AsyncParsableCommand {
     @Option(
         parsing: .singleValue,
         help:
-            "A flag that should be passed to all aquery invocations used to gather compiler arguments. Do not include the -- prefix. Can be specified multiple times."
+            "A flag that should be passed to the aquery invocations used to gather compiler arguments. Do not include the -- prefix. Can be specified multiple times."
     )
     var aqueryFlag: [String] = []
+
+    @Option(
+        parsing: .singleValue,
+        help:
+            "A flag that should be passed to the query invocations used to validate file paths. Do not include the -- prefix. Can be specified multiple times."
+    )
+    var queryFlag: [String] = []
 
     @Option(help: "Comma separated list of file globs to watch for changes.")
     var filesToWatch: String?
@@ -101,6 +108,7 @@ struct Serve: AsyncParsableCommand {
             dependencyRuleToDiscover.isEmpty ? DependencyRuleType.allCases : dependencyRuleToDiscover
         let indexFlags = indexFlag.map { "--" + $0 }
         let aqueryFlags = aqueryFlag.map { "--" + $0 }
+        let queryFlags = queryFlag.map { "--" + $0 }
         let targets = target.isEmpty ? ["//..."] : target
 
         let config = BaseServerConfig(
@@ -108,6 +116,7 @@ struct Serve: AsyncParsableCommand {
             targets: targets,
             indexFlags: indexFlags,
             aqueryFlags: aqueryFlags,
+            queryFlags: queryFlags,
             filesToWatch: filesToWatch,
             compileTopLevel: compileTopLevel,
             topLevelRulesToDiscover: topLevelRulesToDiscover,

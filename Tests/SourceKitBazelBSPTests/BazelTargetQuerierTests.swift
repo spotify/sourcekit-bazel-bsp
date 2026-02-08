@@ -17,7 +17,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import BuildServerProtocol
 import Foundation
+import LanguageServerProtocol
 import Testing
 
 @testable import SourceKitBazelBSP
@@ -50,6 +52,7 @@ struct BazelTargetQuerierTests {
         targets: [String] = ["//HelloWorld"],
         indexFlags: [String] = ["--config=test"],
         aqueryFlags: [String] = [],
+        queryFlags: [String] = [],
         topLevelTargetsToExclude: [String] = [],
         dependencyTargetsToExclude: [String] = []
     ) -> InitializedServerConfig {
@@ -58,6 +61,7 @@ struct BazelTargetQuerierTests {
             targets: targets,
             indexFlags: indexFlags,
             aqueryFlags: aqueryFlags,
+            queryFlags: queryFlags,
             filesToWatch: nil,
             compileTopLevel: false,
             topLevelTargetsToExclude: topLevelTargetsToExclude,
@@ -132,49 +136,6 @@ struct BazelTargetQuerierTests {
         #expect(ranCommands.count == 1)
         #expect(ranCommands[0].command == expectedCommand)
         #expect(ranCommands[0].cwd == Self.mockRootUri)
-    }
-
-    @Test
-    func cachesCqueryResults() throws {
-        let runnerMock = CommandRunnerFake()
-        let parserMock = BazelTargetQuerierParserFake()
-        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
-        let config = Self.makeInitializedConfig(bazelWrapper: "bazel", indexFlags: [])
-
-        runnerMock.setResponse(
-            for:
-                "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", deps(//HelloWorld)) in   $topLevelTargets   union   (kind(\"swift_library|alias|source file\", deps($topLevelTargets)))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto",
-            cwd: Self.mockRootUri,
-            response: exampleCqueryOutput
-        )
-        runnerMock.setResponse(
-            for:
-                "bazel --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", deps(//HelloWorld)) in   $topLevelTargets   union   (kind(\"objc_library|alias|source file\", deps($topLevelTargets)))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto",
-            cwd: Self.mockRootUri,
-            response: exampleCqueryOutput
-        )
-
-        func run(supportedDependencyRuleTypes: [DependencyRuleType]) throws {
-            _ = try querier.cqueryTargets(
-                config: config,
-                supportedDependencyRuleTypes: supportedDependencyRuleTypes,
-                supportedTopLevelRuleTypes: [.iosApplication]
-            )
-        }
-
-        try run(supportedDependencyRuleTypes: [.swiftLibrary])
-        try run(supportedDependencyRuleTypes: [.swiftLibrary])
-        #expect(runnerMock.commands.count == 1)
-
-        // Querying something else then results in a new command
-        try run(supportedDependencyRuleTypes: [.objcLibrary])
-        #expect(runnerMock.commands.count == 2)
-        try run(supportedDependencyRuleTypes: [.objcLibrary])
-        #expect(runnerMock.commands.count == 2)
-
-        // But the original call is still cached
-        try run(supportedDependencyRuleTypes: [.swiftLibrary])
-        #expect(runnerMock.commands.count == 2)
     }
 
     @Test
@@ -328,49 +289,6 @@ struct BazelTargetQuerierTests {
     }
 
     @Test
-    func cachesAqueryResults() throws {
-        let runnerMock = CommandRunnerFake()
-        let parserMock = BazelTargetQuerierParserFake()
-        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
-        let config = Self.makeInitializedConfig(bazelWrapper: "bazel", indexFlags: [])
-
-        runnerMock.setResponse(
-            for:
-                "bazel --output_base=/path/to/output/base aquery \"mnemonic('SwiftCompile', deps(//HelloWorld:HelloWorld))\" --noinclude_artifacts --noinclude_aspects --output proto",
-            cwd: Self.mockRootUri,
-            response: exampleAqueryOutput
-        )
-        runnerMock.setResponse(
-            for:
-                "bazel --output_base=/path/to/output/base aquery \"mnemonic('ObjcCompile', deps(//HelloWorld:HelloWorld))\" --noinclude_artifacts --noinclude_aspects --output proto",
-            cwd: Self.mockRootUri,
-            response: exampleAqueryOutput
-        )
-
-        func run(mnemonics: [String]) throws {
-            _ = try querier.aquery(
-                topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication, "abc123")],
-                config: config,
-                mnemonics: mnemonics
-            )
-        }
-
-        try run(mnemonics: ["SwiftCompile"])
-        try run(mnemonics: ["SwiftCompile"])
-        #expect(runnerMock.commands.count == 1)
-
-        // Querying something else then results in a new command
-        try run(mnemonics: ["ObjcCompile"])
-        #expect(runnerMock.commands.count == 2)
-        try run(mnemonics: ["ObjcCompile"])
-        #expect(runnerMock.commands.count == 2)
-
-        // But the original call is still cached
-        try run(mnemonics: ["SwiftCompile"])
-        #expect(runnerMock.commands.count == 2)
-    }
-
-    @Test
     func aqueryFlagsAreIncludedInCommand() throws {
         let runnerMock = CommandRunnerFake()
         let parserMock = BazelTargetQuerierParserFake()
@@ -394,6 +312,222 @@ struct BazelTargetQuerierTests {
         #expect(ranCommands.count == 1)
         #expect(ranCommands[0].command == expectedCommand)
     }
+    // MARK: - Cquery Added Files Tests
+
+    @Test
+    func cqueryAddedFilesExecutesCorrectBazelCommand() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig(indexFlags: [])
+
+        let srcUri = try URI(string: "file:///path/to/project/HelloWorld/Sources/File.swift")
+
+        // First query: determine valid files
+        let expectedQuery =
+            "bazelisk --output_base=/path/to/output/base query \"'HelloWorld/Sources/File.swift'\" --keep_going"
+        runnerMock.setResponse(
+            for: expectedQuery,
+            cwd: Self.mockRootUri,
+            response: "//HelloWorld:HelloWorld/Sources/File.swift"
+        )
+
+        // Second cquery: find owning targets
+        let expectedCquery =
+            "bazelisk --output_base=/path/to/output/base cquery \"rdeps(//HelloWorld:HelloWorld, '//HelloWorld:HelloWorld/Sources/File.swift', 1)\" --output=proto"
+        runnerMock.setResponse(for: expectedCquery, cwd: Self.mockRootUri, response: exampleCqueryAddedFilesOutput)
+
+        parserMock.mockCqueryAddedFilesResult = ProcessedCqueryAddedFilesResult(
+            bspURIsToNewSourceItemsMap: [:],
+            newSrcToBspURIsMap: [:]
+        )
+
+        _ = try querier.cqueryTargets(
+            forAddedSrcs: [srcUri],
+            inTopLevelTargets: ["//HelloWorld:HelloWorld"],
+            config: config
+        )
+
+        let ranCommands = runnerMock.commands
+        #expect(ranCommands.count == 2)
+        #expect(ranCommands[0].command == expectedQuery)
+        #expect(ranCommands[1].command == expectedCquery)
+    }
+
+    @Test
+    func cqueryAddedFilesIgnoresExternalFiles() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig(indexFlags: [])
+
+        // One local file, one external file
+        let localSrcUri = try URI(string: "file:///path/to/project/HelloWorld/Sources/File.swift")
+        let externalSrcUri = try URI(string: "file:///external/repo/Sources/External.swift")
+
+        // First query should only include the local file
+        let expectedQuery =
+            "bazelisk --output_base=/path/to/output/base query \"'HelloWorld/Sources/File.swift'\" --keep_going"
+        runnerMock.setResponse(
+            for: expectedQuery,
+            cwd: Self.mockRootUri,
+            response: "//HelloWorld:HelloWorld/Sources/File.swift"
+        )
+
+        let expectedCquery =
+            "bazelisk --output_base=/path/to/output/base cquery \"rdeps(//HelloWorld:HelloWorld, '//HelloWorld:HelloWorld/Sources/File.swift', 1)\" --output=proto"
+        runnerMock.setResponse(for: expectedCquery, cwd: Self.mockRootUri, response: exampleCqueryAddedFilesOutput)
+
+        parserMock.mockCqueryAddedFilesResult = ProcessedCqueryAddedFilesResult(
+            bspURIsToNewSourceItemsMap: [:],
+            newSrcToBspURIsMap: [:]
+        )
+
+        _ = try querier.cqueryTargets(
+            forAddedSrcs: [localSrcUri, externalSrcUri],
+            inTopLevelTargets: ["//HelloWorld:HelloWorld"],
+            config: config
+        )
+
+        // The query should only contain the local file, not the external one
+        let ranCommands = runnerMock.commands
+        #expect(ranCommands.count == 2)
+        #expect(ranCommands[0].command.contains("HelloWorld/Sources/File.swift"))
+        #expect(!ranCommands[0].command.contains("External.swift"))
+    }
+
+    @Test
+    func cqueryAddedFilesReturnsEarlyIfOnlyExternal() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig(indexFlags: [])
+
+        // Only external files
+        let externalSrcUri = try URI(string: "file:///external/repo/Sources/External.swift")
+
+        let result = try querier.cqueryTargets(
+            forAddedSrcs: [externalSrcUri],
+            inTopLevelTargets: ["//HelloWorld:HelloWorld"],
+            config: config
+        )
+
+        // Should return nil without running any commands
+        #expect(result == nil)
+        #expect(runnerMock.commands.isEmpty)
+    }
+
+    @Test
+    func cqueryAddedFilesFirstQueryRespectsQueryFlags() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig(indexFlags: [], queryFlags: ["--custom_query_flag"])
+
+        let srcUri = try URI(string: "file:///path/to/project/HelloWorld/Sources/File.swift")
+
+        // Query should include the custom query flag after --keep_going
+        let expectedQuery =
+            "bazelisk --output_base=/path/to/output/base query \"'HelloWorld/Sources/File.swift'\" --keep_going --custom_query_flag"
+        runnerMock.setResponse(
+            for: expectedQuery,
+            cwd: Self.mockRootUri,
+            response: "//HelloWorld:HelloWorld/Sources/File.swift"
+        )
+
+        let expectedCquery =
+            "bazelisk --output_base=/path/to/output/base cquery \"rdeps(//HelloWorld:HelloWorld, '//HelloWorld:HelloWorld/Sources/File.swift', 1)\" --output=proto"
+        runnerMock.setResponse(for: expectedCquery, cwd: Self.mockRootUri, response: exampleCqueryAddedFilesOutput)
+
+        parserMock.mockCqueryAddedFilesResult = ProcessedCqueryAddedFilesResult(
+            bspURIsToNewSourceItemsMap: [:],
+            newSrcToBspURIsMap: [:]
+        )
+
+        _ = try querier.cqueryTargets(
+            forAddedSrcs: [srcUri],
+            inTopLevelTargets: ["//HelloWorld:HelloWorld"],
+            config: config
+        )
+
+        let ranCommands = runnerMock.commands
+        #expect(ranCommands.count == 2)
+        #expect(ranCommands[0].command.contains("--custom_query_flag"))
+    }
+
+    @Test
+    func cqueryAddedFilesAcceptsError3() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig(indexFlags: [])
+
+        // Two files: one valid, one invalid (not in Bazel graph)
+        let validSrcUri = try URI(string: "file:///path/to/project/HelloWorld/Sources/Valid.swift")
+        let invalidSrcUri = try URI(string: "file:///path/to/project/HelloWorld/Sources/Invalid.swift")
+
+        // First query returns exit code 3 (partial failure) but still outputs the valid file
+        let expectedQuery =
+            "bazelisk --output_base=/path/to/output/base query \"'HelloWorld/Sources/Valid.swift' + 'HelloWorld/Sources/Invalid.swift'\" --keep_going"
+        runnerMock.setResponse(
+            for: expectedQuery,
+            cwd: Self.mockRootUri,
+            response: "//HelloWorld:HelloWorld/Sources/Valid.swift",
+            exitCode: 3
+        )
+
+        // Second cquery only includes the valid file
+        let expectedCquery =
+            "bazelisk --output_base=/path/to/output/base cquery \"rdeps(//HelloWorld:HelloWorld, '//HelloWorld:HelloWorld/Sources/Valid.swift', 1)\" --output=proto"
+        runnerMock.setResponse(for: expectedCquery, cwd: Self.mockRootUri, response: exampleCqueryAddedFilesOutput)
+
+        parserMock.mockCqueryAddedFilesResult = ProcessedCqueryAddedFilesResult(
+            bspURIsToNewSourceItemsMap: [:],
+            newSrcToBspURIsMap: [:]
+        )
+
+        let result = try querier.cqueryTargets(
+            forAddedSrcs: [validSrcUri, invalidSrcUri],
+            inTopLevelTargets: ["//HelloWorld:HelloWorld"],
+            config: config
+        )
+
+        // Should succeed despite exit code 3
+        #expect(result != nil)
+        let ranCommands = runnerMock.commands
+        #expect(ranCommands.count == 2)
+    }
+
+    @Test
+    func cqueryAddedFilesReturnsEarlyIfEmptyQueryResult() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig(indexFlags: [])
+
+        let srcUri = try URI(string: "file:///path/to/project/HelloWorld/Sources/NonExistent.swift")
+
+        // First query returns empty (file not in Bazel graph) with exit code 3
+        let expectedQuery =
+            "bazelisk --output_base=/path/to/output/base query \"'HelloWorld/Sources/NonExistent.swift'\" --keep_going"
+        runnerMock.setResponse(
+            for: expectedQuery,
+            cwd: Self.mockRootUri,
+            response: "",
+            exitCode: 3
+        )
+
+        let result = try querier.cqueryTargets(
+            forAddedSrcs: [srcUri],
+            inTopLevelTargets: ["//HelloWorld:HelloWorld"],
+            config: config
+        )
+
+        // Should return nil without running the second cquery
+        #expect(result == nil)
+        let ranCommands = runnerMock.commands
+        #expect(ranCommands.count == 1)
+    }
 }
 
 /// Example aquery output for the example app shipped with this repo.
@@ -411,5 +545,14 @@ let exampleCqueryOutput: Data = {
     guard let url = Bundle.module.url(forResource: "cquery", withExtension: "pb"),
         let data = try? Data.init(contentsOf: url)
     else { fatalError("cquery.pb is not found in Resources folder") }
+    return data
+}()
+
+/// Example cquery output for an added file event, for the example app shipped with this repo.
+/// bazelisk cquery "rdeps(//HelloWorld:HelloWorldLibBuildTest, '//HelloWorld:HelloWorldLib/Sources/TodoItemRow.swift', 1)" --output=proto --config=index_build > cquery_added_files.pb
+let exampleCqueryAddedFilesOutput: Data = {
+    guard let url = Bundle.module.url(forResource: "cquery_added_files", withExtension: "pb"),
+        let data = try? Data.init(contentsOf: url)
+    else { fatalError("cquery_added_files.pb is not found in Resources folder") }
     return data
 }()

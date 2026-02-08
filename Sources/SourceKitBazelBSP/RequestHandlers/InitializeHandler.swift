@@ -107,7 +107,8 @@ final class InitializeHandler {
             baseConfig: baseConfig,
             outputBase: outputBase,
             cmd: "info output_path",
-            rootUri: rootUri
+            rootUri: rootUri,
+            skipIndexFlags: true
         )
         logger.debug("outputPath: \(outputPath, privacy: .public)")
 
@@ -116,7 +117,8 @@ final class InitializeHandler {
             baseConfig: baseConfig,
             outputBase: outputBase,
             cmd: "info execution_root",
-            rootUri: rootUri
+            rootUri: rootUri,
+            skipIndexFlags: true
         )
         logger.debug("executionRoot: \(executionRoot, privacy: .public)")
 

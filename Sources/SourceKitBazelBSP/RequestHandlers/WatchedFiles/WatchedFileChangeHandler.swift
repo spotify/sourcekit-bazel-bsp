@@ -17,7 +17,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import BazelProtobufBindings
 import BuildServerProtocol
+import Combine
 import Foundation
 import LanguageServerProtocol
 
@@ -33,21 +35,37 @@ final class WatchedFileChangeHandler {
 
     private let supportedFileExtensions: Set<String> = Set(SupportedExtension.allCases.map { $0.rawValue })
 
+    // Use Combine to handle debouncing
+    private var changeSubscription: PassthroughSubject<[FileEvent], Never>
+    private var cancellables = Set<AnyCancellable>()
+
     init(
         targetStore: BazelTargetStore,
         observers: [any InvalidatedTargetObserver] = [],
-        connection: LSPConnection
+        connection: LSPConnection,
     ) {
         self.targetStore = targetStore
         self.observers = observers
         self.connection = connection
+        changeSubscription = PassthroughSubject<[FileEvent], Never>()
+        changeSubscription
+            .collect(.byTime(RunLoop.main, .seconds(1)))
+            .sink { [weak self] changes in
+                self?.debouncedOnWatchedFilesDidChange(changes.flatMap { $0 })
+            }
+            .store(in: &cancellables)
     }
 
     func onWatchedFilesDidChange(_ notification: OnWatchedFilesDidChangeNotification) {
+        // We need to debounce this request to avoid spamming Bazel.
+        changeSubscription.send(notification.changes)
+    }
+
+    func debouncedOnWatchedFilesDidChange(_ allChanges: [FileEvent]) {
         // As of writing, SourceKit-LSP intentionally ignores our fileSystemWatchers
         // and notifies us of everything. This means we need to filter them out on our end.
         // See SourceKitLSPServer.didChangeWatchedFiles in sourcekit-lsp for more details.
-        let changes = notification.changes.filter { change in
+        let changes = allChanges.filter { change in
             guard isSupportedFile(uri: change.uri) else {
                 logger.debug(
                     "Ignoring file change (unsupported extension): \(change.uri.stringValue, privacy: .public)"
@@ -68,11 +86,8 @@ final class WatchedFileChangeHandler {
             )
         }
 
-        // In this case, we keep the lock until the very end of the notification to avoid race conditions
-        // with how the LSP follows up with this by calling waitForBuildSystemUpdates and buildTargets again.
-        // Also because we need the targetStore at multiple points of this function.
-        let invalidatedTargets: [InvalidatedTarget] = targetStore.stateLock.withLockUnchecked {
-
+        // We need to hold the lock here because the LSP follows up by calling waitForBuildSystemUpdates and buildTargets again.
+        let invalidatedTargets: Set<BuildTargetIdentifier> = targetStore.stateLock.withLockUnchecked {
             // If we received this notification before the build graph was calculated, we should stop.
             guard targetStore.isInitialized else {
                 logger.debug("Received file changes before the build graph was calculated. Ignoring.")
@@ -81,65 +96,22 @@ final class WatchedFileChangeHandler {
 
             logger.debug("Received \(changes.count, privacy: .public) file changes")
 
-            let deletedFiles = changes.filter { $0.type == .deleted }
-            let createdFiles = changes.filter { $0.type == .created }
-
-            // First, determine which targets had removed files.
-            let targetsAffectedByDeletions: [InvalidatedTarget] = {
-                do {
-                    return try deletedFiles.flatMap { change in
-                        try targetStore.bspURIs(containingSrc: change.uri).map {
-                            InvalidatedTarget(uri: $0, fileUri: change.uri, kind: .deleted)
-                        }
-                    }
-                } catch {
-                    logger.error("Error calculating deleted targets: \(error, privacy: .public)")
-                    return []
-                }
-            }()
-
-            // Follow-up by removing the targetStore cache. This will prompt the LSP to fetch
-            // the (now modified) compiler arguments for the affected targets.
-            // FIXME: This is quite expensive, but the easier thing to do. We can try improving this later.
-            // FIXME2: We should detect if a target was completely removed when this happens.
-            var didAlreadyClearTargetCache = false
-            if !targetsAffectedByDeletions.isEmpty {
-                didAlreadyClearTargetCache = true
-                try? clearTargetCache()
-            }
-
-            // If there are any 'created' files, we need to clear the targetStore immediately and fetch targets again.
-            // Otherwise, the targetStore won't know about them.
-            if !createdFiles.isEmpty {
-                let taskId = TaskId(id: "watchedFiles-\(UUID().uuidString)")
-                connection?.startWorkTask(
-                    id: taskId,
-                    title: "sourcekit-bazel-bsp: Re-building the graph due to created files..."
+            let taskId = TaskId(id: "watchedFiles-\(UUID().uuidString)")
+            connection?.startWorkTask(
+                id: taskId,
+                title: "sourcekit-bazel-bsp: Updating the build graph due to file changes..."
+            )
+            do {
+                let invalidatedTargets = try targetStore.process(
+                    fileChanges: changes,
                 )
-                if !didAlreadyClearTargetCache {
-                    try? clearTargetCache()
-                    didAlreadyClearTargetCache = true
-                }
                 connection?.finishTask(id: taskId, status: .ok)
+                return invalidatedTargets
+            } catch {
+                logger.error("Error processing file changes: \(error, privacy: .public)")
+                connection?.finishTask(id: taskId, status: .error)
+                return []
             }
-
-            // Now that the targetStore knows about the newly created files, we can determine which targets
-            // were affected by those creations.
-            let targetsAffectedByCreations: [InvalidatedTarget] = {
-                do {
-                    return try createdFiles.flatMap { change in
-                        try targetStore.bspURIs(containingSrc: change.uri).map {
-                            InvalidatedTarget(uri: $0, fileUri: change.uri, kind: .created)
-                        }
-                    }
-                } catch {
-                    logger.error("Error calculating created targets: \(error, privacy: .public)")
-                    return []
-                }
-            }()
-
-            return targetsAffectedByDeletions + targetsAffectedByCreations
-
         }
 
         guard !invalidatedTargets.isEmpty else {
@@ -147,22 +119,19 @@ final class WatchedFileChangeHandler {
             return
         }
 
+        logger.debug(
+            "Notifying invalidated targets: \(invalidatedTargets.map { $0.uri.stringValue }.joined(separator: ", "))"
+        )
+
         // Notify our observers about the affected targets
         for observer in observers {
             try? observer.invalidate(targets: invalidatedTargets)
         }
 
-        // Notify SK-LSP about the affected targets
-        let uniqueInvalidatedTargets = Set(invalidatedTargets.map { $0.uri })
-
-        logger.debug(
-            "Notifying SK-LSP about invalidated targets: \(uniqueInvalidatedTargets.map { $0.stringValue }.joined(separator: ", "))"
-        )
-
         let response = OnBuildTargetDidChangeNotification(
-            changes: uniqueInvalidatedTargets.map { targetUri in
+            changes: invalidatedTargets.map { targetUri in
                 BuildTargetEvent(
-                    target: BuildTargetIdentifier(uri: targetUri),
+                    target: targetUri,
                     kind: .changed,  // FIXME: We should eventually detect here also if the target is new/deleted.
                     dataKind: nil,
                     data: nil
