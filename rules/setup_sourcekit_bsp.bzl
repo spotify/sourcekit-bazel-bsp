@@ -63,6 +63,8 @@ def _setup_sourcekit_bsp_impl(ctx):
         lsp_config_json["buildSettingsTimeout"] = ctx.attr.lsp_timeout
     ctx.actions.write(rendered_lsp_config, json.encode_indent(lsp_config_json, indent = "  "))
 
+    merge_lsp_config_env = "1" if ctx.attr.merge_lsp_config else ""
+
     # Generating the script that ties everything together
     executable = ctx.actions.declare_file("setup_sourcekit_bsp.sh")
     ctx.actions.expand_template(
@@ -73,6 +75,7 @@ def _setup_sourcekit_bsp_impl(ctx):
             "%bsp_config_path%": rendered_bsp_config.short_path,
             "%lsp_config_path%": rendered_lsp_config.short_path,
             "%sourcekit_bazel_bsp_path%": ctx.executable.sourcekit_bazel_bsp.short_path,
+            "%merge_lsp_config_env%": merge_lsp_config_env,
         },
     )
     tools_runfiles = ctx.runfiles(
@@ -158,6 +161,10 @@ setup_sourcekit_bsp = rule(
         "apple_support_repo_name": attr.string(
             doc = "The name of the apple_support external repository in your workspace. Change this if using a different name.",
             default = "apple_support",
+        ),
+        "merge_lsp_config": attr.bool(
+            doc = "If set to true, the generated .sourcekit-lsp/config.json will merge with any existing contents instead of fully overriding the file.",
+            default = True,
         ),
     },
 )
