@@ -28,5 +28,5 @@ struct ProcessedAqueryResult: Hashable {
     let targets: [String: Analysis_Target]
     let actions: [UInt32: [Analysis_Action]]
     let configurations: [UInt32: Analysis_Configuration]
-    let topLevelConfigChecksumToInfoMap: [String: BazelTargetConfigurationInfo]
+    let topLevelConfigMnemonicToInfoMap: [String: BazelTargetConfigurationInfo]
 }

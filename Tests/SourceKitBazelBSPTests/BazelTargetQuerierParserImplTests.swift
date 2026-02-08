@@ -296,22 +296,19 @@ struct BazelTargetQuerierParserImplTests {
         let parser = BazelTargetQuerierParserImpl()
 
         // These details are meant to match the provided aquery pb example.
-        // Config checksums (full SHA-256 hashes from aquery protobuf):
-        // iOS = 67b25b5da4a32f875d5441b55c9c8e798ebd3f2a13dd405eddf72e85c573b670
-        // macOS = e82cc70c288f80852360009cb9e73108d19085934aa23d230eaa28369b761419
-        // watchOS = e465f55b6b90678c4b05125ebcc8070d7c4d9e0e843912380861d3c1bfe9c1da
-        let iosChecksum = "67b25b5da4a32f875d5441b55c9c8e798ebd3f2a13dd405eddf72e85c573b670"
-        let macOsChecksum = "e82cc70c288f80852360009cb9e73108d19085934aa23d230eaa28369b761419"
-        let watchOsChecksum = "e465f55b6b90678c4b05125ebcc8070d7c4d9e0e843912380861d3c1bfe9c1da"
+        // Config mnemonics are the human-readable configuration names from the cquery protobuf.
+        let iosMnemonic = "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300"
+        let macOsMnemonic = "darwin_arm64-dbg-macos-arm64-min15.0-ST-3b9f41d61db6"
+        let watchOsMnemonic = "watchos_arm64-dbg-watchos-arm64-min7.0-ST-f4f2bb7e56ed"
         let topLevelTargets: [(String, TopLevelRuleType, String)] = [
-            ("//HelloWorld:HelloWorld", .iosApplication, iosChecksum),
-            ("//HelloWorld:HelloWorldMacApp", .macosApplication, macOsChecksum),
-            ("//HelloWorld:HelloWorldMacCLIApp", .macosCommandLineApplication, macOsChecksum),
-            ("//HelloWorld:HelloWorldMacTests", .macosUnitTest, macOsChecksum),
-            ("//HelloWorld:HelloWorldTests", .iosUnitTest, iosChecksum),
-            ("//HelloWorld:HelloWorldWatchApp", .watchosApplication, watchOsChecksum),
-            ("//HelloWorld:HelloWorldWatchExtension", .watchosExtension, watchOsChecksum),
-            ("//HelloWorld:HelloWorldWatchTests", .watchosUnitTest, watchOsChecksum),
+            ("//HelloWorld:HelloWorld", .iosApplication, iosMnemonic),
+            ("//HelloWorld:HelloWorldMacApp", .macosApplication, macOsMnemonic),
+            ("//HelloWorld:HelloWorldMacCLIApp", .macosCommandLineApplication, macOsMnemonic),
+            ("//HelloWorld:HelloWorldMacTests", .macosUnitTest, macOsMnemonic),
+            ("//HelloWorld:HelloWorldTests", .iosUnitTest, iosMnemonic),
+            ("//HelloWorld:HelloWorldWatchApp", .watchosApplication, watchOsMnemonic),
+            ("//HelloWorld:HelloWorldWatchExtension", .watchosExtension, watchOsMnemonic),
+            ("//HelloWorld:HelloWorldWatchTests", .watchosUnitTest, watchOsMnemonic),
         ]
 
         let result = try parser.processAquery(
@@ -319,15 +316,14 @@ struct BazelTargetQuerierParserImplTests {
             topLevelTargets: topLevelTargets
         )
 
-        // 3 unique config checksums (iOS, macOS, watchOS)
-        #expect(result.topLevelConfigChecksumToInfoMap.count == 3)
+        // 3 unique config mnemonics (iOS, macOS, watchOS)
+        #expect(result.topLevelConfigMnemonicToInfoMap.count == 3)
 
         // iOS config
         #expect(
-            result.topLevelConfigChecksumToInfoMap[iosChecksum]
+            result.topLevelConfigMnemonicToInfoMap[iosMnemonic]
                 == BazelTargetConfigurationInfo(
                     configurationName: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300",
-                    configurationChecksum: iosChecksum,
                     effectiveConfigurationName: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0",
                     minimumOsVersion: "17.0",
                     platform: "ios",
@@ -338,10 +334,9 @@ struct BazelTargetQuerierParserImplTests {
 
         // macOS config
         #expect(
-            result.topLevelConfigChecksumToInfoMap[macOsChecksum]
+            result.topLevelConfigMnemonicToInfoMap[macOsMnemonic]
                 == BazelTargetConfigurationInfo(
                     configurationName: "darwin_arm64-dbg-macos-arm64-min15.0-ST-3b9f41d61db6",
-                    configurationChecksum: macOsChecksum,
                     effectiveConfigurationName: "darwin_arm64-dbg-macos-arm64-min15.0",
                     minimumOsVersion: "15.0",
                     platform: "darwin",
@@ -352,10 +347,9 @@ struct BazelTargetQuerierParserImplTests {
 
         // watchOS config
         #expect(
-            result.topLevelConfigChecksumToInfoMap[watchOsChecksum]
+            result.topLevelConfigMnemonicToInfoMap[watchOsMnemonic]
                 == BazelTargetConfigurationInfo(
                     configurationName: "watchos_arm64-dbg-watchos-arm64-min7.0-ST-f4f2bb7e56ed",
-                    configurationChecksum: watchOsChecksum,
                     effectiveConfigurationName: "watchos_arm64-dbg-watchos-arm64-min7.0",
                     minimumOsVersion: "7.0",
                     platform: "watchos",

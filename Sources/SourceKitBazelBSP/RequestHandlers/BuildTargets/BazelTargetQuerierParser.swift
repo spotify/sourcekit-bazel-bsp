@@ -37,6 +37,7 @@ enum BazelTargetQuerierParserError: Error, LocalizedError {
     case unexpectedTargetType(Int)
     case noTopLevelTargets([TopLevelRuleType])
     case missingPathExtension(String)
+    case missingMnemonic(UInt32)
 
     var errorDescription: String? {
         switch self {
@@ -64,6 +65,7 @@ enum BazelTargetQuerierParserError: Error, LocalizedError {
                 \(rules.map { $0.rawValue }.joined(separator: ", "))
                 """
         case .missingPathExtension(let path): return "Missing path extension for \(path)"
+        case .missingMnemonic(let id): return "Missing mnemonic for configuration ID \(id). This is unexpected."
         }
     }
 }
@@ -117,12 +119,21 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         var seenSourceFiles = Set<String>()
         var allSrcs = [BlazeQuery_Target]()
         var testBundleToRealNameMap: [String: String] = [:]
+        // We need to map configuration info based on the mnemonic instead of the actual UInt32 id
+        // because build_test targets technically have their own configuration info despite being the
+        // same mnemonic.
+        var configIdToMnemonicMap: [UInt32: String] = [:]
+        for configuration in cquery.configurations {
+            configIdToMnemonicMap[configuration.id] = configuration.mnemonic
+        }
         for configuredTarget in cquery.results {
             let target = configuredTarget.target
-            let configuration = configuredTarget.configuration.checksum
             if target.type == .rule {
                 let kind = target.rule.ruleClass
                 if let topLevelRuleType = TopLevelRuleType(rawValue: kind) {
+                    guard let configuration = configIdToMnemonicMap[configuredTarget.configurationID] else {
+                        throw BazelTargetQuerierParserError.missingMnemonic(configuredTarget.configurationID)
+                    }
                     if supportedTopLevelRuleTypesSet.contains(topLevelRuleType) {
                         let label = target.rule.name
                         allTopLevelLabels.append((label, topLevelRuleType))
@@ -136,6 +147,9 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 } else if kind == "alias" {
                     allAliases.append(target)
                 } else if supportedTestBundleRulesSet.contains(kind) {
+                    guard let configuration = configIdToMnemonicMap[configuredTarget.configurationID] else {
+                        throw BazelTargetQuerierParserError.missingMnemonic(configuredTarget.configurationID)
+                    }
                     if !target.rule.name.hasSuffix(TopLevelRuleType.testBundleRuleSuffix) {
                         logger.error(
                             "Unexpected test bundle rule without the expected suffix: \(target.rule.name, privacy: .public)"
@@ -168,11 +182,11 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         // We can now properly connect each top-level label to its configuration id.
         var topLevelTargets: [(String, TopLevelRuleType, String)] = []
         for (label, ruleType) in allTopLevelLabels {
-            guard let configChecksum = topLevelLabelToConfigMap[label] else {
+            guard let configMnemonic = topLevelLabelToConfigMap[label] else {
                 logger.error("Missing info for \(label) in topLevelLabelToConfigMap. This should not happen.")
                 continue
             }
-            topLevelTargets.append((label, ruleType, configChecksum))
+            topLevelTargets.append((label, ruleType, configMnemonic))
         }
 
         guard !topLevelTargets.isEmpty else {
@@ -198,7 +212,9 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         var dependencyTargets: [(BlazeQuery_Target, DependencyRuleType, BuildTargetIdentifier, String)] = []
         var bspUriToParentConfigMap: [URI: String] = [:]
         for configuredTarget in unfilteredDependencyTargets {
-            let configuration = configuredTarget.configuration.checksum
+            guard let configuration = configIdToMnemonicMap[configuredTarget.configurationID] else {
+                throw BazelTargetQuerierParserError.missingMnemonic(configuredTarget.configurationID)
+            }
             guard configurationToTopLevelLabelsMap[configuration] != nil else {
                 continue
             }
@@ -212,7 +228,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 rootUri: rootUri,
                 workspaceName: workspaceName,
                 executionRoot: executionRoot,
-                configChecksum: configuration
+                configMnemonic: configuration
             )
             bspUriToParentConfigMap[id] = configuration
             dependencyTargets.append((configuredTarget.target, ruleType, BuildTargetIdentifier(uri: id), configuration))
@@ -271,7 +287,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         }
 
         let buildTargets: [(BuildTarget, SourcesItem)] = try dependencyTargets.map {
-            (target, ruleType, id, configChecksum) in
+            (target, ruleType, id, configMnemonic) in
             let rule = target.rule
             let idUri = id.uri
 
@@ -288,7 +304,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 rule: rule,
                 isBuildTestRule: false,
                 depLabelToUriMap: depLabelToUriMap,
-                configChecksum: configChecksum
+                configMnemonic: configMnemonic
             )
 
             // AFAIK these settings serve no particular purpose today and are ignored by sourcekit-lsp.
@@ -481,7 +497,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         rule: BlazeQuery_Rule,
         isBuildTestRule: Bool,
         depLabelToUriMap: [String: [(BuildTargetIdentifier, String)]],
-        configChecksum: String
+        configMnemonic: String
     ) throws -> [BuildTargetIdentifier] {
         let attrName = isBuildTestRule ? "targets" : "deps"
         let depsAttribute = rule.attribute.first { $0.name == attrName }?.stringListValue ?? []
@@ -491,9 +507,9 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 return nil
             }
             // When a dependency is available over multiple configs, we need to find the one matching the parent.
-            guard let depUri = depUris.first(where: { $0.1 == configChecksum }) else {
+            guard let depUri = depUris.first(where: { $0.1 == configMnemonic }) else {
                 logger.info(
-                    "No dependency found for \(label) with config checksum \(configChecksum). Falling back to first available config."
+                    "No dependency found for \(label) with config mnemonic \(configMnemonic). Falling back to first available config."
                 )
                 return depUris.first?.0
             }
@@ -537,64 +553,27 @@ extension BazelTargetQuerierParserImpl {
             result[configuration.id] = configuration
         }
 
-        // Now, locate the Bazel config information for each of our top-level targets.
-        var topLevelConfigChecksumToInfoMap: [String: BazelTargetConfigurationInfo] = [:]
-        for (target, ruleType, configChecksum) in topLevelTargets {
-            guard topLevelConfigChecksumToInfoMap[configChecksum] == nil else {
+        // Now, extract the platform info for each of the mnemonics we parsed.
+        var topLevelConfigMnemonicToInfoMap: [String: BazelTargetConfigurationInfo] = [:]
+        for (_, _, configMnemonic) in topLevelTargets {
+            guard topLevelConfigMnemonicToInfoMap[configMnemonic] == nil else {
                 continue
             }
-            let configInfo = try topLevelConfigInfo(
-                ofTarget: target,
-                withType: ruleType,
-                aqueryTargets: targets,
-                aqueryActions: actions,
-                aqueryConfigurations: configurations
-            )
-            topLevelConfigChecksumToInfoMap[configChecksum] = configInfo
+            let configInfo = try parseTopLevelConfigInfo(from: configMnemonic)
+            topLevelConfigMnemonicToInfoMap[configMnemonic] = configInfo
         }
 
         return ProcessedAqueryResult(
             targets: targets,
             actions: actions,
             configurations: configurations,
-            topLevelConfigChecksumToInfoMap: topLevelConfigChecksumToInfoMap
+            topLevelConfigMnemonicToInfoMap: topLevelConfigMnemonicToInfoMap
         )
     }
 
-    fileprivate func topLevelConfigInfo(
-        ofTarget target: String,
-        withType type: TopLevelRuleType,
-        aqueryTargets: [String: Analysis_Target],
-        aqueryActions: [UInt32: [Analysis_Action]],
-        aqueryConfigurations: [UInt32: Analysis_Configuration],
+    fileprivate func parseTopLevelConfigInfo(
+        from mnemonic: String
     ) throws -> BazelTargetConfigurationInfo {
-        // If this is a test rule wrapped by a bundle target,
-        // then we need to search for this bundle target instead of the original rule.
-        let effectiveParentLabel: String
-        if type.testBundleRule != nil {
-            effectiveParentLabel = target + TopLevelRuleType.testBundleRuleSuffix
-        } else {
-            effectiveParentLabel = target
-        }
-        // First, fetch the configuration id of the target's parent.
-        guard let parentTarget = aqueryTargets[effectiveParentLabel] else {
-            throw BazelTargetQuerierParserError.parentTargetNotFound(effectiveParentLabel, target)
-        }
-        guard let parentActions = aqueryActions[parentTarget.id] else {
-            throw BazelTargetQuerierParserError.parentActionNotFound(effectiveParentLabel, parentTarget.id)
-        }
-        guard parentActions.count == 1 else {
-            throw BazelTargetQuerierParserError.multipleParentActions(effectiveParentLabel)
-        }
-        // From the parent action, we can now fetch its configuration name.
-        // e.g. darwin_arm64-dbg-macos-arm64-min15.0-applebin_macos-ST-d1334902beb6
-        let parentAction = parentActions[0]
-        let configId = parentAction.configurationID
-        guard let fullConfig = aqueryConfigurations[configId] else {
-            throw BazelTargetQuerierParserError.configurationNotFound(configId)
-        }
-        let mnemonic = fullConfig.mnemonic
-        let configChecksum = fullConfig.checksum
         let configComponents = mnemonic.components(separatedBy: "-")
         // min15.0 -> 15.0
         let minTargetArg = String(try configComponents.getIndexThrowing(4).dropFirst(3))
@@ -618,7 +597,6 @@ extension BazelTargetQuerierParserImpl {
 
         return BazelTargetConfigurationInfo(
             configurationName: mnemonic,
-            configurationChecksum: configChecksum,
             effectiveConfigurationName: effectiveConfigurationName,
             minimumOsVersion: minTargetArg,
             platform: platform,
@@ -682,18 +660,18 @@ extension String {
         rootUri: String,
         workspaceName: String,
         executionRoot: String,
-        configChecksum: String
+        configMnemonic: String
     ) throws -> URI {
         let (repoName, packageName, targetName) = try splitTargetLabel(workspaceName: workspaceName)
         let packagePath = packageName.isEmpty ? "" : "/" + packageName
         let path: String
         if repoName == workspaceName {
-            path = "bazel://" + rootUri + packagePath + "/" + targetName + "_" + configChecksum
+            path = "bazel://" + rootUri + packagePath + "/" + targetName + "_" + configMnemonic
         } else {
             // External repo: use execution root + external path
             path =
                 "bazel://" + executionRoot + "/external/" + repoName + packagePath + "/" + targetName + "_"
-                + configChecksum
+                + configMnemonic
         }
         guard let uri = try? URI(string: path) else {
             throw BazelTargetQuerierParserError.convertUriFailed(path)

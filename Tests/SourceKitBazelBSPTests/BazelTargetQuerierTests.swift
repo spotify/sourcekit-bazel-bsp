@@ -42,7 +42,7 @@ struct BazelTargetQuerierTests {
         targets: [:],
         actions: [:],
         configurations: [:],
-        topLevelConfigChecksumToInfoMap: [:]
+        topLevelConfigMnemonicToInfoMap: [:]
     )
 
     private static func makeInitializedConfig(
