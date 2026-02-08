@@ -49,12 +49,12 @@ struct InitializeHandlerTests {
 
         commandRunner.setResponse(for: "mybazel info output_base", cwd: rootUri, response: outputBase)
         commandRunner.setResponse(
-            for: "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info output_path --config=index",
+            for: "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info output_path",
             cwd: rootUri,
             response: outputPath
         )
         commandRunner.setResponse(
-            for: "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info execution_root --config=index",
+            for: "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info execution_root",
             cwd: rootUri,
             response: executionRoot
         )
@@ -155,14 +155,12 @@ struct InitializeHandlerTests {
 
         commandRunner.setResponse(for: "mybazel info output_base", cwd: rootUri, response: outputBase)
         commandRunner.setResponse(
-            for:
-                "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info output_path --config=index1 --config=index2",
+            for: "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info output_path",
             cwd: rootUri,
             response: outputPath
         )
         commandRunner.setResponse(
-            for:
-                "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info execution_root --config=index1 --config=index2",
+            for: "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info execution_root",
             cwd: rootUri,
             response: outputPath
         )

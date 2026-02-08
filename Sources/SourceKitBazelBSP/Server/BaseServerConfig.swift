@@ -29,6 +29,7 @@ package struct BaseServerConfig: Equatable {
     let targets: [String]
     let indexFlags: [String]
     let aqueryFlags: [String]
+    let queryFlags: [String]
     let filesToWatch: String?
     let compileTopLevel: Bool
     let topLevelRulesToDiscover: [TopLevelRuleType]
@@ -42,6 +43,7 @@ package struct BaseServerConfig: Equatable {
         targets: [String],
         indexFlags: [String],
         aqueryFlags: [String] = [],
+        queryFlags: [String] = [],
         filesToWatch: String?,
         compileTopLevel: Bool,
         topLevelRulesToDiscover: [TopLevelRuleType] = TopLevelRuleType.allCases,
@@ -54,6 +56,7 @@ package struct BaseServerConfig: Equatable {
         self.targets = targets
         self.indexFlags = indexFlags
         self.aqueryFlags = aqueryFlags
+        self.queryFlags = queryFlags
         self.filesToWatch = filesToWatch
         self.compileTopLevel = compileTopLevel
         self.topLevelRulesToDiscover = topLevelRulesToDiscover

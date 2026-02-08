@@ -71,6 +71,7 @@ let package = Package(
             resources: [
                 .copy("Resources/aquery.pb"),
                 .copy("Resources/cquery.pb"),
+                .copy("Resources/cquery_added_files.pb"),
             ],
         ),
         .target(

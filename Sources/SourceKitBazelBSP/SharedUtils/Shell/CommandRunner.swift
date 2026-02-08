@@ -65,14 +65,16 @@ extension CommandRunner {
         cmd: String,
         rootUri: String,
         additionalFlags: [String] = [],
-        additionalStartupFlags: [String] = []
+        additionalStartupFlags: [String] = [],
+        skipIndexFlags: Bool = false
     ) throws -> RunningProcess {
         let cmdString = cmdForBazelIndexAction(
             baseConfig: baseConfig,
             outputBase: outputBase,
             cmd: cmd,
             additionalFlags: additionalFlags,
-            additionalStartupFlags: additionalStartupFlags
+            additionalStartupFlags: additionalStartupFlags,
+            skipIndexFlags: skipIndexFlags
         )
         return try bazel(baseConfig: baseConfig, rootUri: rootUri, cmd: cmdString)
     }
@@ -82,12 +84,13 @@ extension CommandRunner {
         outputBase: String,
         cmd: String,
         additionalFlags: [String] = [],
-        additionalStartupFlags: [String] = []
+        additionalStartupFlags: [String] = [],
+        skipIndexFlags: Bool = false
     ) -> String {
         let indexFlags = baseConfig.indexFlags
         let additionalFlags = additionalFlags.map { " \($0)" }
         let flagsString: String
-        if indexFlags.isEmpty {
+        if indexFlags.isEmpty || skipIndexFlags {
             flagsString = additionalFlags.joined(separator: "")
         } else {
             flagsString = (additionalFlags + indexFlags.map { " \($0)" }).joined(separator: "")
@@ -108,7 +111,8 @@ extension CommandRunner {
         cmd: String,
         rootUri: String,
         additionalFlags: [String] = [],
-        additionalStartupFlags: [String] = []
+        additionalStartupFlags: [String] = [],
+        skipIndexFlags: Bool = false
     ) throws -> T {
         let process = try bazelIndexAction(
             baseConfig: baseConfig,
@@ -116,7 +120,8 @@ extension CommandRunner {
             cmd: cmd,
             rootUri: rootUri,
             additionalFlags: additionalFlags,
-            additionalStartupFlags: additionalStartupFlags
+            additionalStartupFlags: additionalStartupFlags,
+            skipIndexFlags: skipIndexFlags
         )
         return try process.result()
     }
@@ -128,7 +133,8 @@ extension CommandRunner {
         cmds: [String],
         rootUri: String,
         additionalFlags: [String] = [],
-        additionalStartupFlags: [String] = []
+        additionalStartupFlags: [String] = [],
+        skipIndexFlags: Bool = false
     ) throws -> RunningProcess {
         let cmdString = cmds.map {
             baseConfig.bazelWrapper + " "
@@ -137,7 +143,8 @@ extension CommandRunner {
                     outputBase: outputBase,
                     cmd: $0,
                     additionalFlags: additionalFlags,
-                    additionalStartupFlags: additionalStartupFlags
+                    additionalStartupFlags: additionalStartupFlags,
+                    skipIndexFlags: skipIndexFlags
                 )
         }.joined(separator: " && ")
         return try run(cmdString, cwd: rootUri)

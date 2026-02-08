@@ -17,26 +17,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import BazelProtobufBindings
 import BuildServerProtocol
 import Foundation
+import LanguageServerProtocol
+import Testing
 
 @testable import SourceKitBazelBSP
 
-final class InvalidatedTargetObserverFake: InvalidatedTargetObserver {
-
-    enum TestError: Error {
-        case intentional
-    }
-
-    var invalidatedTargets: Set<BuildTargetIdentifier> = []
-    var invalidateCalled = false
-    var shouldThrowOnInvalidate = false
-
-    func invalidate(targets: Set<BuildTargetIdentifier>) throws {
-        invalidateCalled = true
-        invalidatedTargets = targets
-        if shouldThrowOnInvalidate {
-            throw TestError.intentional
-        }
+@Suite
+struct ProcessedCqueryResultTests {
+    @Test
+    func placeholder() {
+        // TODO: Add tests
     }
 }
