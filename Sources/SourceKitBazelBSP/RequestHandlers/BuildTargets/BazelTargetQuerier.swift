@@ -155,7 +155,7 @@ final class BazelTargetQuerier {
 
     /// Runs an aquery across the codebase over a list of specific target dependencies.
     func aquery(
-        topLevelTargets: [(String, TopLevelRuleType, UInt32)],
+        topLevelTargets: [(String, TopLevelRuleType, String)],
         config: InitializedServerConfig,
         mnemonics: [String]
     ) throws -> ProcessedAqueryResult {

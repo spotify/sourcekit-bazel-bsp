@@ -43,9 +43,9 @@ protocol BazelTargetStore: AnyObject {
 enum BazelTargetStoreError: Error, LocalizedError {
     case unknownBSPURI(URI)
     case unableToMapBazelLabelToParents(String)
-    case unableToMapConfigIdToTopLevelConfig(UInt32)
+    case unableToMapConfigChecksumToTopLevelConfig(String)
     case unableToMapBSPURIToParentConfig(URI)
-    case unableToMapConfigIdToTopLevelLabels(UInt32)
+    case unableToMapConfigChecksumToTopLevelLabels(String)
     case unableToMapTopLevelLabelToConfig(String)
     case noCachedAquery
 
@@ -55,12 +55,12 @@ enum BazelTargetStoreError: Error, LocalizedError {
             return "Unable to map '\(uri)' to a Bazel target label"
         case .unableToMapBazelLabelToParents(let label):
             return "Unable to map '\(label)' to its parents"
-        case .unableToMapConfigIdToTopLevelConfig(let config):
-            return "Unable to map configId '\(config)' to its top-level configuration"
+        case .unableToMapConfigChecksumToTopLevelConfig(let config):
+            return "Unable to map config checksum '\(config)' to its top-level configuration"
         case .unableToMapBSPURIToParentConfig(let uri):
             return "Unable to map '\(uri)' to its parent configuration"
-        case .unableToMapConfigIdToTopLevelLabels(let config):
-            return "Unable to map configId '\(config)' to its top-level labels"
+        case .unableToMapConfigChecksumToTopLevelLabels(let config):
+            return "Unable to map config checksum '\(config)' to its top-level labels"
         case .unableToMapTopLevelLabelToConfig(let label):
             return "Unable to map top-level label '\(label)' to its configuration"
         case .noCachedAquery:
@@ -133,25 +133,25 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
     }
 
     /// Retrieves the configuration information for a given Bazel **top-level** target label.
-    func topLevelConfigInfo(forConfig configId: UInt32) throws -> BazelTargetConfigurationInfo {
-        guard let config = aqueryResult?.topLevelConfigIdToInfoMap[configId] else {
-            throw BazelTargetStoreError.unableToMapConfigIdToTopLevelConfig(configId)
+    func topLevelConfigInfo(forConfigChecksum checksum: String) throws -> BazelTargetConfigurationInfo {
+        guard let config = aqueryResult?.topLevelConfigChecksumToInfoMap[checksum] else {
+            throw BazelTargetStoreError.unableToMapConfigChecksumToTopLevelConfig(checksum)
         }
         return config
     }
 
     /// Retrieves the available configurations for a given Bazel target label.
-    func parentConfig(forBSPURI uri: URI) throws -> UInt32 {
-        guard let config = cqueryResult?.bspUriToParentConfigMap[uri] else {
+    func parentConfig(forBSPURI uri: URI) throws -> String {
+        guard let configChecksum = cqueryResult?.bspUriToParentConfigMap[uri] else {
             throw BazelTargetStoreError.unableToMapBSPURIToParentConfig(uri)
         }
-        return config
+        return configChecksum
     }
 
     /// Retrieves the list of top-level labels for a given configuration.
-    func topLevelLabels(forConfig config: UInt32) throws -> [String] {
-        guard let labels = cqueryResult?.configurationToTopLevelLabelsMap[config] else {
-            throw BazelTargetStoreError.unableToMapConfigIdToTopLevelLabels(config)
+    func topLevelLabels(forConfig configChecksum: String) throws -> [String] {
+        guard let labels = cqueryResult?.configurationToTopLevelLabelsMap[configChecksum] else {
+            throw BazelTargetStoreError.unableToMapConfigChecksumToTopLevelLabels(configChecksum)
         }
         return labels
     }
@@ -160,9 +160,9 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
     /// This is used to determine the correct set of compiler flags for the target / platform combo.
     func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo {
         let bazelLabel = try bazelTargetLabel(forBSPURI: uri)
-        let configId = try parentConfig(forBSPURI: uri)
-        let config = try topLevelConfigInfo(forConfig: configId)
-        let parents = try topLevelLabels(forConfig: configId)
+        let configChecksum = try parentConfig(forBSPURI: uri)
+        let config = try topLevelConfigInfo(forConfigChecksum: configChecksum)
+        let parents = try topLevelLabels(forConfig: configChecksum)
         // Since the config of these parents are all the same, it doesn't matter which one we pick here.
         let parentToUse = parents[0]
         return BazelTargetPlatformInfo(
@@ -256,10 +256,10 @@ extension BazelTargetStoreImpl {
     private func generateGraphReport() throws -> BazelTargetGraphReport {
         logger.info("Generating graph report")
         var reportTopLevel: [BazelTargetGraphReport.TopLevelTarget] = []
-        var reportConfigurations: [UInt32: BazelTargetGraphReport.Configuration] = [:]
+        var reportConfigurations: [String: BazelTargetGraphReport.Configuration] = [:]
         let topLevelTargets = cqueryResult?.topLevelTargets ?? []
-        for (label, ruleType, configId) in topLevelTargets {
-            let topLevelConfig = try topLevelConfigInfo(forConfig: configId)
+        for (label, ruleType, configChecksum) in topLevelTargets {
+            let topLevelConfig = try topLevelConfigInfo(forConfigChecksum: configChecksum)
             let launchType: BazelTargetGraphReport.TopLevelTarget.LaunchType? = {
                 if ruleType.testBundleRule != nil {
                     return .test
@@ -277,13 +277,13 @@ extension BazelTargetStoreImpl {
                 .init(
                     label: label,
                     launchType: launchType,
-                    configId: configId,
+                    configChecksum: configChecksum,
                     testSources: testSources
                 )
             )
-            reportConfigurations[configId] = .init(
+            reportConfigurations[configChecksum] = .init(
                 .init(
-                    id: configId,
+                    checksum: configChecksum,
                     platform: topLevelConfig.platform,
                     minimumOsVersion: topLevelConfig.minimumOsVersion,
                     cpuArch: topLevelConfig.cpuArch,
@@ -304,14 +304,14 @@ extension BazelTargetStoreImpl {
             let dependencyTargets = cqueryResult?.buildTargets ?? []
             for target in dependencyTargets {
                 guard let label = target.displayName else { continue }
-                let configId = try parentConfig(forBSPURI: target.id.uri)
-                reportDependencies.append(.init(label: label, configId: configId))
+                let configChecksum = try parentConfig(forBSPURI: target.id.uri)
+                reportDependencies.append(.init(label: label, configChecksum: configChecksum))
             }
         }
         return BazelTargetGraphReport(
             topLevelTargets: reportTopLevel,
             dependencyTargets: reportDependencies,
-            configurations: reportConfigurations.values.sorted(by: { $0.id < $1.id }),
+            configurations: reportConfigurations.values.sorted(by: { $0.checksum < $1.checksum }),
             bazelWrapper: initializedConfig.baseConfig.bazelWrapper
         )
     }
