@@ -49,6 +49,7 @@ struct BazelTargetQuerierTests {
         bazelWrapper: String = "bazelisk",
         targets: [String] = ["//HelloWorld"],
         indexFlags: [String] = ["--config=test"],
+        aqueryFlags: [String] = [],
         topLevelTargetsToExclude: [String] = [],
         dependencyTargetsToExclude: [String] = []
     ) -> InitializedServerConfig {
@@ -56,6 +57,7 @@ struct BazelTargetQuerierTests {
             bazelWrapper: bazelWrapper,
             targets: targets,
             indexFlags: indexFlags,
+            aqueryFlags: aqueryFlags,
             filesToWatch: nil,
             compileTopLevel: false,
             topLevelTargetsToExclude: topLevelTargetsToExclude,
@@ -284,7 +286,7 @@ struct BazelTargetQuerierTests {
         let config = Self.makeInitializedConfig()
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base aquery \"mnemonic('SwiftCompile', deps(//HelloWorld:HelloWorld))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto --config=test"
+            "bazelisk --output_base=/path/to/output/base aquery \"mnemonic('SwiftCompile', deps(//HelloWorld:HelloWorld))\" --noinclude_artifacts --noinclude_aspects --output proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleAqueryOutput)
 
         _ = try querier.aquery(
@@ -307,7 +309,7 @@ struct BazelTargetQuerierTests {
         let config = Self.makeInitializedConfig(targets: ["//HelloWorld", "//Tests"])
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base aquery \"mnemonic('SwiftCompile|ObjcCompile', deps(//HelloWorld:HelloWorld) union deps(//Tests:Tests))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto --config=test"
+            "bazelisk --output_base=/path/to/output/base aquery \"mnemonic('SwiftCompile|ObjcCompile', deps(//HelloWorld:HelloWorld) union deps(//Tests:Tests))\" --noinclude_artifacts --noinclude_aspects --output proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleAqueryOutput)
 
         _ = try querier.aquery(
@@ -334,13 +336,13 @@ struct BazelTargetQuerierTests {
 
         runnerMock.setResponse(
             for:
-                "bazel --output_base=/path/to/output/base aquery \"mnemonic('SwiftCompile', deps(//HelloWorld:HelloWorld))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto",
+                "bazel --output_base=/path/to/output/base aquery \"mnemonic('SwiftCompile', deps(//HelloWorld:HelloWorld))\" --noinclude_artifacts --noinclude_aspects --output proto",
             cwd: Self.mockRootUri,
             response: exampleAqueryOutput
         )
         runnerMock.setResponse(
             for:
-                "bazel --output_base=/path/to/output/base aquery \"mnemonic('ObjcCompile', deps(//HelloWorld:HelloWorld))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto",
+                "bazel --output_base=/path/to/output/base aquery \"mnemonic('ObjcCompile', deps(//HelloWorld:HelloWorld))\" --noinclude_artifacts --noinclude_aspects --output proto",
             cwd: Self.mockRootUri,
             response: exampleAqueryOutput
         )
@@ -366,6 +368,31 @@ struct BazelTargetQuerierTests {
         // But the original call is still cached
         try run(mnemonics: ["SwiftCompile"])
         #expect(runnerMock.commands.count == 2)
+    }
+
+    @Test
+    func aqueryFlagsAreIncludedInCommand() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig(
+            indexFlags: [],
+            aqueryFlags: ["--features=-compiler_param_file"]
+        )
+
+        let expectedCommand =
+            "bazelisk --output_base=/path/to/output/base aquery \"mnemonic('SwiftCompile', deps(//HelloWorld:HelloWorld))\" --noinclude_artifacts --noinclude_aspects --features=-compiler_param_file --output proto"
+        runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleAqueryOutput)
+
+        _ = try querier.aquery(
+            topLevelTargets: [("//HelloWorld:HelloWorld", .iosApplication, 1)],
+            config: config,
+            mnemonics: ["SwiftCompile"]
+        )
+
+        let ranCommands = runnerMock.commands
+        #expect(ranCommands.count == 1)
+        #expect(ranCommands[0].command == expectedCommand)
     }
 }
 

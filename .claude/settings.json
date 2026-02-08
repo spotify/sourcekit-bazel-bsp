@@ -1,17 +1,32 @@
 {
+  "model": "claude-opus-4-5",
   "permissions": {
     "allow": [
-      "Bash(find:*)",
       "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
       "Bash(rgrep:*)",
       "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(cd:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(pwd:*)",
       "Bash(swift build:*)",
       "Bash(swift test:*)",
+      "Bash(swift format:*)",
       "Bash(git show:*)",
       "Bash(git log:*)",
       "Bash(git diff:*)",
       "Bash(git status:*)",
-      "Bash(swift format:*)"
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr status:*)",
+      "Bash(gh pr view:*)",
+      "Bash(bazelisk build:*)",
+      "Bash(bazelisk test:*)",
+      "Bash(bazelisk query:*)",
+      "Bash(bazelisk cquery:*)"
     ]
   }
 }

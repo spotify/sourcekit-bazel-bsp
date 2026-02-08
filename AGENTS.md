@@ -6,6 +6,8 @@ sourcekit-bazel-bsp is a Build Server Protocol (BSP) implementation that bridges
 
 The project itself is built using Swift Package Manager. There is also a `Example/` folder containing a Bazel iOS application demonstrating the tool's functionality, as well as a `vscode-extension/` containing a helper VSCode/Cursor extension that acts as a companion to the main BSP code.
 
+When adding new CLI flags to Serve.swift, you should also add them to the `rules/setup_sourcekit_bsp.bzl` Bazel equivalent if applicable.
+
 ## Common Commands
 
 ### Base instructions

@@ -20,6 +20,9 @@ def _setup_sourcekit_bsp_impl(ctx):
     for index_flag in ctx.attr.index_flags:
         bsp_config_argv.append("--index-flag")
         bsp_config_argv.append(index_flag)
+    for aquery_flag in ctx.attr.aquery_flags:
+        bsp_config_argv.append("--aquery-flag")
+        bsp_config_argv.append(aquery_flag)
     for top_level_rule in ctx.attr.top_level_rules_to_discover:
         bsp_config_argv.append("--top-level-rule-to-discover")
         bsp_config_argv.append(top_level_rule)
@@ -132,6 +135,10 @@ setup_sourcekit_bsp = rule(
         ),
         "index_flags": attr.string_list(
             doc = "Flags that should be passed to all indexing-related Bazel invocations. Do not include the -- prefix.",
+            default = [],
+        ),
+        "aquery_flags": attr.string_list(
+            doc = "Flags that should be passed to all aquery invocations used to gather compiler arguments. Do not include the -- prefix.",
             default = [],
         ),
         "files_to_watch": attr.string_list(
