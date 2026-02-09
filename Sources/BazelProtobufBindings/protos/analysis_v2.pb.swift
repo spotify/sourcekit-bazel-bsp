@@ -8,19 +8,9 @@
 // For information on using the generated types, please see the documentation:
 //   https://github.com/apple/swift-protobuf/
 
-// Copyright 2018 The Bazel Authors. All rights reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Minimized proto file for sourcekit-bazel-bsp.
+// Only includes fields actually used by the BSP implementation.
+// Original: https://github.com/bazelbuild/bazel/blob/master/src/main/protobuf/analysis_v2.proto
 
 import SwiftProtobuf
 
@@ -40,45 +30,11 @@ public struct Analysis_ActionGraphContainer: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var artifacts: [Analysis_Artifact] = []
-
   public var actions: [Analysis_Action] = []
 
   public var targets: [Analysis_Target] = []
 
-  public var depSetOfFiles: [Analysis_DepSetOfFiles] = []
-
   public var configuration: [Analysis_Configuration] = []
-
-  public var aspectDescriptors: [Analysis_AspectDescriptor] = []
-
-  public var ruleClasses: [Analysis_RuleClass] = []
-
-  public var pathFragments: [Analysis_PathFragment] = []
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-/// Represents a single artifact, whether it's a source file or a derived output
-/// file.
-public struct Analysis_Artifact: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// Identifier for this artifact; this is a uint32, only valid for this
-  /// particular dump of the analysis.
-  public var id: UInt32 = 0
-
-  /// The id of the PathFragment that represents the relative path of the file
-  /// within the execution root.
-  public var pathFragmentID: UInt32 = 0
-
-  /// True iff the artifact is a tree artifact, i.e. the above exec_path refers
-  /// a directory.
-  public var isTreeArtifact: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -87,147 +43,26 @@ public struct Analysis_Artifact: Sendable {
 
 /// Represents a single action, which is a function from Artifact(s) to
 /// Artifact(s).
-public struct Analysis_Action: @unchecked Sendable {
+public struct Analysis_Action: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// The target that was responsible for the creation of the action.
-  public var targetID: UInt32 {
-    get {return _storage._targetID}
-    set {_uniqueStorage()._targetID = newValue}
-  }
-
-  /// The aspects that were responsible for the creation of the action (if any).
-  /// In the case of aspect-on-aspect, AspectDescriptors are listed in
-  /// topological order of the dependency graph.
-  /// e.g. [A, B] would imply that aspect A is applied on top of aspect B.
-  public var aspectDescriptorIds: [UInt32] {
-    get {return _storage._aspectDescriptorIds}
-    set {_uniqueStorage()._aspectDescriptorIds = newValue}
-  }
-
-  /// Encodes all significant behavior that might affect the output. The key
-  /// must change if the work performed by the execution of this action changes.
-  /// Note that the key doesn't include checksums of the input files.
-  public var actionKey: String {
-    get {return _storage._actionKey}
-    set {_uniqueStorage()._actionKey = newValue}
-  }
+  public var targetID: UInt32 = 0
 
   /// The mnemonic for this kind of action.
-  public var mnemonic: String {
-    get {return _storage._mnemonic}
-    set {_uniqueStorage()._mnemonic = newValue}
-  }
+  public var mnemonic: String = String()
 
   /// The configuration under which this action is executed.
-  public var configurationID: UInt32 {
-    get {return _storage._configurationID}
-    set {_uniqueStorage()._configurationID = newValue}
-  }
+  public var configurationID: UInt32 = 0
 
-  /// The command line arguments of the action. This will be only set if
-  /// explicitly requested.
-  public var arguments: [String] {
-    get {return _storage._arguments}
-    set {_uniqueStorage()._arguments = newValue}
-  }
-
-  /// The list of environment variables to be set before executing the command.
-  public var environmentVariables: [Analysis_KeyValuePair] {
-    get {return _storage._environmentVariables}
-    set {_uniqueStorage()._environmentVariables = newValue}
-  }
-
-  /// The set of input dep sets that the action depends upon. If the action does
-  /// input discovery and `--include_pruned_outputs` is disabled, the contents of
-  /// this set might differ before and after execution.
-  public var inputDepSetIds: [UInt32] {
-    get {return _storage._inputDepSetIds}
-    set {_uniqueStorage()._inputDepSetIds = newValue}
-  }
-
-  /// The list of Artifact IDs that represent the output files that this action
-  /// will generate.
-  public var outputIds: [UInt32] {
-    get {return _storage._outputIds}
-    set {_uniqueStorage()._outputIds = newValue}
-  }
-
-  /// True iff the action does input discovery during execution.
-  public var discoversInputs: Bool {
-    get {return _storage._discoversInputs}
-    set {_uniqueStorage()._discoversInputs = newValue}
-  }
-
-  /// Execution info for the action.  Remote execution services may use this
-  /// information to modify the execution environment, but actions will
-  /// generally not be aware of it.
-  public var executionInfo: [Analysis_KeyValuePair] {
-    get {return _storage._executionInfo}
-    set {_uniqueStorage()._executionInfo = newValue}
-  }
-
-  /// The list of param files. This will be only set if explicitly requested.
-  public var paramFiles: [Analysis_ParamFile] {
-    get {return _storage._paramFiles}
-    set {_uniqueStorage()._paramFiles = newValue}
-  }
-
-  /// The id to an Artifact that is the primary output of this action.
-  public var primaryOutputID: UInt32 {
-    get {return _storage._primaryOutputID}
-    set {_uniqueStorage()._primaryOutputID = newValue}
-  }
-
-  /// The execution platform for this action. Empty if the action has no
-  /// execution platform.
-  public var executionPlatform: String {
-    get {return _storage._executionPlatform}
-    set {_uniqueStorage()._executionPlatform = newValue}
-  }
-
-  /// The template content of the action, if it is TemplateExpand action.
-  public var templateContent: String {
-    get {return _storage._templateContent}
-    set {_uniqueStorage()._templateContent = newValue}
-  }
-
-  /// The list of substitution should be performed on the template. The key is
-  /// the string to be substituted and the value is the string to be substituted
-  /// to.
-  public var substitutions: [Analysis_KeyValuePair] {
-    get {return _storage._substitutions}
-    set {_uniqueStorage()._substitutions = newValue}
-  }
-
-  /// The contents of the file for the ctx.actions.write() action
-  /// (guarded by the --include_file_write_contents flag).
-  public var fileContents: String {
-    get {return _storage._fileContents}
-    set {_uniqueStorage()._fileContents = newValue}
-  }
-
-  /// The target of the symlink created by UnresolvedSymlink actions.
-  /// For regular Symlink actions, the target is represented as an input.
-  public var unresolvedSymlinkTarget: String {
-    get {return _storage._unresolvedSymlinkTarget}
-    set {_uniqueStorage()._unresolvedSymlinkTarget = newValue}
-  }
-
-  /// If FileWrite actions should make their output executable.
-  /// (ctx.actions.write(is_executable=True))
-  public var isExecutable: Bool {
-    get {return _storage._isExecutable}
-    set {_uniqueStorage()._isExecutable = newValue}
-  }
+  /// The command line arguments of the action.
+  public var arguments: [String] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
-
-  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 /// Represents a single target (without configuration information) that is
@@ -243,71 +78,6 @@ public struct Analysis_Target: Sendable {
 
   /// Label of the target, e.g. //foo:bar.
   public var label: String = String()
-
-  /// Class of the rule.
-  public var ruleClassID: UInt32 = 0
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-public struct Analysis_RuleClass: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// Identifier for this rule class; this is a uint32, only valid for
-  /// this particular dump of the analysis.
-  public var id: UInt32 = 0
-
-  /// Name of the rule class, e.g. cc_library.
-  public var name: String = String()
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-/// Represents an invocation specific descriptor of an aspect.
-public struct Analysis_AspectDescriptor: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// Identifier for this aspect descriptor; this is a uint32, only valid
-  /// for the particular dump of the analysis.
-  public var id: UInt32 = 0
-
-  /// The name of the corresponding aspect. For native aspects, it's the Java
-  /// class name, for Starlark aspects it's the bzl file followed by a % sign
-  /// followed by the name of the aspect.
-  public var name: String = String()
-
-  /// The list of parameters bound to a particular invocation of that aspect on
-  /// a target. Note that aspects can be executed multiple times on the same
-  /// target in different order.
-  public var parameters: [Analysis_KeyValuePair] = []
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-public struct Analysis_DepSetOfFiles: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// Identifier for this named set of files; this is a uint32, only
-  /// valid for the particular dump of the analysis.
-  public var id: UInt32 = 0
-
-  /// Other transitively included named set of files.
-  public var transitiveDepSetIds: [UInt32] = []
-
-  /// The list of input artifact IDs that are immediately contained in this set.
-  public var directArtifactIds: [UInt32] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -326,111 +96,6 @@ public struct Analysis_Configuration: Sendable {
   /// The mnemonic representing the build configuration.
   public var mnemonic: String = String()
 
-  /// The platform string.
-  public var platformName: String = String()
-
-  /// The checksum representation of the configuration options;
-  public var checksum: String = String()
-
-  /// Whether this configuration is used for building tools.
-  public var isTool: Bool = false
-
-  /// The configuration fragments that are a part of this configuration.
-  public var fragments: [Analysis_Fragment] = []
-
-  /// The union of all the FragmentOptions associated with the Fragments that are
-  /// a part of this configuration. These are returned separately from the
-  /// fragments field because a set of FragmentOptions can be referenced by more
-  /// than one Fragment, and we wish to avoid returning the same FragmentOptions
-  /// repeatedly. These are sorted by the FragmentOptions name field.
-  public var fragmentOptions: [Analysis_FragmentOptions] = []
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-/// A configuration fragment
-/// (http://bazel.build/rules/lib/fragments).
-public struct Analysis_Fragment: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// The name of the Fragment.
-  public var name: String = String()
-
-  /// The names of the FragmentOptions associated with this fragment in sorted
-  /// order.
-  public var fragmentOptionNames: [String] = []
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-/// A set of fragment options.
-public struct Analysis_FragmentOptions: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// The name of this set of fragment options.
-  public var name: String = String()
-
-  /// The options themselves, in sorted order by name.
-  public var options: [Analysis_Option] = []
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-/// A fragment option.
-public struct Analysis_Option: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// The name of the option.
-  public var name: String {
-    get {return _name ?? String()}
-    set {_name = newValue}
-  }
-  /// Returns true if `name` has been explicitly set.
-  public var hasName: Bool {return self._name != nil}
-  /// Clears the value of `name`. Subsequent reads from it will return its default value.
-  public mutating func clearName() {self._name = nil}
-
-  /// The value of the option.
-  public var value: String {
-    get {return _value ?? String()}
-    set {_value = newValue}
-  }
-  /// Returns true if `value` has been explicitly set.
-  public var hasValue: Bool {return self._value != nil}
-  /// Clears the value of `value`. Subsequent reads from it will return its default value.
-  public mutating func clearValue() {self._value = nil}
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-
-  fileprivate var _name: String? = nil
-  fileprivate var _value: String? = nil
-}
-
-public struct Analysis_KeyValuePair: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// The variable name.
-  public var key: String = String()
-
-  /// The variable value.
-  public var value: String = String()
-
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -441,34 +106,17 @@ public struct Analysis_ConfiguredTarget: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The target. We use blaze_query.Target defined in build.proto instead of
-  /// the Target defined in this file because blaze_query.Target is much heavier
-  /// and will output proto results similar to what users are familiar with from
-  /// regular blaze query.
+  /// The target.
   public var target: BlazeQuery_Target {
-    get {return _target ?? BlazeQuery_Target()}
+    get {_target ?? BlazeQuery_Target()}
     set {_target = newValue}
   }
   /// Returns true if `target` has been explicitly set.
-  public var hasTarget: Bool {return self._target != nil}
+  public var hasTarget: Bool {self._target != nil}
   /// Clears the value of `target`. Subsequent reads from it will return its default value.
   public mutating func clearTarget() {self._target = nil}
 
-  /// DEPRECATED. Use configuration_id instead.
-  ///
-  /// NOTE: This field was marked as deprecated in the .proto file.
-  public var configuration: Analysis_Configuration {
-    get {return _configuration ?? Analysis_Configuration()}
-    set {_configuration = newValue}
-  }
-  /// Returns true if `configuration` has been explicitly set.
-  public var hasConfiguration: Bool {return self._configuration != nil}
-  /// Clears the value of `configuration`. Subsequent reads from it will return its default value.
-  public mutating func clearConfiguration() {self._configuration = nil}
-
-  /// The id of the configuration this target is configured for. The actual
-  /// Configuration message can be found in CqueryResults. If the target doesn't
-  /// have a configuration, the value will be 0.
+  /// The id of the configuration this target is configured for.
   public var configurationID: UInt32 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -476,7 +124,6 @@ public struct Analysis_ConfiguredTarget: Sendable {
   public init() {}
 
   fileprivate var _target: BlazeQuery_Target? = nil
-  fileprivate var _configuration: Analysis_Configuration? = nil
 }
 
 /// Container for cquery results
@@ -496,51 +143,13 @@ public struct Analysis_CqueryResult: Sendable {
   public init() {}
 }
 
-/// Content of a param file.
-public struct Analysis_ParamFile: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// The exec path of the param file artifact.
-  public var execPath: String = String()
-
-  /// The arguments in the param file.
-  /// Each argument corresponds to a line in the param file.
-  public var arguments: [String] = []
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-/// The path fragment that makes up a full path.
-public struct Analysis_PathFragment: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// Identifier for this path fragment.
-  public var id: UInt32 = 0
-
-  /// The label of the section in the path.
-  public var label: String = String()
-
-  /// The id of the parent path fragment.
-  public var parentID: UInt32 = 0
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "analysis"
 
 extension Analysis_ActionGraphContainer: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ActionGraphContainer"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}artifacts\0\u{1}actions\0\u{1}targets\0\u{3}dep_set_of_files\0\u{1}configuration\0\u{3}aspect_descriptors\0\u{3}rule_classes\0\u{3}path_fragments\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\u{2}actions\0\u{1}targets\0\u{2}\u{2}configuration\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -548,96 +157,31 @@ extension Analysis_ActionGraphContainer: SwiftProtobuf.Message, SwiftProtobuf._M
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.artifacts) }()
       case 2: try { try decoder.decodeRepeatedMessageField(value: &self.actions) }()
       case 3: try { try decoder.decodeRepeatedMessageField(value: &self.targets) }()
-      case 4: try { try decoder.decodeRepeatedMessageField(value: &self.depSetOfFiles) }()
       case 5: try { try decoder.decodeRepeatedMessageField(value: &self.configuration) }()
-      case 6: try { try decoder.decodeRepeatedMessageField(value: &self.aspectDescriptors) }()
-      case 7: try { try decoder.decodeRepeatedMessageField(value: &self.ruleClasses) }()
-      case 8: try { try decoder.decodeRepeatedMessageField(value: &self.pathFragments) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.artifacts.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.artifacts, fieldNumber: 1)
-    }
     if !self.actions.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.actions, fieldNumber: 2)
     }
     if !self.targets.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.targets, fieldNumber: 3)
     }
-    if !self.depSetOfFiles.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.depSetOfFiles, fieldNumber: 4)
-    }
     if !self.configuration.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.configuration, fieldNumber: 5)
-    }
-    if !self.aspectDescriptors.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.aspectDescriptors, fieldNumber: 6)
-    }
-    if !self.ruleClasses.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.ruleClasses, fieldNumber: 7)
-    }
-    if !self.pathFragments.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.pathFragments, fieldNumber: 8)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Analysis_ActionGraphContainer, rhs: Analysis_ActionGraphContainer) -> Bool {
-    if lhs.artifacts != rhs.artifacts {return false}
     if lhs.actions != rhs.actions {return false}
     if lhs.targets != rhs.targets {return false}
-    if lhs.depSetOfFiles != rhs.depSetOfFiles {return false}
     if lhs.configuration != rhs.configuration {return false}
-    if lhs.aspectDescriptors != rhs.aspectDescriptors {return false}
-    if lhs.ruleClasses != rhs.ruleClasses {return false}
-    if lhs.pathFragments != rhs.pathFragments {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Analysis_Artifact: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Artifact"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}path_fragment_id\0\u{3}is_tree_artifact\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.id) }()
-      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.pathFragmentID) }()
-      case 3: try { try decoder.decodeSingularBoolField(value: &self.isTreeArtifact) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if self.id != 0 {
-      try visitor.visitSingularUInt32Field(value: self.id, fieldNumber: 1)
-    }
-    if self.pathFragmentID != 0 {
-      try visitor.visitSingularUInt32Field(value: self.pathFragmentID, fieldNumber: 2)
-    }
-    if self.isTreeArtifact != false {
-      try visitor.visitSingularBoolField(value: self.isTreeArtifact, fieldNumber: 3)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Analysis_Artifact, rhs: Analysis_Artifact) -> Bool {
-    if lhs.id != rhs.id {return false}
-    if lhs.pathFragmentID != rhs.pathFragmentID {return false}
-    if lhs.isTreeArtifact != rhs.isTreeArtifact {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -645,191 +189,44 @@ extension Analysis_Artifact: SwiftProtobuf.Message, SwiftProtobuf._MessageImplem
 
 extension Analysis_Action: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Action"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}target_id\0\u{3}aspect_descriptor_ids\0\u{3}action_key\0\u{1}mnemonic\0\u{3}configuration_id\0\u{1}arguments\0\u{3}environment_variables\0\u{3}input_dep_set_ids\0\u{3}output_ids\0\u{3}discovers_inputs\0\u{3}execution_info\0\u{3}param_files\0\u{3}primary_output_id\0\u{3}execution_platform\0\u{3}template_content\0\u{1}substitutions\0\u{3}file_contents\0\u{3}unresolved_symlink_target\0\u{3}is_executable\0\u{c}\u{14}\u{1}")
-
-  fileprivate class _StorageClass {
-    var _targetID: UInt32 = 0
-    var _aspectDescriptorIds: [UInt32] = []
-    var _actionKey: String = String()
-    var _mnemonic: String = String()
-    var _configurationID: UInt32 = 0
-    var _arguments: [String] = []
-    var _environmentVariables: [Analysis_KeyValuePair] = []
-    var _inputDepSetIds: [UInt32] = []
-    var _outputIds: [UInt32] = []
-    var _discoversInputs: Bool = false
-    var _executionInfo: [Analysis_KeyValuePair] = []
-    var _paramFiles: [Analysis_ParamFile] = []
-    var _primaryOutputID: UInt32 = 0
-    var _executionPlatform: String = String()
-    var _templateContent: String = String()
-    var _substitutions: [Analysis_KeyValuePair] = []
-    var _fileContents: String = String()
-    var _unresolvedSymlinkTarget: String = String()
-    var _isExecutable: Bool = false
-
-      // This property is used as the initial default value for new instances of the type.
-      // The type itself is protecting the reference to its storage via CoW semantics.
-      // This will force a copy to be made of this reference when the first mutation occurs;
-      // hence, it is safe to mark this as `nonisolated(unsafe)`.
-      static nonisolated(unsafe) let defaultInstance = _StorageClass()
-
-    private init() {}
-
-    init(copying source: _StorageClass) {
-      _targetID = source._targetID
-      _aspectDescriptorIds = source._aspectDescriptorIds
-      _actionKey = source._actionKey
-      _mnemonic = source._mnemonic
-      _configurationID = source._configurationID
-      _arguments = source._arguments
-      _environmentVariables = source._environmentVariables
-      _inputDepSetIds = source._inputDepSetIds
-      _outputIds = source._outputIds
-      _discoversInputs = source._discoversInputs
-      _executionInfo = source._executionInfo
-      _paramFiles = source._paramFiles
-      _primaryOutputID = source._primaryOutputID
-      _executionPlatform = source._executionPlatform
-      _templateContent = source._templateContent
-      _substitutions = source._substitutions
-      _fileContents = source._fileContents
-      _unresolvedSymlinkTarget = source._unresolvedSymlinkTarget
-      _isExecutable = source._isExecutable
-    }
-  }
-
-  fileprivate mutating func _uniqueStorage() -> _StorageClass {
-    if !isKnownUniquelyReferenced(&_storage) {
-      _storage = _StorageClass(copying: _storage)
-    }
-    return _storage
-  }
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}target_id\0\u{2}\u{3}mnemonic\0\u{3}configuration_id\0\u{1}arguments\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    _ = _uniqueStorage()
-    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
-      while let fieldNumber = try decoder.nextFieldNumber() {
-        // The use of inline closures is to circumvent an issue where the compiler
-        // allocates stack space for every case branch when no optimizations are
-        // enabled. https://github.com/apple/swift-protobuf/issues/1034
-        switch fieldNumber {
-        case 1: try { try decoder.decodeSingularUInt32Field(value: &_storage._targetID) }()
-        case 2: try { try decoder.decodeRepeatedUInt32Field(value: &_storage._aspectDescriptorIds) }()
-        case 3: try { try decoder.decodeSingularStringField(value: &_storage._actionKey) }()
-        case 4: try { try decoder.decodeSingularStringField(value: &_storage._mnemonic) }()
-        case 5: try { try decoder.decodeSingularUInt32Field(value: &_storage._configurationID) }()
-        case 6: try { try decoder.decodeRepeatedStringField(value: &_storage._arguments) }()
-        case 7: try { try decoder.decodeRepeatedMessageField(value: &_storage._environmentVariables) }()
-        case 8: try { try decoder.decodeRepeatedUInt32Field(value: &_storage._inputDepSetIds) }()
-        case 9: try { try decoder.decodeRepeatedUInt32Field(value: &_storage._outputIds) }()
-        case 10: try { try decoder.decodeSingularBoolField(value: &_storage._discoversInputs) }()
-        case 11: try { try decoder.decodeRepeatedMessageField(value: &_storage._executionInfo) }()
-        case 12: try { try decoder.decodeRepeatedMessageField(value: &_storage._paramFiles) }()
-        case 13: try { try decoder.decodeSingularUInt32Field(value: &_storage._primaryOutputID) }()
-        case 14: try { try decoder.decodeSingularStringField(value: &_storage._executionPlatform) }()
-        case 15: try { try decoder.decodeSingularStringField(value: &_storage._templateContent) }()
-        case 16: try { try decoder.decodeRepeatedMessageField(value: &_storage._substitutions) }()
-        case 17: try { try decoder.decodeSingularStringField(value: &_storage._fileContents) }()
-        case 18: try { try decoder.decodeSingularStringField(value: &_storage._unresolvedSymlinkTarget) }()
-        case 19: try { try decoder.decodeSingularBoolField(value: &_storage._isExecutable) }()
-        default: break
-        }
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.targetID) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.mnemonic) }()
+      case 5: try { try decoder.decodeSingularUInt32Field(value: &self.configurationID) }()
+      case 6: try { try decoder.decodeRepeatedStringField(value: &self.arguments) }()
+      default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
-      if _storage._targetID != 0 {
-        try visitor.visitSingularUInt32Field(value: _storage._targetID, fieldNumber: 1)
-      }
-      if !_storage._aspectDescriptorIds.isEmpty {
-        try visitor.visitPackedUInt32Field(value: _storage._aspectDescriptorIds, fieldNumber: 2)
-      }
-      if !_storage._actionKey.isEmpty {
-        try visitor.visitSingularStringField(value: _storage._actionKey, fieldNumber: 3)
-      }
-      if !_storage._mnemonic.isEmpty {
-        try visitor.visitSingularStringField(value: _storage._mnemonic, fieldNumber: 4)
-      }
-      if _storage._configurationID != 0 {
-        try visitor.visitSingularUInt32Field(value: _storage._configurationID, fieldNumber: 5)
-      }
-      if !_storage._arguments.isEmpty {
-        try visitor.visitRepeatedStringField(value: _storage._arguments, fieldNumber: 6)
-      }
-      if !_storage._environmentVariables.isEmpty {
-        try visitor.visitRepeatedMessageField(value: _storage._environmentVariables, fieldNumber: 7)
-      }
-      if !_storage._inputDepSetIds.isEmpty {
-        try visitor.visitPackedUInt32Field(value: _storage._inputDepSetIds, fieldNumber: 8)
-      }
-      if !_storage._outputIds.isEmpty {
-        try visitor.visitPackedUInt32Field(value: _storage._outputIds, fieldNumber: 9)
-      }
-      if _storage._discoversInputs != false {
-        try visitor.visitSingularBoolField(value: _storage._discoversInputs, fieldNumber: 10)
-      }
-      if !_storage._executionInfo.isEmpty {
-        try visitor.visitRepeatedMessageField(value: _storage._executionInfo, fieldNumber: 11)
-      }
-      if !_storage._paramFiles.isEmpty {
-        try visitor.visitRepeatedMessageField(value: _storage._paramFiles, fieldNumber: 12)
-      }
-      if _storage._primaryOutputID != 0 {
-        try visitor.visitSingularUInt32Field(value: _storage._primaryOutputID, fieldNumber: 13)
-      }
-      if !_storage._executionPlatform.isEmpty {
-        try visitor.visitSingularStringField(value: _storage._executionPlatform, fieldNumber: 14)
-      }
-      if !_storage._templateContent.isEmpty {
-        try visitor.visitSingularStringField(value: _storage._templateContent, fieldNumber: 15)
-      }
-      if !_storage._substitutions.isEmpty {
-        try visitor.visitRepeatedMessageField(value: _storage._substitutions, fieldNumber: 16)
-      }
-      if !_storage._fileContents.isEmpty {
-        try visitor.visitSingularStringField(value: _storage._fileContents, fieldNumber: 17)
-      }
-      if !_storage._unresolvedSymlinkTarget.isEmpty {
-        try visitor.visitSingularStringField(value: _storage._unresolvedSymlinkTarget, fieldNumber: 18)
-      }
-      if _storage._isExecutable != false {
-        try visitor.visitSingularBoolField(value: _storage._isExecutable, fieldNumber: 19)
-      }
+    if self.targetID != 0 {
+      try visitor.visitSingularUInt32Field(value: self.targetID, fieldNumber: 1)
+    }
+    if !self.mnemonic.isEmpty {
+      try visitor.visitSingularStringField(value: self.mnemonic, fieldNumber: 4)
+    }
+    if self.configurationID != 0 {
+      try visitor.visitSingularUInt32Field(value: self.configurationID, fieldNumber: 5)
+    }
+    if !self.arguments.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.arguments, fieldNumber: 6)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Analysis_Action, rhs: Analysis_Action) -> Bool {
-    if lhs._storage !== rhs._storage {
-      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
-        let _storage = _args.0
-        let rhs_storage = _args.1
-        if _storage._targetID != rhs_storage._targetID {return false}
-        if _storage._aspectDescriptorIds != rhs_storage._aspectDescriptorIds {return false}
-        if _storage._actionKey != rhs_storage._actionKey {return false}
-        if _storage._mnemonic != rhs_storage._mnemonic {return false}
-        if _storage._configurationID != rhs_storage._configurationID {return false}
-        if _storage._arguments != rhs_storage._arguments {return false}
-        if _storage._environmentVariables != rhs_storage._environmentVariables {return false}
-        if _storage._inputDepSetIds != rhs_storage._inputDepSetIds {return false}
-        if _storage._outputIds != rhs_storage._outputIds {return false}
-        if _storage._discoversInputs != rhs_storage._discoversInputs {return false}
-        if _storage._executionInfo != rhs_storage._executionInfo {return false}
-        if _storage._paramFiles != rhs_storage._paramFiles {return false}
-        if _storage._primaryOutputID != rhs_storage._primaryOutputID {return false}
-        if _storage._executionPlatform != rhs_storage._executionPlatform {return false}
-        if _storage._templateContent != rhs_storage._templateContent {return false}
-        if _storage._substitutions != rhs_storage._substitutions {return false}
-        if _storage._fileContents != rhs_storage._fileContents {return false}
-        if _storage._unresolvedSymlinkTarget != rhs_storage._unresolvedSymlinkTarget {return false}
-        if _storage._isExecutable != rhs_storage._isExecutable {return false}
-        return true
-      }
-      if !storagesAreEqual {return false}
-    }
+    if lhs.targetID != rhs.targetID {return false}
+    if lhs.mnemonic != rhs.mnemonic {return false}
+    if lhs.configurationID != rhs.configurationID {return false}
+    if lhs.arguments != rhs.arguments {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -837,7 +234,7 @@ extension Analysis_Action: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Analysis_Target: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Target"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0\u{3}rule_class_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -847,7 +244,6 @@ extension Analysis_Target: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularUInt32Field(value: &self.id) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.label) }()
-      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.ruleClassID) }()
       default: break
       }
     }
@@ -860,131 +256,12 @@ extension Analysis_Target: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
     if !self.label.isEmpty {
       try visitor.visitSingularStringField(value: self.label, fieldNumber: 2)
     }
-    if self.ruleClassID != 0 {
-      try visitor.visitSingularUInt32Field(value: self.ruleClassID, fieldNumber: 3)
-    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Analysis_Target, rhs: Analysis_Target) -> Bool {
     if lhs.id != rhs.id {return false}
     if lhs.label != rhs.label {return false}
-    if lhs.ruleClassID != rhs.ruleClassID {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Analysis_RuleClass: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".RuleClass"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.id) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.name) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if self.id != 0 {
-      try visitor.visitSingularUInt32Field(value: self.id, fieldNumber: 1)
-    }
-    if !self.name.isEmpty {
-      try visitor.visitSingularStringField(value: self.name, fieldNumber: 2)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Analysis_RuleClass, rhs: Analysis_RuleClass) -> Bool {
-    if lhs.id != rhs.id {return false}
-    if lhs.name != rhs.name {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Analysis_AspectDescriptor: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".AspectDescriptor"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}parameters\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.id) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.name) }()
-      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.parameters) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if self.id != 0 {
-      try visitor.visitSingularUInt32Field(value: self.id, fieldNumber: 1)
-    }
-    if !self.name.isEmpty {
-      try visitor.visitSingularStringField(value: self.name, fieldNumber: 2)
-    }
-    if !self.parameters.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.parameters, fieldNumber: 3)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Analysis_AspectDescriptor, rhs: Analysis_AspectDescriptor) -> Bool {
-    if lhs.id != rhs.id {return false}
-    if lhs.name != rhs.name {return false}
-    if lhs.parameters != rhs.parameters {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Analysis_DepSetOfFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".DepSetOfFiles"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}transitive_dep_set_ids\0\u{3}direct_artifact_ids\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.id) }()
-      case 2: try { try decoder.decodeRepeatedUInt32Field(value: &self.transitiveDepSetIds) }()
-      case 3: try { try decoder.decodeRepeatedUInt32Field(value: &self.directArtifactIds) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if self.id != 0 {
-      try visitor.visitSingularUInt32Field(value: self.id, fieldNumber: 1)
-    }
-    if !self.transitiveDepSetIds.isEmpty {
-      try visitor.visitPackedUInt32Field(value: self.transitiveDepSetIds, fieldNumber: 2)
-    }
-    if !self.directArtifactIds.isEmpty {
-      try visitor.visitPackedUInt32Field(value: self.directArtifactIds, fieldNumber: 3)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Analysis_DepSetOfFiles, rhs: Analysis_DepSetOfFiles) -> Bool {
-    if lhs.id != rhs.id {return false}
-    if lhs.transitiveDepSetIds != rhs.transitiveDepSetIds {return false}
-    if lhs.directArtifactIds != rhs.directArtifactIds {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -992,7 +269,7 @@ extension Analysis_DepSetOfFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageI
 
 extension Analysis_Configuration: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Configuration"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}mnemonic\0\u{3}platform_name\0\u{1}checksum\0\u{3}is_tool\0\u{1}fragments\0\u{3}fragment_options\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}mnemonic\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1002,11 +279,6 @@ extension Analysis_Configuration: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularUInt32Field(value: &self.id) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.mnemonic) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.platformName) }()
-      case 4: try { try decoder.decodeSingularStringField(value: &self.checksum) }()
-      case 5: try { try decoder.decodeSingularBoolField(value: &self.isTool) }()
-      case 6: try { try decoder.decodeRepeatedMessageField(value: &self.fragments) }()
-      case 7: try { try decoder.decodeRepeatedMessageField(value: &self.fragmentOptions) }()
       default: break
       }
     }
@@ -1019,176 +291,12 @@ extension Analysis_Configuration: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     if !self.mnemonic.isEmpty {
       try visitor.visitSingularStringField(value: self.mnemonic, fieldNumber: 2)
     }
-    if !self.platformName.isEmpty {
-      try visitor.visitSingularStringField(value: self.platformName, fieldNumber: 3)
-    }
-    if !self.checksum.isEmpty {
-      try visitor.visitSingularStringField(value: self.checksum, fieldNumber: 4)
-    }
-    if self.isTool != false {
-      try visitor.visitSingularBoolField(value: self.isTool, fieldNumber: 5)
-    }
-    if !self.fragments.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.fragments, fieldNumber: 6)
-    }
-    if !self.fragmentOptions.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.fragmentOptions, fieldNumber: 7)
-    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Analysis_Configuration, rhs: Analysis_Configuration) -> Bool {
     if lhs.id != rhs.id {return false}
     if lhs.mnemonic != rhs.mnemonic {return false}
-    if lhs.platformName != rhs.platformName {return false}
-    if lhs.checksum != rhs.checksum {return false}
-    if lhs.isTool != rhs.isTool {return false}
-    if lhs.fragments != rhs.fragments {return false}
-    if lhs.fragmentOptions != rhs.fragmentOptions {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Analysis_Fragment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Fragment"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{3}fragment_option_names\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.name) }()
-      case 2: try { try decoder.decodeRepeatedStringField(value: &self.fragmentOptionNames) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.name.isEmpty {
-      try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
-    }
-    if !self.fragmentOptionNames.isEmpty {
-      try visitor.visitRepeatedStringField(value: self.fragmentOptionNames, fieldNumber: 2)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Analysis_Fragment, rhs: Analysis_Fragment) -> Bool {
-    if lhs.name != rhs.name {return false}
-    if lhs.fragmentOptionNames != rhs.fragmentOptionNames {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Analysis_FragmentOptions: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".FragmentOptions"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}options\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.name) }()
-      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.options) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.name.isEmpty {
-      try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
-    }
-    if !self.options.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.options, fieldNumber: 2)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Analysis_FragmentOptions, rhs: Analysis_FragmentOptions) -> Bool {
-    if lhs.name != rhs.name {return false}
-    if lhs.options != rhs.options {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Analysis_Option: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Option"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}value\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self._name) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self._value) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._name {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._value {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Analysis_Option, rhs: Analysis_Option) -> Bool {
-    if lhs._name != rhs._name {return false}
-    if lhs._value != rhs._value {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Analysis_KeyValuePair: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".KeyValuePair"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}key\0\u{1}value\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.key) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.value) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.key.isEmpty {
-      try visitor.visitSingularStringField(value: self.key, fieldNumber: 1)
-    }
-    if !self.value.isEmpty {
-      try visitor.visitSingularStringField(value: self.value, fieldNumber: 2)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Analysis_KeyValuePair, rhs: Analysis_KeyValuePair) -> Bool {
-    if lhs.key != rhs.key {return false}
-    if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1196,7 +304,7 @@ extension Analysis_KeyValuePair: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
 
 extension Analysis_ConfiguredTarget: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ConfiguredTarget"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}target\0\u{1}configuration\0\u{3}configuration_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}target\0\u{4}\u{2}configuration_id\0")
 
   public var isInitialized: Bool {
     if let v = self._target, !v.isInitialized {return false}
@@ -1210,7 +318,6 @@ extension Analysis_ConfiguredTarget: SwiftProtobuf.Message, SwiftProtobuf._Messa
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._target) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._configuration) }()
       case 3: try { try decoder.decodeSingularUInt32Field(value: &self.configurationID) }()
       default: break
       }
@@ -1225,9 +332,6 @@ extension Analysis_ConfiguredTarget: SwiftProtobuf.Message, SwiftProtobuf._Messa
     try { if let v = self._target {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
-    try { if let v = self._configuration {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
     if self.configurationID != 0 {
       try visitor.visitSingularUInt32Field(value: self.configurationID, fieldNumber: 3)
     }
@@ -1236,7 +340,6 @@ extension Analysis_ConfiguredTarget: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
   public static func ==(lhs: Analysis_ConfiguredTarget, rhs: Analysis_ConfiguredTarget) -> Bool {
     if lhs._target != rhs._target {return false}
-    if lhs._configuration != rhs._configuration {return false}
     if lhs.configurationID != rhs.configurationID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -1278,81 +381,6 @@ extension Analysis_CqueryResult: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   public static func ==(lhs: Analysis_CqueryResult, rhs: Analysis_CqueryResult) -> Bool {
     if lhs.results != rhs.results {return false}
     if lhs.configurations != rhs.configurations {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Analysis_ParamFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ParamFile"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}exec_path\0\u{1}arguments\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.execPath) }()
-      case 2: try { try decoder.decodeRepeatedStringField(value: &self.arguments) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.execPath.isEmpty {
-      try visitor.visitSingularStringField(value: self.execPath, fieldNumber: 1)
-    }
-    if !self.arguments.isEmpty {
-      try visitor.visitRepeatedStringField(value: self.arguments, fieldNumber: 2)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Analysis_ParamFile, rhs: Analysis_ParamFile) -> Bool {
-    if lhs.execPath != rhs.execPath {return false}
-    if lhs.arguments != rhs.arguments {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Analysis_PathFragment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".PathFragment"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}label\0\u{3}parent_id\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.id) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.label) }()
-      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.parentID) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if self.id != 0 {
-      try visitor.visitSingularUInt32Field(value: self.id, fieldNumber: 1)
-    }
-    if !self.label.isEmpty {
-      try visitor.visitSingularStringField(value: self.label, fieldNumber: 2)
-    }
-    if self.parentID != 0 {
-      try visitor.visitSingularUInt32Field(value: self.parentID, fieldNumber: 3)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Analysis_PathFragment, rhs: Analysis_PathFragment) -> Bool {
-    if lhs.id != rhs.id {return false}
-    if lhs.label != rhs.label {return false}
-    if lhs.parentID != rhs.parentID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
