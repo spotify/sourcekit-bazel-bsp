@@ -125,7 +125,7 @@ final class BazelTargetQuerier {
             rootUri: config.rootUri
         )
 
-        logger.info("Processing cquery results...")
+        logger.info("Decoding cquery results...")
 
         let processedCqueryResult = try parser.processCquery(
             from: output,
@@ -177,7 +177,7 @@ final class BazelTargetQuerier {
             rootUri: config.rootUri
         )
 
-        logger.info("Processing aquery results...")
+        logger.info("Decoding aquery results...")
 
         let processedAqueryResult = try parser.processAquery(
             from: output,
@@ -191,7 +191,6 @@ final class BazelTargetQuerier {
     }
 
     /// Runs a query + cquery combo to determine which targets the given files belong to.
-    /// FIXME: order of events matter?
     func cqueryTargets(
         forAddedSrcs srcsURIs: [URI],
         inTopLevelTargets topLevelTargets: [String],
@@ -250,7 +249,8 @@ final class BazelTargetQuerier {
         let query = "cquery \"rdeps(\(topLevelUnion), \(filesSet), 1)\""
 
         logger.info("Determining targets for added files: \(filesToCheck, privacy: .public)")
-        let process: RunningProcess = try commandRunner.bazelIndexAction(
+
+        let data: Data = try commandRunner.bazelIndexAction(
             baseConfig: config.baseConfig,
             outputBase: config.outputBase,
             cmd: query,
@@ -260,12 +260,10 @@ final class BazelTargetQuerier {
             ]
         )
 
-        logger.info("Processing cquery results for added files...")
-
-        let stdout: Data = try process.result()
+        logger.info("Decoding cquery results for added files...")
 
         return try parser.processCqueryAddedFiles(
-            from: stdout,
+            from: data,
             srcs: srcs,
             rootUri: config.rootUri,
             workspaceName: config.workspaceName,

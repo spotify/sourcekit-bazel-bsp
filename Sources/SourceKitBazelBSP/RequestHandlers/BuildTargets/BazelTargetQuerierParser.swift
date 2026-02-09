@@ -112,6 +112,8 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
     ) throws -> ProcessedCqueryResult {
         let cquery = try BazelProtobufBindings.parseCqueryResult(data: data)
 
+        logger.debug("Decoded cquery results")
+
         // FIXME: This class should be broken down into multiple smaller testable ones.
         // It was done this way to first make sure the BSP worked, but now it's time to refactor.
 
@@ -539,6 +541,8 @@ extension BazelTargetQuerierParserImpl {
     ) throws -> ProcessedAqueryResult {
         let aquery = try BazelProtobufBindings.parseActionGraph(data: data)
 
+        logger.debug("Decoded aquery results")
+
         // Pre-aggregate the aquery results to make them easier to work with later.
         let targets: [String: Analysis_Target] = aquery.targets.reduce(into: [:]) { result, target in
             if result.keys.contains(target.label) {
@@ -662,6 +666,9 @@ extension BazelTargetQuerierParserImpl {
         executionRoot: String
     ) throws -> ProcessedCqueryAddedFilesResult {
         let cquery = try BazelProtobufBindings.parseCqueryResult(data: data)
+
+        logger.debug("Decoded cquery added files results")
+
         var configIdToMnemonicMap: [UInt32: String] = [:]
         for configuration in cquery.configurations {
             configIdToMnemonicMap[configuration.id] = configuration.mnemonic
