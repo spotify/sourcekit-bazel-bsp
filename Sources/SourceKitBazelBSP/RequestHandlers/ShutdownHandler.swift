@@ -21,6 +21,8 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
+private let logger = makeFileLevelBSPLogger()
+
 /// Handles the `build/shutdown` and `onBuildExit` messages.
 ///
 /// According to the BSP spec, the server should first receive the `build/shutdown` request,
@@ -44,6 +46,10 @@ final class ShutdownHandler {
 }
 
 func safeTerminate(_ code: Int32) -> Never {
+    logger.debug("Terminating all child processes in this process group...")
+    signal(SIGTERM, SIG_IGN)
+    kill(0, SIGTERM)
+    logger.debug("Child processes terminated, exiting with code \(code)...")
     // Use _Exit to avoid running static destructors due to https://github.com/swiftlang/swift/issues/55112.
     // (Copied from sourcekit-lsp)
     _Exit(code)
