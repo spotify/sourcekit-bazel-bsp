@@ -138,6 +138,11 @@ package final class SourceKitBazelBSPServer {
             }
         )
 
+        // Make sure the server exists cleanly when signaled.
+        signal(SIGTERM) { signal in
+            safeTerminate(0)
+        }
+
         // For usage with unit tests, since we don't want to block the thread when using mocks
         guard parkThread else {
             return

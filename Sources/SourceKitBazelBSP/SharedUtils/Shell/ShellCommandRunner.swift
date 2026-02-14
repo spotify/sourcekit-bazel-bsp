@@ -46,6 +46,13 @@ struct ShellCommandRunner: CommandRunner {
         process.arguments = ["-c", cmd]
         process.standardInput = nil
 
+        // Keep child processes in the same process group
+        // so they terminate when the server shuts down.
+        // See: ShutdownHandler.swift.
+        // See (2): https://stackoverflow.com/a/51895129 and
+        // https://github.com/facebook/xctool/pull/159/files.
+        process.setValue(false, forKey: "startsNewProcessGroup")
+
         let runningProcess = RunningProcess(
             cmd: cmd,
             stdout: stdout,
