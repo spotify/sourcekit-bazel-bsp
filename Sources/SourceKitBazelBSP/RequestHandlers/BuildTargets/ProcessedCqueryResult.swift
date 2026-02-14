@@ -35,6 +35,8 @@ struct ProcessedCqueryResult {
 
     /// Merges the result of a cquery for added and removed files into the current result.
     /// Makes sure files that are unrelated to known targets are ignored.
+    /// Important: This method assumes that the inputs are sanitized (e.g. no duplicates or conflicting info).
+    /// Returns the new result and the targets that were invalidated by the changes.
     func processFileChanges(
         addedFilesResult: ProcessedCqueryAddedFilesResult?,
         deletedFiles: [URI]
@@ -70,7 +72,7 @@ struct ProcessedCqueryResult {
 
         // Now we can process the additions
         for (uri, sourceItems) in (addedFilesResult?.bspURIsToNewSourceItemsMap ?? [:]) {
-            guard let currentSrcs = bspURIsToSrcsMap[uri] else {
+            guard let currentSrcs = _bspURIsToSrcsMap[uri] else {
                 continue
             }
             invalidatedTargets.insert(currentSrcs.target)

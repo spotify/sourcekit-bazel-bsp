@@ -102,15 +102,28 @@ final class WatchedFileChangeHandler {
                 title: "sourcekit-bazel-bsp: Updating the build graph due to file changes..."
             )
             do {
-                let invalidatedTargets = try targetStore.process(
-                    fileChanges: changes,
+                // We _need_ this to work, so we should retry a couple of times if it fails.
+                let invalidatedTargets = try withRetry(
+                    onRetry: { attempt, error in
+                        logger.warning(
+                            "File change processing attempt \(attempt)/3 failed: \(error.localizedDescription)"
+                        )
+                    },
+                    operation: {
+                        try targetStore.process(
+                            fileChanges: changes,
+                        )
+                    },
+                    delay: 1.0
                 )
                 connection?.finishTask(id: taskId, status: .ok)
                 return invalidatedTargets
             } catch {
-                logger.error("Error processing file changes: \(error, privacy: .public)")
+                logger.error(
+                    "Failed to process file changes. Will recover by restarting the server. Error: \(error, privacy: .public)"
+                )
                 connection?.finishTask(id: taskId, status: .error)
-                return []
+                exit(1)
             }
         }
 
