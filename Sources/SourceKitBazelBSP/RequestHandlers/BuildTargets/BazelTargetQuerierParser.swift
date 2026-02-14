@@ -32,7 +32,6 @@ enum BazelTargetQuerierParserError: Error, LocalizedError {
     case multipleParentActions(String)
     case configurationNotFound(UInt32)
     case sdkNameNotFound(String)
-    case indexOutOfBounds(Int, Int)
     case unexpectedLanguageRule(String, String)
     case unexpectedTargetType(Int)
     case noTopLevelTargets([TopLevelRuleType])
@@ -54,8 +53,6 @@ enum BazelTargetQuerierParserError: Error, LocalizedError {
             return "Configuration \(id) not found in the aquery output."
         case .sdkNameNotFound(let cpuAndArch):
             return "SDK info could not be inferred for \(cpuAndArch)."
-        case .indexOutOfBounds(let index, let line):
-            return "Index \(index) is out of bounds for array at line \(line)"
         case .unexpectedLanguageRule(let target, let ruleClass):
             return "Could not determine \(target)'s language: Unexpected rule \(ruleClass)"
         case .unexpectedTargetType(let type): return "Parsed unexpected target type: \(type)"
@@ -636,17 +633,6 @@ extension BazelTargetQuerierParserImpl {
             }
         }
         throw BazelTargetQuerierParserError.sdkNameNotFound(cpuAndArch)
-    }
-}
-
-// MARK: - Bazel label parsing helpers
-
-extension Array {
-    fileprivate func getIndexThrowing(_ index: Int, _ line: Int = #line) throws -> Element {
-        guard index < count else {
-            throw BazelTargetQuerierParserError.indexOutOfBounds(index, line)
-        }
-        return self[index]
     }
 }
 
