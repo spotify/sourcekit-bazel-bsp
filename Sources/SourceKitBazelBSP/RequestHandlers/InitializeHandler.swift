@@ -63,10 +63,21 @@ final class InitializeHandler {
         let taskId = TaskId(id: "initializeBuild-\(id.description)")
         connection?.startWorkTask(id: taskId, title: "sourcekit-bazel-bsp: Initializing...")
         do {
-            let initializedConfig = try makeInitializedConfig(fromRequest: request, baseConfig: baseConfig)
-            let result = buildResponse(fromRequest: request, and: initializedConfig)
+            let result = try withRetry(
+                onRetry: { attempt, error in
+                    logger.warning(
+                        "Initialize attempt \(attempt)/3 failed: \(error.localizedDescription)"
+                    )
+                },
+                operation: {
+                    let initializedConfig = try makeInitializedConfig(fromRequest: request, baseConfig: baseConfig)
+                    let result = buildResponse(fromRequest: request, and: initializedConfig)
+                    return (result, initializedConfig)
+                },
+                delay: 1.0
+            )
             connection?.finishTask(id: taskId, status: .ok)
-            return (result, initializedConfig)
+            return result
         } catch {
             connection?.finishTask(id: taskId, status: .error)
             throw error
