@@ -23,6 +23,9 @@ def _setup_sourcekit_bsp_impl(ctx):
     for aquery_flag in ctx.attr.aquery_flags:
         bsp_config_argv.append("--aquery-flag")
         bsp_config_argv.append(aquery_flag)
+    for query_flag in ctx.attr.query_flags:
+        bsp_config_argv.append("--query-flag")
+        bsp_config_argv.append(query_flag)
     for top_level_rule in ctx.attr.top_level_rules_to_discover:
         bsp_config_argv.append("--top-level-rule-to-discover")
         bsp_config_argv.append(top_level_rule)
@@ -138,7 +141,11 @@ setup_sourcekit_bsp = rule(
             default = [],
         ),
         "aquery_flags": attr.string_list(
-            doc = "Flags that should be passed to all aquery invocations used to gather compiler arguments. Do not include the -- prefix.",
+            doc = "Flags that should be passed to the aquery invocations used to gather compiler arguments. Do not include the -- prefix.",
+            default = [],
+        ),
+        "query_flags": attr.string_list(
+            doc = "Flags that should be passed to the query invocations used to validate file paths. Do not include the -- prefix.",
             default = [],
         ),
         "files_to_watch": attr.string_list(

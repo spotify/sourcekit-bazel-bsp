@@ -19,24 +19,11 @@
 
 import BuildServerProtocol
 import Foundation
+import LanguageServerProtocol
 
-@testable import SourceKitBazelBSP
+private let logger = makeFileLevelBSPLogger()
 
-final class InvalidatedTargetObserverFake: InvalidatedTargetObserver {
-
-    enum TestError: Error {
-        case intentional
-    }
-
-    var invalidatedTargets: Set<BuildTargetIdentifier> = []
-    var invalidateCalled = false
-    var shouldThrowOnInvalidate = false
-
-    func invalidate(targets: Set<BuildTargetIdentifier>) throws {
-        invalidateCalled = true
-        invalidatedTargets = targets
-        if shouldThrowOnInvalidate {
-            throw TestError.intentional
-        }
-    }
+struct ProcessedCqueryAddedFilesResult {
+    let bspURIsToNewSourceItemsMap: [URI: [SourceItem]]
+    let newSrcToBspURIsMap: [URI: [URI]]
 }

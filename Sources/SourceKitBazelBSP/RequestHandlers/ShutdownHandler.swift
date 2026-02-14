@@ -43,7 +43,7 @@ final class ShutdownHandler {
     func onBuildExit(_ notification: OnBuildExitNotification) throws { terminateHandler(didAskToShutdown ? 0 : 1) }
 }
 
-func safeTerminate(_ code: Int32) {
+func safeTerminate(_ code: Int32) -> Never {
     // Use _Exit to avoid running static destructors due to https://github.com/swiftlang/swift/issues/55112.
     // (Copied from sourcekit-lsp)
     _Exit(code)

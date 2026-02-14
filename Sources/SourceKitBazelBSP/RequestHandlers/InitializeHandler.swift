@@ -21,7 +21,7 @@ import BuildServerProtocol
 import Foundation
 import LanguageServerProtocol
 
-package let sourcekitBazelBSPVersion = "0.7.0"
+package let sourcekitBazelBSPVersion = "0.7.1"
 private let logger = makeFileLevelBSPLogger()
 
 enum InitializeHandlerError: Error, LocalizedError {
@@ -107,7 +107,8 @@ final class InitializeHandler {
             baseConfig: baseConfig,
             outputBase: outputBase,
             cmd: "info output_path",
-            rootUri: rootUri
+            rootUri: rootUri,
+            skipIndexFlags: true
         )
         logger.debug("outputPath: \(outputPath, privacy: .public)")
 
@@ -116,7 +117,8 @@ final class InitializeHandler {
             baseConfig: baseConfig,
             outputBase: outputBase,
             cmd: "info execution_root",
-            rootUri: rootUri
+            rootUri: rootUri,
+            skipIndexFlags: true
         )
         logger.debug("executionRoot: \(executionRoot, privacy: .public)")
 

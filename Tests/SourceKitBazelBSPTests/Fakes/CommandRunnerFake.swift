@@ -36,13 +36,16 @@ final class CommandRunnerFake: CommandRunner, @unchecked Sendable {
     private(set) var commands: [(command: String, cwd: String?)] = []
     private var responses: [String: Data] = [:]
     private var errors: [String: Error] = [:]
+    private var exitCodes: [String: Int32] = [:]
 
-    func setResponse(for command: String, cwd: String? = nil, response: String) {
+    func setResponse(for command: String, cwd: String? = nil, response: String, exitCode: Int32 = 0) {
         responses[key(for: command, cwd: cwd)] = response.data(using: .utf8)
+        exitCodes[key(for: command, cwd: cwd)] = exitCode
     }
 
-    func setResponse(for command: String, cwd: String? = nil, response: Data) {
+    func setResponse(for command: String, cwd: String? = nil, response: Data, exitCode: Int32 = 0) {
         responses[key(for: command, cwd: cwd)] = response
+        exitCodes[key(for: command, cwd: cwd)] = exitCode
     }
 
     func setError(for command: String, cwd: String? = nil, error: Error) { errors[key(for: command, cwd: cwd)] = error }
@@ -54,7 +57,8 @@ final class CommandRunnerFake: CommandRunner, @unchecked Sendable {
         guard let response = responses[cacheKey] else {
             throw CommandRunnerFakeError.unregisteredCommand(cmd, cwd)
         }
-        let procFake = CommandLineProcessFake()
+        let exitCode = exitCodes[cacheKey] ?? 0
+        let procFake = CommandLineProcessFake(exitCode: exitCode)
         let runningProc = RunningProcess(cmd: cmd, stdout: stdout, stderr: stderr, wrappedProcess: procFake)
         runningProc.attachPipes()
         stdout.fileHandleForWriting.write(response)
@@ -69,12 +73,15 @@ final class CommandRunnerFake: CommandRunner, @unchecked Sendable {
         commands.removeAll()
         responses.removeAll()
         errors.removeAll()
+        exitCodes.removeAll()
     }
 }
 
 final class CommandLineProcessFake: CommandLineProcess {
-    var terminationStatus: Int32 {
-        return 0
+    let terminationStatus: Int32
+
+    init(exitCode: Int32 = 0) {
+        self.terminationStatus = exitCode
     }
 
     func waitUntilExit() {

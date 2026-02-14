@@ -358,4 +358,47 @@ struct BazelTargetQuerierParserImplTests {
                 )
         )
     }
+
+    @Test
+    func canProcessExampleCqueryForAddedFiles() throws {
+        let parser = BazelTargetQuerierParserImpl()
+
+        let result = try parser.processCqueryAddedFiles(
+            from: exampleCqueryAddedFilesOutput,
+            srcs: ["HelloWorldLib/Sources/TodoItemRow.swift"],
+            rootUri: Self.mockRootUri,
+            workspaceName: Self.mockWorkspaceName,
+            executionRoot: Self.mockExecutionRoot
+        )
+
+        let targetUri = try URI(
+            string:
+                "bazel:///path/to/project/HelloWorld/HelloWorldLib_ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300"
+        )
+        let srcUri = try URI(
+            string:
+                "file:///Users/rochab/src/sourcekit-bazel-bsp/Example/HelloWorld/HelloWorldLib/Sources/TodoItemRow.swift"
+        )
+
+        #expect(
+            result.bspURIsToNewSourceItemsMap == [
+                targetUri: [
+                    SourceItem(
+                        uri: srcUri,
+                        kind: .file,
+                        generated: false,
+                        dataKind: .sourceKit,
+                        data: SourceKitSourceItemData(
+                            language: .swift,
+                            kind: .source,
+                            outputPath: nil,
+                            copyDestinations: nil
+                        ).encodeToLSPAny()
+                    )
+                ]
+            ]
+        )
+
+        #expect(result.newSrcToBspURIsMap == [srcUri: [targetUri]])
+    }
 }

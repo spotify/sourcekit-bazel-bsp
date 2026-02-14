@@ -27,7 +27,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/apple/swift-protobuf.git",
-            .upToNextMajor(from: "1.33.3")
+            .upToNextMajor(from: "1.34.1")
         ),
     ],
     targets: [
@@ -71,6 +71,7 @@ let package = Package(
             resources: [
                 .copy("Resources/aquery.pb"),
                 .copy("Resources/cquery.pb"),
+                .copy("Resources/cquery_added_files.pb"),
             ],
         ),
         .target(
@@ -82,7 +83,6 @@ let package = Package(
                 "README.md",
                 "protos/analysis_v2.proto",
                 "protos/build.proto",
-                "protos/stardoc_output.proto",
             ]
         ),
         .testTarget(

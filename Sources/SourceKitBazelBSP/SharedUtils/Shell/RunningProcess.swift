@@ -78,10 +78,10 @@ public final class RunningProcess: Sendable {
         }
     }
 
-    public func result<T: DataConvertible>() throws -> T {
+    public func result<T: DataConvertible>(acceptingExitCodes: Set<Int32> = [0]) throws -> T {
         let (stdoutData, stderrString): (T, String) = self.outputs()
 
-        guard wrappedProcess.terminationStatus == 0 else {
+        guard acceptingExitCodes.contains(wrappedProcess.terminationStatus) else {
             logger.debug("Command failed: \(self.cmd, privacy: .public)")
             throw ShellCommandRunnerError.failed(cmd, stderrString)
         }

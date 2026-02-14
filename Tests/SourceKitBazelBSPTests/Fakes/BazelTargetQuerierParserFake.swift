@@ -24,6 +24,7 @@ import Foundation
 final class BazelTargetQuerierParserFake: BazelTargetQuerierParser {
     var mockCqueryResult: ProcessedCqueryResult?
     var mockAqueryResult: ProcessedAqueryResult?
+    var mockCqueryAddedFilesResult: ProcessedCqueryAddedFilesResult?
 
     func processCquery(
         from data: Data,
@@ -49,5 +50,18 @@ final class BazelTargetQuerierParserFake: BazelTargetQuerierParser {
             unimplemented()
         }
         return mockAqueryResult
+    }
+
+    func processCqueryAddedFiles(
+        from data: Data,
+        srcs: [String],
+        rootUri: String,
+        workspaceName: String,
+        executionRoot: String
+    ) throws -> ProcessedCqueryAddedFilesResult {
+        guard let mockCqueryAddedFilesResult else {
+            unimplemented()
+        }
+        return mockCqueryAddedFilesResult
     }
 }

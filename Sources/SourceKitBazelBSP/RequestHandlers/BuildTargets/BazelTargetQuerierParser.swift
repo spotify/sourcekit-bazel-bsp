@@ -84,6 +84,14 @@ protocol BazelTargetQuerierParser: AnyObject {
         from data: Data,
         topLevelTargets: [(String, TopLevelRuleType, String)],
     ) throws -> ProcessedAqueryResult
+
+    func processCqueryAddedFiles(
+        from data: Data,
+        srcs: [String],
+        rootUri: String,
+        workspaceName: String,
+        executionRoot: String
+    ) throws -> ProcessedCqueryAddedFilesResult
 }
 
 // MARK: - Processing Cqueries
@@ -100,6 +108,8 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         toolchainPath: String,
     ) throws -> ProcessedCqueryResult {
         let cquery = try BazelProtobufBindings.parseCqueryResult(data: data)
+
+        logger.debug("Decoded cquery results")
 
         // FIXME: This class should be broken down into multiple smaller testable ones.
         // It was done this way to first make sure the BSP worked, but now it's time to refactor.
@@ -233,14 +243,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
 
         logger.debug("Parsed \(dependencyTargets.count, privacy: .public) dependency targets")
 
-        // Pre-process all of the provided source files into a map for quick lookup.
-        var srcToUriMap: [String: URI] = [:]
-        for target in allSrcs {
-            let label = target.sourceFile.name
-            // The location is an absolute path and has suffix `:1:1`, thus we need to trim it.
-            let location = target.sourceFile.location.dropLast(4)
-            srcToUriMap[label] = try URI(string: "file://" + String(location))
-        }
+        let srcToUriMap = try preprocess(srcs: allSrcs)
 
         // Do the same for the dependencies list.
         // This also defines which dependencies are "valid",
@@ -290,13 +293,16 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
 
             let baseDirectory: URI? = idUri.toBaseDirectory()
 
-            let sourcesItem = try processSrcsAttr(
-                rule: rule,
-                targetId: id,
-                srcToUriMap: srcToUriMap,
-                rootUri: rootUri,
-                executionRoot: executionRoot
+            let sourcesItem = SourcesItem(
+                target: id,
+                sources: try buildSourceItems(
+                    rule: rule,
+                    srcToUriMap: srcToUriMap,
+                    rootUri: rootUri,
+                    executionRoot: executionRoot
+                )
             )
+
             let deps = try processDependenciesAttr(
                 rule: rule,
                 isBuildTestRule: false,
@@ -396,13 +402,24 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         return current
     }
 
-    private func processSrcsAttr(
+    /// Builds a map of source file labels to their BSP URIs for quick lookup.
+    private func preprocess(srcs allSrcs: [BlazeQuery_Target]) throws -> [String: URI] {
+        var srcToUriMap: [String: URI] = [:]
+        for target in allSrcs {
+            let label = target.sourceFile.name
+            // The location is an absolute path and has suffix `:1:1`, thus we need to trim it.
+            let location = target.sourceFile.location.dropLast(4)
+            srcToUriMap[label] = try URI(string: "file://" + String(location))
+        }
+        return srcToUriMap
+    }
+
+    private func buildSourceItems(
         rule: BlazeQuery_Rule,
-        targetId: BuildTargetIdentifier,
         srcToUriMap: [String: URI],
         rootUri: String,
         executionRoot: String
-    ) throws -> SourcesItem {
+    ) throws -> [SourceItem] {
         let srcsAttribute = rule.attribute.first { $0.name == "srcs" }?.stringListValue ?? []
         let hdrsAttribute = rule.attribute.first { $0.name == "hdrs" }?.stringListValue ?? []
         let srcs: [URI] = (srcsAttribute + hdrsAttribute).compactMap {
@@ -411,16 +428,13 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             }
             return srcUri
         }
-        return SourcesItem(
-            target: targetId,
-            sources: try srcs.map {
-                try buildSourceItem(
-                    forSrc: $0,
-                    rootUri: rootUri,
-                    executionRoot: executionRoot
-                )
-            }
-        )
+        return try srcs.map {
+            try buildSourceItem(
+                forSrc: $0,
+                rootUri: rootUri,
+                executionRoot: executionRoot
+            )
+        }
     }
 
     private func buildSourceItem(
@@ -523,6 +537,8 @@ extension BazelTargetQuerierParserImpl {
         topLevelTargets: [(String, TopLevelRuleType, String)]
     ) throws -> ProcessedAqueryResult {
         let aquery = try BazelProtobufBindings.parseActionGraph(data: data)
+
+        logger.debug("Decoded aquery results")
 
         // Pre-aggregate the aquery results to make them easier to work with later.
         let targets: [String: Analysis_Target] = aquery.targets.reduce(into: [:]) { result, target in
@@ -635,6 +651,73 @@ extension BazelTargetQuerierParserImpl {
         throw BazelTargetQuerierParserError.sdkNameNotFound(cpuAndArch)
     }
 }
+
+// MARK: - Cquery added files processing
+
+extension BazelTargetQuerierParserImpl {
+    func processCqueryAddedFiles(
+        from data: Data,
+        srcs: [String],
+        rootUri: String,
+        workspaceName: String,
+        executionRoot: String
+    ) throws -> ProcessedCqueryAddedFilesResult {
+        let cquery = try BazelProtobufBindings.parseCqueryResult(data: data)
+
+        logger.debug("Decoded cquery added files results")
+
+        var configIdToMnemonicMap: [UInt32: String] = [:]
+        for configuration in cquery.configurations {
+            configIdToMnemonicMap[configuration.id] = configuration.mnemonic
+        }
+
+        let targets = cquery.results.filter { $0.target.type == .rule }
+        let srcTargets = cquery.results.filter { $0.target.type == .sourceFile }
+        let srcToUriMap = try preprocess(
+            srcs: srcTargets.map { $0.target }
+        )
+
+        // From the resulting proto, extract which targets these new files belong to.
+        var bspURIsToNewSourceItemsMap: [URI: [SourceItem]] = [:]
+        var newSrcToBspURIsMap: [URI: [URI]] = [:]
+        for configuredTarget in targets {
+            let displayName = configuredTarget.target.rule.name
+
+            let sourceItems = try buildSourceItems(
+                rule: configuredTarget.target.rule,
+                srcToUriMap: srcToUriMap,
+                rootUri: rootUri,
+                executionRoot: executionRoot
+            )
+
+            guard !sourceItems.isEmpty else {
+                continue
+            }
+
+            guard let configMnemonic = configIdToMnemonicMap[configuredTarget.configurationID] else {
+                throw BazelTargetQuerierParserError.missingMnemonic(configuredTarget.configurationID)
+            }
+            let id = try displayName.toTargetId(
+                rootUri: rootUri,
+                workspaceName: workspaceName,
+                executionRoot: executionRoot,
+                configMnemonic: configMnemonic
+            )
+
+            bspURIsToNewSourceItemsMap[id] = sourceItems
+            for sourceItem in sourceItems {
+                newSrcToBspURIsMap[sourceItem.uri, default: []].append(id)
+            }
+        }
+
+        return ProcessedCqueryAddedFilesResult(
+            bspURIsToNewSourceItemsMap: bspURIsToNewSourceItemsMap,
+            newSrcToBspURIsMap: newSrcToBspURIsMap
+        )
+    }
+}
+
+// MARK: - Bazel label parsing helpers
 
 extension String {
     /// Converts a Bazel label into a URI and returns a unique target id.

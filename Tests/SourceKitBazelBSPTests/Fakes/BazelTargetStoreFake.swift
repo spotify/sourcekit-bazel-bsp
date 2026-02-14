@@ -67,6 +67,22 @@ final class BazelTargetStoreFake: BazelTargetStore {
         unimplemented()
     }
 
+    func process(fileChanges: [FileEvent]) throws -> Set<BuildTargetIdentifier> {
+        unimplemented()
+    }
+
+    func topLevelConfigInfo(forConfigMnemonic mnemonic: String) throws -> BazelTargetConfigurationInfo {
+        unimplemented()
+    }
+
+    func parentConfig(forBSPURI uri: URI) throws -> String {
+        unimplemented()
+    }
+
+    func topLevelLabels(forConfig configMnemonic: String) throws -> [String] {
+        unimplemented()
+    }
+
     func clearCache() {
         clearCacheCalled = true
     }
