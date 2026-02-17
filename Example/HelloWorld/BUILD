@@ -1,5 +1,5 @@
 load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template_rule")
-load("@rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test", "ios_build_test")
+load("@rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test", "ios_build_test", "ios_ui_test")
 load("@rules_apple//apple:macos.bzl", "macos_application", "macos_command_line_application", "macos_unit_test")
 load("@rules_apple//apple:watchos.bzl", "watchos_application", "watchos_extension", "watchos_unit_test")
 load("@rules_swift//swift:swift.bzl", "swift_interop_hint", "swift_library")
@@ -16,6 +16,14 @@ swift_library(
     tags = ["manual"],
     srcs = glob(["HelloWorldTests/*.swift"]),
     deps = [":HelloWorldLib"],
+)
+
+swift_library(
+    name = "HelloWorldE2ETestsLib",
+    module_name = "HelloWorldE2ETestsLib",
+    testonly = True,
+    tags = ["manual"],
+    srcs = glob(["HelloWorldE2ETests/*.swift"]),
 )
 
 swift_library(
@@ -185,6 +193,14 @@ ios_unit_test(
     name = "HelloWorldTests",
     minimum_os_version = IOS_MINIMUM_OS_VERSION,
     deps = [":HelloWorldTestsLib"],
+)
+
+ios_ui_test(
+    name = "HelloWorldE2ETests",
+    minimum_os_version = IOS_MINIMUM_OS_VERSION,
+    tags = ["manual"],
+    test_host = ":HelloWorld",
+    deps = [":HelloWorldE2ETestsLib"],
 )
 
 ios_application(

@@ -37,6 +37,7 @@ enum BazelTargetQuerierParserError: Error, LocalizedError {
     case noTopLevelTargets([TopLevelRuleType])
     case missingPathExtension(String)
     case missingMnemonic(UInt32)
+    case unexpectedTestBundleRuleWithoutSuffix(String)
 
     var errorDescription: String? {
         switch self {
@@ -63,6 +64,8 @@ enum BazelTargetQuerierParserError: Error, LocalizedError {
                 """
         case .missingPathExtension(let path): return "Missing path extension for \(path)"
         case .missingMnemonic(let id): return "Missing mnemonic for configuration ID \(id). This is unexpected."
+        case .unexpectedTestBundleRuleWithoutSuffix(let name):
+            return "Unexpected test bundle rule without the expected suffix: \(name)"
         }
     }
 }
@@ -121,7 +124,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         var configurationToTopLevelLabelsMap: [String: [String]] = [:]
         var allTopLevelLabels = [(String, TopLevelRuleType)]()
         var allAliases = [BlazeQuery_Target]()
-        var allTestBundles = [BlazeQuery_Target]()
+        var allTestBundles: [(target: BlazeQuery_Target, isUITest: Bool)] = []
         var unfilteredDependencyTargets = [Analysis_ConfiguredTarget]()
         var seenSourceFiles = Set<String>()
         var allSrcs = [BlazeQuery_Target]()
@@ -157,12 +160,10 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                     guard let configuration = configIdToMnemonicMap[configuredTarget.configurationID] else {
                         throw BazelTargetQuerierParserError.missingMnemonic(configuredTarget.configurationID)
                     }
-                    if !target.rule.name.hasSuffix(TopLevelRuleType.testBundleRuleSuffix) {
-                        logger.error(
-                            "Unexpected test bundle rule without the expected suffix: \(target.rule.name, privacy: .public)"
-                        )
+                    guard target.rule.name.hasSuffix(TopLevelRuleType.testBundleRuleSuffix) else {
+                        throw BazelTargetQuerierParserError.unexpectedTestBundleRuleWithoutSuffix(target.rule.name)
                     }
-                    allTestBundles.append(target)
+                    allTestBundles.append((target, kind.hasSuffix("_ui_test_bundle")))
                     let realTopLevelName = String(
                         target.rule.name.dropLast(TopLevelRuleType.testBundleRuleSuffix.count)
                     )
@@ -268,9 +269,16 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
 
         // Treat test bundle rules as aliases as well. This allows us to locate the "true" dependency
         // when encountering a test bundle.
-        for target in allTestBundles {
+        for (target, isUITest) in allTestBundles {
             let label = target.rule.name
-            let actual = target.rule.ruleInput[0]
+            let actual: String
+            if isUITest {
+                // For UI tests, the first input is the test_host.
+                // So in this case we're looking for the second input.
+                actual = target.rule.ruleInput[1]
+            } else {
+                actual = target.rule.ruleInput[0]
+            }
             aliasToLabelMap[label] = actual
             registeredAliases.append(label)
         }
