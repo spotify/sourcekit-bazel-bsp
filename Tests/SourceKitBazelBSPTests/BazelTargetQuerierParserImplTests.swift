@@ -76,6 +76,11 @@ struct BazelTargetQuerierParserImplTests {
                 dependencyLabels: ["//HelloWorld:HelloWorldLib"]
             ),
             ExpectedTargetInfo(
+                displayName: "//HelloWorld:HelloWorldE2ETestsLib",
+                language: .swift,
+                dependencyLabels: []
+            ),
+            ExpectedTargetInfo(
                 displayName: "//HelloWorld:MacAppLib",
                 language: .swift,
                 dependencyLabels: ["//HelloWorld:TodoModels"]
@@ -154,14 +159,15 @@ struct BazelTargetQuerierParserImplTests {
 
         // Top level targets - verify label and rule type (config IDs are assigned during parsing)
         let expectedTopLevelTargets: [(String, TopLevelRuleType)] = [
-            ("//HelloWorld:HelloWorldWatchTests", .watchosUnitTest),
-            ("//HelloWorld:HelloWorld", .iosApplication),
-            ("//HelloWorld:HelloWorldMacApp", .macosApplication),
-            ("//HelloWorld:HelloWorldTests", .iosUnitTest),
-            ("//HelloWorld:HelloWorldMacTests", .macosUnitTest),
             ("//HelloWorld:HelloWorldWatchApp", .watchosApplication),
-            ("//HelloWorld:HelloWorldWatchExtension", .watchosExtension),
+            ("//HelloWorld:HelloWorldE2ETests", .iosUiTest),
+            ("//HelloWorld:HelloWorldTests", .iosUnitTest),
+            ("//HelloWorld:HelloWorldMacApp", .macosApplication),
+            ("//HelloWorld:HelloWorld", .iosApplication),
+            ("//HelloWorld:HelloWorldWatchTests", .watchosUnitTest),
             ("//HelloWorld:HelloWorldMacCLIApp", .macosCommandLineApplication),
+            ("//HelloWorld:HelloWorldWatchExtension", .watchosExtension),
+            ("//HelloWorld:HelloWorldMacTests", .macosUnitTest),
         ]
         #expect(result.topLevelTargets.count == expectedTopLevelTargets.count)
         for (index, expected) in expectedTopLevelTargets.enumerated() {
@@ -176,11 +182,11 @@ struct BazelTargetQuerierParserImplTests {
         #expect(actualLabelSet == expectedLabels, "bspURIsToBazelLabelsMap labels don't match")
 
         // Verify counts - with multi-variant support, targets can have multiple URIs (one per config)
-        #expect(result.bspURIsToSrcsMap.keys.count == 14, "bspURIsToSrcsMap should have 14 target URIs")
-        #expect(result.srcToBspURIsMap.count == 23, "srcToBspURIsMap should have 23 source files")
+        #expect(result.bspURIsToSrcsMap.keys.count == 15, "bspURIsToSrcsMap should have 15 target URIs")
+        #expect(result.srcToBspURIsMap.count == 24, "srcToBspURIsMap should have 24 source files")
 
         // BSP URI to parent config map - verify URIs map to configs
-        #expect(result.bspUriToParentConfigMap.count == 14, "bspUriToParentConfigMap should have 14 entries")
+        #expect(result.bspUriToParentConfigMap.count == 15, "bspUriToParentConfigMap should have 15 entries")
 
         // Helper to get parent labels for a given label through the config mapping
         // Finds all URIs for a label and returns the union of their parent labels
@@ -201,6 +207,7 @@ struct BazelTargetQuerierParserImplTests {
         #expect(
             getParentLabels(forLabel: "//HelloWorld:ExpandedTemplate")
                 == Set([
+                    "//HelloWorld:HelloWorldE2ETests",
                     "//HelloWorld:HelloWorldTests",
                     "//HelloWorld:HelloWorld",
                 ])
@@ -208,6 +215,7 @@ struct BazelTargetQuerierParserImplTests {
         #expect(
             getParentLabels(forLabel: "//HelloWorld:GeneratedDummy")
                 == Set([
+                    "//HelloWorld:HelloWorldE2ETests",
                     "//HelloWorld:HelloWorldTests",
                     "//HelloWorld:HelloWorld",
                 ])
@@ -215,6 +223,7 @@ struct BazelTargetQuerierParserImplTests {
         #expect(
             getParentLabels(forLabel: "//HelloWorld:HelloWorldLib")
                 == Set([
+                    "//HelloWorld:HelloWorldE2ETests",
                     "//HelloWorld:HelloWorldTests",
                     "//HelloWorld:HelloWorld",
                 ])
@@ -222,6 +231,7 @@ struct BazelTargetQuerierParserImplTests {
         #expect(
             getParentLabels(forLabel: "//HelloWorld:HelloWorldTestsLib")
                 == Set([
+                    "//HelloWorld:HelloWorldE2ETests",
                     "//HelloWorld:HelloWorldTests",
                     "//HelloWorld:HelloWorld",
                 ])
@@ -261,6 +271,7 @@ struct BazelTargetQuerierParserImplTests {
                     "//HelloWorld:HelloWorldWatchApp",
                     "//HelloWorld:HelloWorldWatchTests",
                     "//HelloWorld:HelloWorldWatchExtension",
+                    "//HelloWorld:HelloWorldE2ETests",
                     "//HelloWorld:HelloWorldTests",
                     "//HelloWorld:HelloWorld",
                 ])
@@ -268,6 +279,15 @@ struct BazelTargetQuerierParserImplTests {
         #expect(
             getParentLabels(forLabel: "//HelloWorld:TodoObjCSupport")
                 == Set([
+                    "//HelloWorld:HelloWorldE2ETests",
+                    "//HelloWorld:HelloWorldTests",
+                    "//HelloWorld:HelloWorld",
+                ])
+        )
+        #expect(
+            getParentLabels(forLabel: "//HelloWorld:HelloWorldE2ETestsLib")
+                == Set([
+                    "//HelloWorld:HelloWorldE2ETests",
                     "//HelloWorld:HelloWorldTests",
                     "//HelloWorld:HelloWorld",
                 ])
