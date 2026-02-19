@@ -104,7 +104,7 @@ This approach provides several benefits:
 2. **Correct platform configuration**: Libraries automatically inherit the correct platform transitions from their parent app.
 3. **Incremental efficiency**: Only the requested library outputs are produced, even though the build is routed through the parent.
 
-The aspect is automatically generated in `.bsp/skbsp_generated/aspect.bzl` when you run the setup command. Top-level targets (apps, extensions, tests) are always built directly without the aspect.
+The aspect is automatically generated in `.bsp/skbsp_generated/aspect.bzl` when you run the setup command.
 
 ## Bazel Caching Implications
 

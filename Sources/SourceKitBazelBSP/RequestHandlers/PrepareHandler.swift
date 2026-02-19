@@ -98,27 +98,13 @@ final class PrepareHandler {
                 labelsToBuild = [topLevelLabelsToBuild.sorted()]
                 extraArgs = [[]]
             } else {
-                // Separate top-level targets (build directly) from libraries (use aspect)
-                var topLevelTargets: Set<String> = []
+                // Build libraries using aspect approach through their parent targets.
+                // Note: targets received here are always libraries, not top-level targets.
                 var parentToLibraryLabelsMap: [String: [String]] = [:]
-
                 for info in platformInfo {
-                    if info.label == info.topLevelParentLabel {
-                        // This is a top-level target (app, extension, test) - build directly
-                        topLevelTargets.insert(info.label)
-                    } else {
-                        // This is a library - use aspect approach
-                        parentToLibraryLabelsMap[info.topLevelParentLabel, default: []].append(info.label)
-                    }
+                    parentToLibraryLabelsMap[info.topLevelParentLabel, default: []].append(info.label)
                 }
 
-                // Add direct builds for top-level targets (no aspects needed)
-                if !topLevelTargets.isEmpty {
-                    labelsToBuild.append(topLevelTargets.sorted())
-                    extraArgs.append([])
-                }
-
-                // Add aspect builds for libraries
                 for (parent, libraries) in parentToLibraryLabelsMap {
                     let outputGroups = libraries.map { Self.sanitizeLabel($0) }.joined(separator: ",")
                     labelsToBuild.append([parent])
