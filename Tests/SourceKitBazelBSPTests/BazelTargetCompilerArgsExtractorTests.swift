@@ -41,9 +41,7 @@ struct BazelTargetCompilerArgsExtractorTests {
         self.aqueryResult = aqueryResult
     }
 
-    private static func makeMockExtractor(
-        compileTopLevel: Bool = false
-    ) -> BazelTargetCompilerArgsExtractor {
+    private static func makeMockExtractor() -> BazelTargetCompilerArgsExtractor {
         let mockRootUri = "/Users/user/Documents/demo-ios-project"
         let mockDevDir = "/Applications/Xcode.app/Contents/Developer"
         let mockOutputPath = "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out"
@@ -61,8 +59,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                 bazelWrapper: "bazel",
                 targets: ["//HelloWorld"],
                 indexFlags: [],
-                filesToWatch: nil,
-                compileTopLevel: compileTopLevel
+                filesToWatch: nil
             ),
             rootUri: mockRootUri,
             workspaceName: "_main",
@@ -237,32 +234,6 @@ struct BazelTargetCompilerArgsExtractorTests {
         #expect(error?.localizedDescription == "Target //HelloWorld:SomethingElseLib not found in the aquery output.")
     }
 
-    @Test
-    func compilingTopLevelKeepsFullConfigName() throws {
-        // If the base config has compileTopLevel to true, then the output is the same
-        // with the difference that we don't need to sanitize the config name.
-        let extractor = Self.makeMockExtractor(
-            compileTopLevel: true
-        )
-        let result = try extractor.extractCompilerArgs(
-            fromAquery: aqueryResult,
-            forTarget: BazelTargetPlatformInfo(
-                label: "//HelloWorld:HelloWorldLib",
-                topLevelParentLabel: "//HelloWorld:HelloWorld",
-                topLevelParentConfig: helloWorldConfig
-            ),
-            withStrategy: .swiftModule,
-        )
-        #expect(
-            result
-                == expectedSwiftResult.map {
-                    $0.replacingOccurrences(
-                        of: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0",
-                        with: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300"
-                    )
-                }
-        )
-    }
 }
 
 // MARK: - Example inputs and expected results
@@ -277,11 +248,11 @@ let expectedSwiftResult: [String] = [
     "/Applications/Xcode.app/Contents/Developer=/PLACEHOLDER_DEVELOPER_DIR",
     "-emit-object",
     "-output-file-map",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld/HelloWorldLib.output_file_map.json",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300/bin/HelloWorld/HelloWorldLib.output_file_map.json",
     "-Xfrontend",
     "-no-clang-module-breadcrumbs",
     "-emit-module-path",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld/HelloWorldLib.swiftmodule",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300/bin/HelloWorld/HelloWorldLib.swiftmodule",
     "-enforce-exclusivity=checked",
     "-Xfrontend",
     "-const-gather-protocols-file",
@@ -302,12 +273,12 @@ let expectedSwiftResult: [String] = [
     "-file-compilation-dir",
     ".",
     "-module-cache-path",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/_swift_module_cache",
-    "-I/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300/bin/_swift_module_cache",
+    "-I/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300/bin/HelloWorld",
     "-Xcc",
     "-iquote.",
     "-Xcc",
-    "-iquote/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin",
+    "-iquote/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300/bin",
     "-Xcc",
     "-fmodule-map-file=/Users/user/Documents/demo-ios-project/HelloWorld/TodoObjCSupport/Sources/module.modulemap",
     "-Xfrontend",
@@ -374,10 +345,10 @@ let expectedObjCResult: [String] = [
     "-iquote",
     ".",
     "-iquote",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300/bin",
     "-MD",
     "-MF",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld/_objs/TodoObjCSupport/arc/SKObjCUtils.d",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300/bin/HelloWorld/_objs/TodoObjCSupport/arc/SKObjCUtils.d",
     "-DOS_IOS",
     "-fno-autolink",
     "-isysroot",
@@ -403,7 +374,7 @@ let expectedObjCResult: [String] = [
     "-D__TIME__=\"redacted\"",
     "HelloWorld/TodoObjCSupport/Sources/SKObjCUtils.m",
     "-o",
-    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0/bin/HelloWorld/_objs/TodoObjCSupport/arc/SKObjCUtils.o",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300/bin/HelloWorld/_objs/TodoObjCSupport/arc/SKObjCUtils.o",
     "-index-store-path",
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/_global_index_store",
     "-working-directory",

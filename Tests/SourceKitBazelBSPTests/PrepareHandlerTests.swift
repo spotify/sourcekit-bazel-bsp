@@ -36,8 +36,7 @@ struct PrepareHandlerTests {
             bazelWrapper: "bazel",
             targets: ["//HelloWorld", "//HelloWorld2"],
             indexFlags: ["--config=index"],
-            filesToWatch: nil,
-            compileTopLevel: false
+            filesToWatch: nil
         )
 
         let initializedConfig = InitializedServerConfig(
@@ -132,133 +131,10 @@ struct PrepareHandlerTests {
         #expect(ranCommands[0].cwd == rootUri)
     }
 
-    func providesCorrectFlagsForiOSTargets() {
-        let actualFlags = PrepareHandler.buildArgs(
-            minimumOsVersion: "15.0",
-            platform: "ios",
-            cpuArch: "arm64",
-            devDir: "/Applications/Xcode.app/Contents/Developer",
-            xcodeVersion: "17B100",
-            appleSupportRepoName: "apple_support"
-        )
-        #expect(
-            actualFlags == [
-                "--platforms=@apple_support//platforms:ios_arm64",
-                "--ios_multi_cpus=arm64",
-                "--apple_platform_type=ios",
-                "--apple_split_cpu=arm64",
-                "--ios_minimum_os=15.0",
-                "--cpu=ios_arm64",
-                "--minimum_os_version=15.0",
-                "--xcode_version=17B100",
-                "--repo_env=DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer",
-                "--repo_env=USE_CLANG_CL=17B100",
-                "--repo_env=XCODE_VERSION=17B100",
-            ]
-        )
-    }
-
-    func providesCorrectFlagsForWatchOSTargets() {
-        let actualFlags = PrepareHandler.buildArgs(
-            minimumOsVersion: "15.0",
-            platform: "watchos",
-            cpuArch: "x86_64",
-            devDir: "/Applications/Xcode.app/Contents/Developer",
-            xcodeVersion: "17B100",
-            appleSupportRepoName: "apple_support"
-        )
-        #expect(
-            actualFlags == [
-                "--platforms=@apple_support//platforms:watchos_x86_64",
-                "--watchos_cpus=x86_64",
-                "--apple_platform_type=watchos",
-                "--apple_split_cpu=x86_64",
-                "--watchos_minimum_os=15.0",
-                "--cpu=watchos_x86_64",
-                "--minimum_os_version=15.0",
-                "--xcode_version=17B100",
-                "--repo_env=DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer",
-                "--repo_env=USE_CLANG_CL=17B100",
-                "--repo_env=XCODE_VERSION=17B100",
-            ]
-        )
-    }
-
-    func providesCorrectFlagsForMacOSTargets() {
-        let actualFlags = PrepareHandler.buildArgs(
-            minimumOsVersion: "15.0",
-            platform: "darwin",
-            cpuArch: "arm64",
-            devDir: "/Applications/Xcode.app/Contents/Developer",
-            xcodeVersion: "17B100",
-            appleSupportRepoName: "apple_support"
-        )
-        #expect(
-            actualFlags == [
-                "--platforms=@apple_support//platforms:macos_arm64",
-                "--macos_cpus=arm64",
-                "--apple_platform_type=macos",
-                "--apple_split_cpu=arm64",
-                "--macos_minimum_os=15.0",
-                "--cpu=darwin_arm64",
-                "--minimum_os_version=15.0",
-                "--xcode_version=17B100",
-                "--repo_env=DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer",
-                "--repo_env=USE_CLANG_CL=17B100",
-                "--repo_env=XCODE_VERSION=17B100",
-            ]
-        )
-    }
-
-    func providesCorrectFlagsForTVOSTargets() {
-        let actualFlags = PrepareHandler.buildArgs(
-            minimumOsVersion: "15.0",
-            platform: "tvos",
-            cpuArch: "sim_arm64",
-            devDir: "/Applications/Xcode.app/Contents/Developer",
-            xcodeVersion: "17B100",
-            appleSupportRepoName: "apple_support"
-        )
-        #expect(
-            actualFlags == [
-                "--platforms=@apple_support//platforms:tvos_sim_arm64",
-                "--tvos_cpus=sim_arm64",
-                "--apple_platform_type=tvos",
-                "--apple_split_cpu=sim_arm64",
-                "--tvos_minimum_os=15.0",
-                "--cpu=tvos_sim_arm64",
-                "--minimum_os_version=15.0",
-                "--xcode_version=17B100",
-                "--repo_env=DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer",
-                "--repo_env=USE_CLANG_CL=17B100",
-                "--repo_env=XCODE_VERSION=17B100",
-            ]
-        )
-    }
-
-    func providesCorrectFlagsForVisionOSTargets() {
-        let actualFlags = PrepareHandler.buildArgs(
-            minimumOsVersion: "15.0",
-            platform: "visionos",
-            cpuArch: "sim_arm64",
-            devDir: "/Applications/Xcode.app/Contents/Developer",
-            xcodeVersion: "17B100",
-            appleSupportRepoName: "apple_support"
-        )
-        #expect(
-            actualFlags == [
-                "--platforms=@apple_support//platforms:visionos_sim_arm64",
-                "--visionos_cpus=sim_arm64",
-                "--apple_platform_type=visionos",
-                "--apple_split_cpu=sim_arm64",
-                "--visionos_minimum_os=15.0",
-                "--cpu=visionos_sim_arm64",
-                "--minimum_os_version=15.0",
-                "--xcode_version=17B100",
-                "--repo_env=DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer",
-                "--repo_env=USE_CLANG_CL=17B100",
-                "--repo_env=XCODE_VERSION=17B100",
-            ]
-        )
+    @Test
+    func sanitizesLabelCorrectly() {
+        #expect(PrepareHandler.sanitizeLabel("//path/to/library:LibraryName") == "aspect_path_to_library_LibraryName")
+        #expect(PrepareHandler.sanitizeLabel("//path/to/library") == "aspect_path_to_library")
+        #expect(PrepareHandler.sanitizeLabel("//path-with-dashes:Target.Name") == "aspect_path_with_dashes_Target_Name")
     }
 }

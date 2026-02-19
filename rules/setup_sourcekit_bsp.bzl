@@ -15,8 +15,6 @@ def _setup_sourcekit_bsp_impl(ctx):
         bsp_config_argv.append(target)
     bsp_config_argv.append("--bazel-wrapper")
     bsp_config_argv.append(ctx.attr.bazel_wrapper)
-    if ctx.attr.compile_top_level:
-        bsp_config_argv.append("--compile-top-level")
     for index_flag in ctx.attr.index_flags:
         bsp_config_argv.append("--index-flag")
         bsp_config_argv.append(index_flag)
@@ -45,6 +43,8 @@ def _setup_sourcekit_bsp_impl(ctx):
     if ctx.attr.apple_support_repo_name:
         bsp_config_argv.append("--apple-support-repo-name")
         bsp_config_argv.append(ctx.attr.apple_support_repo_name)
+    if ctx.attr.compile_top_level:
+        bsp_config_argv.append("--compile-top-level")
     ctx.actions.expand_template(
         template = ctx.file._bsp_config_template,
         output = rendered_bsp_config,
@@ -172,10 +172,6 @@ setup_sourcekit_bsp = rule(
             doc = "The number of targets to prepare in parallel. If not provided, will default to 1.",
             mandatory = False,
         ),
-        "compile_top_level": attr.bool(
-            doc = "Instead of attempting to build targets individually, build the top-level parent. If your project contains build_test targets for your individual libraries and you're passing them as the top-level targets for the BSP, you can use this flag to build those targets directly for better predictability and caching.",
-            default = False,
-        ),
         "lsp_timeout": attr.int(
             doc = "A custom timeout value to provide to sourcekit-lsp when waiting for responses from the BSP.",
             mandatory = False,
@@ -187,6 +183,10 @@ setup_sourcekit_bsp = rule(
         "merge_lsp_config": attr.bool(
             doc = "If set to true, the generated .sourcekit-lsp/config.json will merge with any existing contents instead of fully overriding the file.",
             default = True,
+        ),
+        "compile_top_level": attr.bool(
+            doc = "When enabled, builds entire top-level targets instead of using the aspect-based approach for individual libraries. This is slower but may be needed for certain build configurations.",
+            default = False,
         ),
     },
 )

@@ -58,6 +58,8 @@ protocol BazelTargetStore: AnyObject {
     func parentConfig(forBSPURI uri: URI) throws -> String
     /// Retrieves the list of top-level labels for a given configuration.
     func topLevelLabels(forConfig configMnemonic: String) throws -> [String]
+    /// Returns the best parent label for a given config, preferring apps over extensions/tests.
+    func preferredTopLevelLabel(forConfig configMnemonic: String) throws -> String
     /// Clears the cache of the store.
     func clearCache()
 }
@@ -166,13 +168,39 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         return labels
     }
 
+    /// Returns the best parent label for a given config, preferring apps over extensions/tests.
+    func preferredTopLevelLabel(forConfig configMnemonic: String) throws -> String {
+        let labels = try topLevelLabels(forConfig: configMnemonic)
+        guard !labels.isEmpty else {
+            throw BazelTargetStoreError.unableToMapConfigMnemonicToTopLevelLabels(configMnemonic)
+        }
+        // Use topLevelTargets to get rule type info and sort by priority
+        guard let topLevelTargets = cqueryResult?.topLevelTargets else {
+            return labels[0]
+        }
+        // Create a map from label to rule type for labels in this config
+        let labelSet = Set(labels)
+        var labelToPriority: [String: Int] = [:]
+        for (label, ruleType, _) in topLevelTargets {
+            if labelSet.contains(label) {
+                labelToPriority[label] = ruleType.parentBuildPriority
+            }
+        }
+        // Sort labels by priority (lowest priority value = highest preference)
+        let sortedLabels = labels.sorted { (a, b) in
+            let priorityA = labelToPriority[a] ?? Int.max
+            let priorityB = labelToPriority[b] ?? Int.max
+            return priorityA < priorityB
+        }
+        return sortedLabels[0]
+    }
+
     func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo {
         let bazelLabel = try bazelTargetLabel(forBSPURI: uri)
         let configMnemonic = try parentConfig(forBSPURI: uri)
         let config = try topLevelConfigInfo(forConfigMnemonic: configMnemonic)
-        let parents = try topLevelLabels(forConfig: configMnemonic)
-        // Since the config of these parents are all the same, it doesn't matter which one we pick here.
-        let parentToUse = parents[0]
+        // Use preferredTopLevelLabel to get the best parent (app over extension/test)
+        let parentToUse = try preferredTopLevelLabel(forConfig: configMnemonic)
         return BazelTargetPlatformInfo(
             label: bazelLabel,
             topLevelParentLabel: parentToUse,
@@ -278,6 +306,46 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 }
 
 extension BazelTargetStoreImpl {
+    /// Generates legacy build args for backward compatibility with older VSCode extensions.
+    /// These are the platform flags that were used before the aspect-based approach.
+    static func legacyBuildArgs(
+        config: BazelTargetConfigurationInfo,
+        appleSupportRepoName: String,
+        devDir: String,
+        xcodeVersion: String
+    ) -> [String] {
+        let platform = config.platform
+        let cpuArch = config.cpuArch
+        let minimumOsVersion = config.minimumOsVersion
+        // Special case: macOS is sometimes referred to as Darwin
+        let friendlyPlatName: String = {
+            if platform == "darwin" {
+                return "macos"
+            }
+            return platform
+        }()
+        // Special case: This flag is different for iOS.
+        let cpuFlagName: String = {
+            if platform == "ios" {
+                return "multi_cpus"
+            }
+            return "cpus"
+        }()
+        return [
+            "--platforms=@\(appleSupportRepoName)//platforms:\(friendlyPlatName)_\(cpuArch)",
+            "--\(friendlyPlatName)_\(cpuFlagName)=\(cpuArch)",
+            "--apple_platform_type=\(friendlyPlatName)",
+            "--apple_split_cpu=\(cpuArch)",
+            "--\(friendlyPlatName)_minimum_os=\(minimumOsVersion)",
+            "--cpu=\(platform)_\(cpuArch)",
+            "--minimum_os_version=\(minimumOsVersion)",
+            "--xcode_version=\(xcodeVersion)",
+            "--repo_env=DEVELOPER_DIR=\(devDir)",
+            "--repo_env=USE_CLANG_CL=\(xcodeVersion)",
+            "--repo_env=XCODE_VERSION=\(xcodeVersion)",
+        ]
+    }
+
     private func writeReport(toPath path: String, creatingDirectoryAt directoryPath: String) {
         try? FileManager.default.createDirectory(
             atPath: directoryPath,
@@ -324,32 +392,39 @@ extension BazelTargetStoreImpl {
                     testSources: testSources
                 )
             )
+            // Build invocation using the aspect approach
+            let buildInvocation =
+                "build \(label) --aspects=//.bsp/skbsp_generated:aspect.bzl%platform_deps_aspect --output_groups={OUTPUT_GROUP}"
+            // Legacy build args for backward compatibility with older VSCode extensions
+            let legacyBuildArgs = BazelTargetStoreImpl.legacyBuildArgs(
+                config: topLevelConfig,
+                appleSupportRepoName: initializedConfig.baseConfig.appleSupportRepoName,
+                devDir: initializedConfig.devDir,
+                xcodeVersion: initializedConfig.xcodeVersion
+            )
             reportConfigurations[configMnemonic] = .init(
-                .init(
-                    mnemonic: configMnemonic,
-                    platform: topLevelConfig.platform,
-                    minimumOsVersion: topLevelConfig.minimumOsVersion,
-                    cpuArch: topLevelConfig.cpuArch,
-                    sdkName: topLevelConfig.sdkName,
-                    dependencyBuildArgs: PrepareHandler.buildArgs(
-                        minimumOsVersion: topLevelConfig.minimumOsVersion,
-                        platform: topLevelConfig.platform,
-                        cpuArch: topLevelConfig.cpuArch,
-                        devDir: initializedConfig.devDir,
-                        xcodeVersion: initializedConfig.xcodeVersion,
-                        appleSupportRepoName: initializedConfig.baseConfig.appleSupportRepoName
-                    )
-                )
+                mnemonic: configMnemonic,
+                platform: topLevelConfig.platform,
+                minimumOsVersion: topLevelConfig.minimumOsVersion,
+                cpuArch: topLevelConfig.cpuArch,
+                sdkName: topLevelConfig.sdkName,
+                buildInvocation: buildInvocation,
+                dependencyBuildArgs: legacyBuildArgs
             )
         }
         var reportDependencies: [BazelTargetGraphReport.DependencyTarget] = []
-        if !initializedConfig.baseConfig.compileTopLevel {
-            let dependencyTargets = cqueryResult?.buildTargets ?? []
-            for target in dependencyTargets {
-                guard let label = target.displayName else { continue }
-                let configMnemonic = try parentConfig(forBSPURI: target.id.uri)
-                reportDependencies.append(.init(label: label, configMnemonic: configMnemonic))
-            }
+        let dependencyTargets = cqueryResult?.buildTargets ?? []
+        for target in dependencyTargets {
+            guard let label = target.displayName else { continue }
+            let configMnemonic = try parentConfig(forBSPURI: target.id.uri)
+            let topLevelParent = try preferredTopLevelLabel(forConfig: configMnemonic)
+            reportDependencies.append(
+                .init(
+                    label: label,
+                    configMnemonic: configMnemonic,
+                    topLevelParent: topLevelParent
+                )
+            )
         }
         return BazelTargetGraphReport(
             topLevelTargets: reportTopLevel,

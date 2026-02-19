@@ -83,6 +83,10 @@ final class BazelTargetStoreFake: BazelTargetStore {
         unimplemented()
     }
 
+    func preferredTopLevelLabel(forConfig configMnemonic: String) throws -> String {
+        unimplemented()
+    }
+
     func clearCache() {
         clearCacheCalled = true
     }

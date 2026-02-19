@@ -99,4 +99,23 @@ public enum TopLevelRuleType: String, CaseIterable, ExpressibleByArgument, Senda
         default: return false
         }
     }
+
+    /// Priority for selecting which top-level target to use as parent for aspect builds.
+    /// Lower values = higher priority. Apps should be preferred over extensions and tests.
+    var parentBuildPriority: Int {
+        switch self {
+        case .iosApplication, .watchosApplication, .macosApplication, .tvosApplication, .visionosApplication,
+            .macosCommandLineApplication:
+            return 0  // Highest priority: main apps
+        case .iosAppClip:
+            return 1  // App clips are close to apps
+        case .iosExtension, .watchosExtension, .macosExtension, .tvosExtension, .visionosExtension:
+            return 2  // Extensions
+        case .iosUnitTest, .iosUiTest, .watchosUnitTest, .watchosUiTest, .macosUnitTest, .macosUiTest,
+            .tvosUnitTest, .tvosUiTest, .visionosUnitTest, .visionosUiTest:
+            return 3  // Tests
+        case .iosBuildTest, .watchosBuildTest, .macosBuildTest, .tvosBuildTest, .visionosBuildTest:
+            return 4  // Build tests (lowest priority)
+        }
+    }
 }

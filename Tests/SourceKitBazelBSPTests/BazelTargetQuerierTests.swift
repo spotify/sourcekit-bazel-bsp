@@ -63,7 +63,6 @@ struct BazelTargetQuerierTests {
             aqueryFlags: aqueryFlags,
             queryFlags: queryFlags,
             filesToWatch: nil,
-            compileTopLevel: false,
             topLevelTargetsToExclude: topLevelTargetsToExclude,
             dependencyTargetsToExclude: dependencyTargetsToExclude
         )
