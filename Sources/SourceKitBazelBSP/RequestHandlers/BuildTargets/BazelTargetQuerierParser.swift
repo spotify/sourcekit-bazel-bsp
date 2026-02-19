@@ -124,7 +124,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         var configurationToTopLevelLabelsMap: [String: [String]] = [:]
         var allTopLevelLabels = [(String, TopLevelRuleType)]()
         var allAliases = [BlazeQuery_Target]()
-        var allTestBundles: [(target: BlazeQuery_Target, isUITest: Bool)] = []
+        var allTestBundles: [BlazeQuery_Target] = []
         var unfilteredDependencyTargets = [Analysis_ConfiguredTarget]()
         var seenSourceFiles = Set<String>()
         var allSrcs = [BlazeQuery_Target]()
@@ -163,7 +163,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                     guard target.rule.name.hasSuffix(TopLevelRuleType.testBundleRuleSuffix) else {
                         throw BazelTargetQuerierParserError.unexpectedTestBundleRuleWithoutSuffix(target.rule.name)
                     }
-                    allTestBundles.append((target, kind.hasSuffix("_ui_test_bundle")))
+                    allTestBundles.append(target)
                     let realTopLevelName = String(
                         target.rule.name.dropLast(TopLevelRuleType.testBundleRuleSuffix.count)
                     )
@@ -269,15 +269,13 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
 
         // Treat test bundle rules as aliases as well. This allows us to locate the "true" dependency
         // when encountering a test bundle.
-        for (target, isUITest) in allTestBundles {
+        for (target) in allTestBundles {
             let label = target.rule.name
-            let actual: String
-            if isUITest {
-                // For UI tests, the first input is the test_host.
-                // So in this case we're looking for the second input.
-                actual = target.rule.ruleInput[1]
-            } else {
-                actual = target.rule.ruleInput[0]
+            let deps = target.rule.attribute.first { $0.name == "deps" }?.stringListValue ?? []
+            // The first dependency of the generated test bundle is what we're looking for.
+            guard let actual = deps.first else {
+                logger.error("Unexpected missing dependency for test bundle \(label).")
+                continue
             }
             aliasToLabelMap[label] = actual
             registeredAliases.append(label)

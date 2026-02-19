@@ -309,6 +309,43 @@ struct BazelTargetQuerierParserImplTests {
                     "//HelloWorld:HelloWorldWatchTests",
                 ])
         )
+
+        // Verify bazelLabelToTestFilesMap - maps test targets to their source files
+        // These are the test bundle targets that should have source files mapped
+        let expectedTestTargets = Set([
+            "//HelloWorld:HelloWorldTests",
+            "//HelloWorld:HelloWorldE2ETests",
+            "//HelloWorld:HelloWorldMacTests",
+            "//HelloWorld:HelloWorldWatchTests",
+        ])
+        let actualTestTargets = Set(result.bazelLabelToTestFilesMap.keys)
+        #expect(
+            actualTestTargets == expectedTestTargets,
+            "bazelLabelToTestFilesMap keys don't match expected test targets"
+        )
+
+        // Verify each test target has non-empty source files
+        for testTarget in expectedTestTargets {
+            let sourceFiles = try #require(
+                result.bazelLabelToTestFilesMap[testTarget],
+                "Missing source files for test target: \(testTarget)"
+            )
+            #expect(
+                !sourceFiles.isEmpty,
+                "Source files should not be empty for test target: \(testTarget)"
+            )
+        }
+
+        // Verify specific source file mappings
+        // HelloWorldTests should have source files from the HelloWorldTests directory
+        // (HelloWorldTestsLib library sources are in HelloWorldTests/*.swift)
+        let unitTestFiles = try #require(result.bazelLabelToTestFilesMap["//HelloWorld:HelloWorldTests"])
+        #expect(unitTestFiles.contains { $0.stringValue.contains("HelloWorldTests/") })
+
+        // HelloWorldE2ETests should have source files from the HelloWorldE2ETests directory
+        // (HelloWorldE2ETestsLib library sources are in HelloWorldE2ETests/*.swift)
+        let e2eTestFiles = try #require(result.bazelLabelToTestFilesMap["//HelloWorld:HelloWorldE2ETests"])
+        #expect(e2eTestFiles.contains { $0.stringValue.contains("HelloWorldE2ETests/") })
     }
 
     @Test
