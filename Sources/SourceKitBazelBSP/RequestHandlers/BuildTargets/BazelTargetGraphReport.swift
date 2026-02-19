@@ -49,10 +49,6 @@ struct BazelTargetGraphReport: Codable, Equatable {
         /// Build invocation template for building dependencies using the aspect approach.
         /// Format: "build {parent} --aspects=... --output_groups={OUTPUT_GROUP}"
         let buildInvocation: String
-        /// Deprecated: Legacy build args for direct library builds.
-        /// Kept for backward compatibility with older VSCode extensions.
-        /// New code should use buildInvocation with the aspect approach.
-        let dependencyBuildArgs: [String]?
     }
 
     let topLevelTargets: [TopLevelTarget]

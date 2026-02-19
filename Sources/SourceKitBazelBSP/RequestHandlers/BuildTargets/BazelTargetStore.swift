@@ -306,46 +306,6 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 }
 
 extension BazelTargetStoreImpl {
-    /// Generates legacy build args for backward compatibility with older VSCode extensions.
-    /// These are the platform flags that were used before the aspect-based approach.
-    static func legacyBuildArgs(
-        config: BazelTargetConfigurationInfo,
-        appleSupportRepoName: String,
-        devDir: String,
-        xcodeVersion: String
-    ) -> [String] {
-        let platform = config.platform
-        let cpuArch = config.cpuArch
-        let minimumOsVersion = config.minimumOsVersion
-        // Special case: macOS is sometimes referred to as Darwin
-        let friendlyPlatName: String = {
-            if platform == "darwin" {
-                return "macos"
-            }
-            return platform
-        }()
-        // Special case: This flag is different for iOS.
-        let cpuFlagName: String = {
-            if platform == "ios" {
-                return "multi_cpus"
-            }
-            return "cpus"
-        }()
-        return [
-            "--platforms=@\(appleSupportRepoName)//platforms:\(friendlyPlatName)_\(cpuArch)",
-            "--\(friendlyPlatName)_\(cpuFlagName)=\(cpuArch)",
-            "--apple_platform_type=\(friendlyPlatName)",
-            "--apple_split_cpu=\(cpuArch)",
-            "--\(friendlyPlatName)_minimum_os=\(minimumOsVersion)",
-            "--cpu=\(platform)_\(cpuArch)",
-            "--minimum_os_version=\(minimumOsVersion)",
-            "--xcode_version=\(xcodeVersion)",
-            "--repo_env=DEVELOPER_DIR=\(devDir)",
-            "--repo_env=USE_CLANG_CL=\(xcodeVersion)",
-            "--repo_env=XCODE_VERSION=\(xcodeVersion)",
-        ]
-    }
-
     private func writeReport(toPath path: String, creatingDirectoryAt directoryPath: String) {
         try? FileManager.default.createDirectory(
             atPath: directoryPath,
@@ -395,21 +355,13 @@ extension BazelTargetStoreImpl {
             // Build invocation using the aspect approach
             let buildInvocation =
                 "build \(label) --aspects=//.bsp/skbsp_generated:aspect.bzl%platform_deps_aspect --output_groups={OUTPUT_GROUP}"
-            // Legacy build args for backward compatibility with older VSCode extensions
-            let legacyBuildArgs = BazelTargetStoreImpl.legacyBuildArgs(
-                config: topLevelConfig,
-                appleSupportRepoName: initializedConfig.baseConfig.appleSupportRepoName,
-                devDir: initializedConfig.devDir,
-                xcodeVersion: initializedConfig.xcodeVersion
-            )
             reportConfigurations[configMnemonic] = .init(
                 mnemonic: configMnemonic,
                 platform: topLevelConfig.platform,
                 minimumOsVersion: topLevelConfig.minimumOsVersion,
                 cpuArch: topLevelConfig.cpuArch,
                 sdkName: topLevelConfig.sdkName,
-                buildInvocation: buildInvocation,
-                dependencyBuildArgs: legacyBuildArgs
+                buildInvocation: buildInvocation
             )
         }
         var reportDependencies: [BazelTargetGraphReport.DependencyTarget] = []
