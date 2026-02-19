@@ -9,13 +9,29 @@ load("//tools:apple.bzl", "IOS_MINIMUM_OS_VERSION", "WATCHOS_MINIMUM_OS_VERSION"
 
 ## MARK: iOS / Shared targets
 
+filegroup(
+    name = "HelloWorldTestsAdditionalSources",
+    srcs = [
+        "Filegroup/FilegroupForUnitTest.swift",
+        "Filegroup/FilegroupForUnitTest2.swift",
+    ],
+)
+
 swift_library(
     name = "HelloWorldTestsLib",
     module_name = "HelloWorldTestsLib",
     testonly = True,
     tags = ["manual"],
-    srcs = glob(["HelloWorldTests/*.swift"]),
+    srcs = glob(["HelloWorldTests/*.swift"]) + [":HelloWorldTestsAdditionalSources"],
     deps = [":HelloWorldLib"],
+)
+
+filegroup(
+    name = "HelloWorldE2ETestsAdditionalSources",
+    srcs = [
+        "Filegroup/FilegroupForE2ETest.swift",
+        "Filegroup/FilegroupForE2ETest2.swift",
+    ],
 )
 
 swift_library(
@@ -23,7 +39,7 @@ swift_library(
     module_name = "HelloWorldE2ETestsLib",
     testonly = True,
     tags = ["manual"],
-    srcs = glob(["HelloWorldE2ETests/*.swift"]),
+    srcs = glob(["HelloWorldE2ETests/*.swift"]) + [":HelloWorldE2ETestsAdditionalSources"],
 )
 
 swift_library(
