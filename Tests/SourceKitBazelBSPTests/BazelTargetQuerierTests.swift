@@ -32,6 +32,7 @@ struct BazelTargetQuerierTests {
     private static let emptyProcessedCqueryResult = ProcessedCqueryResult(
         buildTargets: [],
         topLevelTargets: [],
+        topLevelLabelToRuleTypeMap: [:],
         bspURIsToBazelLabelsMap: [:],
         bspURIsToSrcsMap: [:],
         srcToBspURIsMap: [:],

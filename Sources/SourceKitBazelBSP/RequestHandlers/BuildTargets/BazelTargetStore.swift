@@ -58,6 +58,8 @@ protocol BazelTargetStore: AnyObject {
     func parentConfig(forBSPURI uri: URI) throws -> String
     /// Retrieves the list of top-level labels for a given configuration.
     func topLevelLabels(forConfig configMnemonic: String) throws -> [String]
+    /// Retrieves the top-level rule type for a given top-level label.
+    func topLevelRuleType(forLabel label: String) throws -> TopLevelRuleType
     /// Returns the best parent label for a given config, preferring apps over extensions/tests.
     func preferredTopLevelLabel(forConfig configMnemonic: String) throws -> String
     /// Clears the cache of the store.
@@ -71,6 +73,7 @@ enum BazelTargetStoreError: Error, LocalizedError {
     case unableToMapBSPURIToParentConfig(URI)
     case unableToMapConfigMnemonicToTopLevelLabels(String)
     case unableToMapTopLevelLabelToConfig(String)
+    case unableToMapLabelToTopLevelRuleType(String)
     case noCachedAquery
 
     var errorDescription: String? {
@@ -87,6 +90,8 @@ enum BazelTargetStoreError: Error, LocalizedError {
             return "Unable to map config mnemonic '\(config)' to its top-level labels"
         case .unableToMapTopLevelLabelToConfig(let label):
             return "Unable to map top-level label '\(label)' to its configuration"
+        case .unableToMapLabelToTopLevelRuleType(let label):
+            return "Unable to map label '\(label)' to its top-level rule type"
         case .noCachedAquery:
             return "No cached aquery result found in the store."
         }
@@ -168,31 +173,21 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         return labels
     }
 
+    func topLevelRuleType(forLabel label: String) throws -> TopLevelRuleType {
+        guard let ruleType = cqueryResult?.topLevelLabelToRuleTypeMap[label] else {
+            throw BazelTargetStoreError.unableToMapLabelToTopLevelRuleType(label)
+        }
+        return ruleType
+    }
+
     /// Returns the best parent label for a given config, preferring apps over extensions/tests.
     func preferredTopLevelLabel(forConfig configMnemonic: String) throws -> String {
         let labels = try topLevelLabels(forConfig: configMnemonic)
         guard !labels.isEmpty else {
             throw BazelTargetStoreError.unableToMapConfigMnemonicToTopLevelLabels(configMnemonic)
         }
-        // Use topLevelTargets to get rule type info and sort by priority
-        guard let topLevelTargets = cqueryResult?.topLevelTargets else {
-            return labels[0]
-        }
-        // Create a map from label to rule type for labels in this config
-        let labelSet = Set(labels)
-        var labelToPriority: [String: Int] = [:]
-        for (label, ruleType, _) in topLevelTargets {
-            if labelSet.contains(label) {
-                labelToPriority[label] = ruleType.parentBuildPriority
-            }
-        }
-        // Sort labels by priority (lowest priority value = highest preference)
-        let sortedLabels = labels.sorted { (a, b) in
-            let priorityA = labelToPriority[a] ?? Int.max
-            let priorityB = labelToPriority[b] ?? Int.max
-            return priorityA < priorityB
-        }
-        return sortedLabels[0]
+        let ruleTypes = try labels.map { try topLevelRuleType(forLabel: $0) }
+        return zip(labels, ruleTypes).labelWithHighestBuildPriority() ?? labels[0]
     }
 
     func platformBuildLabelInfo(forBSPURI uri: URI) throws -> BazelTargetPlatformInfo {

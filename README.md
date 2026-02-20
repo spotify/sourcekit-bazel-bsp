@@ -1,6 +1,6 @@
-# iOS Development (and more) in alternative IDEs like Cursor / VSCode, for Bazel projects
+# iOS Development (and more) in alternative IDEs like Cursor and Claude Code, for Bazel projects
 
-**sourcekit-bazel-bsp** is a [Build Server Protocol](https://build-server-protocol.github.io/) implementation that serves as a bridge between [sourcekit-lsp](https://github.com/swiftlang/sourcekit-lsp) (Swift's official [Language Server Protocol](https://microsoft.github.io/language-server-protocol/)) and your Bazel-based code, giving you the power to break free from the IDE side of Xcode and **develop for Apple platforms like iOS in any IDE that has support for LSPs**, such as Cursor and VSCode.
+**sourcekit-bazel-bsp** is a [Build Server Protocol](https://build-server-protocol.github.io/) implementation that serves as a bridge between [sourcekit-lsp](https://github.com/swiftlang/sourcekit-lsp) (Swift's official [Language Server Protocol](https://microsoft.github.io/language-server-protocol/)) and your Bazel-based code, giving you the power to break free from the IDE side of Xcode and **develop for Apple platforms like iOS in any IDE that has support for LSPs**, such as Cursor, VSCode, and even agentic models like Claude Code.
 
 > [!IMPORTANT]
 > sourcekit-bazel-bsp is designed specifically for projects that use the [Bazel build system](https://bazel.build/) under the hood. It will not work for regular Xcode projects. For Xcode, check out projects like [xcode-build-server](https://github.com/SolaWing/xcode-build-server) (unrelated to this project and Spotify).
@@ -90,25 +90,15 @@ The setup instructions for other IDEs (and by extension, Claude Code) will depen
     - The BSP's many filtering arguments can be particularly useful for more complex cases.
     - For smaller apps, this doesn't make much difference and it should be fine to import the entire app.
 
-## How Library Builds Work
+## Bazel Cache Handling
 
-When sourcekit-lsp requests building a specific library for indexing, the BSP needs to compile it with the correct platform configuration (iOS, tvOS, etc.). The BSP uses a **Bazel aspect** to build libraries through their parent application:
+When building a specific library for indexing, the BSP needs to compile it with the correct platform configuration (iOS, tvOS, etc.) to ensure correctness and proper cache sharing with regular full app builds. The BSP achieves this by using an **aspect** to build libraries _through_ their parent top-level target:
 
 ```
 bazel build //App:MyApp --aspects=//.bsp/skbsp_generated:aspect.bzl%platform_deps_aspect --output_groups=aspect_path_to_MyLibrary
 ```
 
-This approach provides several benefits:
-
-1. **Cache consistency**: Library builds share the same action cache keys as full app builds, meaning no duplicate compilation work.
-2. **Correct platform configuration**: Libraries automatically inherit the correct platform transitions from their parent app.
-3. **Incremental efficiency**: Only the requested library outputs are produced, even though the build is routed through the parent.
-
-The aspect is automatically generated in `.bsp/skbsp_generated/aspect.bzl` when you run the setup command.
-
-## Bazel Caching Implications
-
-If you encounter issues with the aspect-based approach, you can pass the `--compile-top-level` flag to make the BSP compile the target's **parent** instead of using aspects. We recommend using this for projects that define fine-grained `*_build_test` targets and providing them as top-level targets for the BSP, as those don't suffer from this issue and thus enables maximum predictability and cacheability.
+If this is undesired and/or causes issues with your particular setup, you can pass the `--compile-top-level` flag to make the BSP directly compile the target's **entire parent** instead of using the aspect approach. This can be useful for projects that define fine-grained `*_build_test` targets and providing them as top-level targets for the BSP, as those don't require such workarounds and thus enables maximum predictability and cacheability.
 
 ```python
 setup_sourcekit_bsp(
