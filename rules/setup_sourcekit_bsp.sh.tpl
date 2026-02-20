@@ -103,9 +103,12 @@ def _platform_deps_aspect_impl(target, ctx):
     for attr in _PROPAGATION_ATTRS:
         if hasattr(ctx.rule.attr, attr):
             deps = getattr(ctx.rule.attr, attr)
+            if deps == None:
+                continue
             deps_list = deps if type(deps) == "list" else [deps]
             for dep in deps_list:
-                _collect_dep_outputs(dep, transitive_outputs, transitive_output_groups)
+                if dep != None:
+                    _collect_dep_outputs(dep, transitive_outputs, transitive_output_groups)
 
     target_outputs = depset(direct_outputs + source_files, transitive = transitive_outputs)
 
