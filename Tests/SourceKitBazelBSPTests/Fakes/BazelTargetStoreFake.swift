@@ -83,6 +83,10 @@ final class BazelTargetStoreFake: BazelTargetStore {
         unimplemented()
     }
 
+    func topLevelRuleType(forLabel label: String) throws -> TopLevelRuleType {
+        unimplemented()
+    }
+
     func preferredTopLevelLabel(forConfig configMnemonic: String) throws -> String {
         unimplemented()
     }

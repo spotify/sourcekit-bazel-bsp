@@ -109,13 +109,21 @@ public enum TopLevelRuleType: String, CaseIterable, ExpressibleByArgument, Senda
             return 0  // Highest priority: main apps
         case .iosAppClip:
             return 1  // App clips are close to apps
-        case .iosExtension, .watchosExtension, .macosExtension, .tvosExtension, .visionosExtension:
-            return 2  // Extensions
+        case .iosBuildTest, .watchosBuildTest, .macosBuildTest, .tvosBuildTest, .visionosBuildTest:
+            return 2  // Build tests
         case .iosUnitTest, .iosUiTest, .watchosUnitTest, .watchosUiTest, .macosUnitTest, .macosUiTest,
             .tvosUnitTest, .tvosUiTest, .visionosUnitTest, .visionosUiTest:
             return 3  // Tests
-        case .iosBuildTest, .watchosBuildTest, .macosBuildTest, .tvosBuildTest, .visionosBuildTest:
-            return 4  // Build tests (lowest priority)
+        case .iosExtension, .watchosExtension, .macosExtension, .tvosExtension, .visionosExtension:
+            return 2  // Extensions (lowest priority)
         }
+    }
+}
+
+extension Sequence where Element == (String, TopLevelRuleType) {
+    /// Returns the label with the highest parent build priority.
+    /// Returns nil if the sequence is empty.
+    func labelWithHighestBuildPriority() -> String? {
+        return self.min(by: { $0.1.parentBuildPriority < $1.1.parentBuildPriority })?.0
     }
 }

@@ -66,6 +66,7 @@ struct ProcessedCqueryResultTests {
         let initialResult = SourceKitBazelBSP.ProcessedCqueryResult(
             buildTargets: [],
             topLevelTargets: [],
+            topLevelLabelToRuleTypeMap: [:],
             bspURIsToBazelLabelsMap: [:],
             bspURIsToSrcsMap: [targetUri: sourcesItem, otherTargetUri: otherSourcesItem],
             srcToBspURIsMap: [fileToDelete: [targetUri], fileToKeep: [targetUri], irrelevantFile: [otherTargetUri]],
@@ -124,6 +125,7 @@ struct ProcessedCqueryResultTests {
         let initialResult = SourceKitBazelBSP.ProcessedCqueryResult(
             buildTargets: [],
             topLevelTargets: [],
+            topLevelLabelToRuleTypeMap: [:],
             bspURIsToBazelLabelsMap: [:],
             bspURIsToSrcsMap: [targetUri: sourcesItem, otherTargetUri: otherSourcesItem],
             srcToBspURIsMap: [fileToKeep: [targetUri], irrelevantFile: [otherTargetUri]],
@@ -187,6 +189,7 @@ struct ProcessedCqueryResultTests {
         let initialResult = SourceKitBazelBSP.ProcessedCqueryResult(
             buildTargets: [],
             topLevelTargets: [],
+            topLevelLabelToRuleTypeMap: [:],
             bspURIsToBazelLabelsMap: [:],
             bspURIsToSrcsMap: [targetUri: sourcesItem, otherTargetUri: otherSourcesItem],
             srcToBspURIsMap: [fileToKeep: [targetUri], fileToDelete: [targetUri], irrelevantFile: [otherTargetUri]],
@@ -256,6 +259,7 @@ struct ProcessedCqueryResultTests {
         let initialResult = SourceKitBazelBSP.ProcessedCqueryResult(
             buildTargets: [],
             topLevelTargets: [],
+            topLevelLabelToRuleTypeMap: [:],
             bspURIsToBazelLabelsMap: [:],
             bspURIsToSrcsMap: [
                 target1Uri: sourcesItem1,
@@ -336,6 +340,7 @@ struct ProcessedCqueryResultTests {
         let initialResult = SourceKitBazelBSP.ProcessedCqueryResult(
             buildTargets: [],
             topLevelTargets: [],
+            topLevelLabelToRuleTypeMap: [:],
             bspURIsToBazelLabelsMap: [:],
             bspURIsToSrcsMap: [
                 target1Uri: sourcesItem1,
@@ -409,6 +414,7 @@ struct ProcessedCqueryResultTests {
         let initialResult = SourceKitBazelBSP.ProcessedCqueryResult(
             buildTargets: [],
             topLevelTargets: [],
+            topLevelLabelToRuleTypeMap: [:],
             bspURIsToBazelLabelsMap: [:],
             bspURIsToSrcsMap: [targetUri: sourcesItem],
             srcToBspURIsMap: [filetoKepp: [targetUri]],

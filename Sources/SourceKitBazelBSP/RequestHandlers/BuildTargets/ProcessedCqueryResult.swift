@@ -26,6 +26,7 @@ private let logger = makeFileLevelBSPLogger()
 struct ProcessedCqueryResult {
     let buildTargets: [BuildTarget]
     let topLevelTargets: [(String, TopLevelRuleType, String)]
+    let topLevelLabelToRuleTypeMap: [String: TopLevelRuleType]
     let bspURIsToBazelLabelsMap: [URI: String]
     let bspURIsToSrcsMap: [URI: SourcesItem]
     let srcToBspURIsMap: [URI: [URI]]
@@ -98,6 +99,7 @@ struct ProcessedCqueryResult {
         let result = ProcessedCqueryResult(
             buildTargets: buildTargets,
             topLevelTargets: topLevelTargets,
+            topLevelLabelToRuleTypeMap: topLevelLabelToRuleTypeMap,
             bspURIsToBazelLabelsMap: bspURIsToBazelLabelsMap,
             bspURIsToSrcsMap: _bspURIsToSrcsMap,
             srcToBspURIsMap: _srcToBspURIsMap,

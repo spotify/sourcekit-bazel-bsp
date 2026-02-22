@@ -75,7 +75,7 @@ struct Serve: AsyncParsableCommand {
 
     @Flag(
         help:
-            "When enabled, builds entire top-level targets instead of individual libraries. This is slower but may be needed for certain build configurations."
+            "When enabled, builds entire top-level targets instead of using the aspect-based approach for individual libraries. This is slower but may be needed for certain build configurations. If your project contains build_test targets for your individual libraries and you're passing them as the top-level targets for the BSP, you can use this flag to build those targets directly for better predictability and caching."
     )
     var compileTopLevel: Bool = false
 
