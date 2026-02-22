@@ -84,6 +84,9 @@ final class BazelTargetQuerier {
         // This is because --output proto doesn't follow the aliases automatically,
         // so we need this info to do it ourselves.
         dependencyKindsFilter.append("alias")
+        // We need to also use the `filegroup` kind to properly resolve sources
+        // that are provided through filegroup rules.
+        dependencyKindsFilter.append("filegroup")
         // Always fetch source information.
         // FIXME: Need to also handle `generated file`
         dependencyKindsFilter.append("source file")
