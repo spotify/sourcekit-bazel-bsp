@@ -65,6 +65,14 @@ struct InitializeHandlerTests {
         commandRunner.setResponse(for: "xcrun --find swift", response: toolchain + "usr/bin/swift")
         commandRunner.setResponse(for: "xcrun --sdk iphonesimulator --show-sdk-path", response: "sdkiossim")
 
+        // Mock symlink setup commands
+        commandRunner.setResponse(for: "rm -rf '\(outputPath)/_global_index_store'", response: "")
+        commandRunner.setResponse(for: "mkdir -p '\(outputPath)'", response: "")
+        commandRunner.setResponse(
+            for: "ln -s '\(baseIndexDataFolder)/_global_index_store' '\(outputPath)/_global_index_store'",
+            response: ""
+        )
+
         let handler = InitializeHandler(baseConfig: baseConfig, commandRunner: commandRunner)
 
         let request = try mockRequest(fullRootUri)
@@ -79,6 +87,7 @@ struct InitializeHandlerTests {
                     workspaceName: "_main",
                     outputBase: outputBase + "/sourcekit-bazel-bsp",
                     outputPath: outputPath,
+                    baseIndexDataFolder: baseIndexDataFolder,
                     devDir: devDir,
                     xcodeVersion: xcodeVersion,
                     devToolchainPath: toolchain,
@@ -106,6 +115,7 @@ struct InitializeHandlerTests {
         let xcodeVersion: String = "17B100"
 
         commandRunner.setResponse(for: "mybazel info output_base", cwd: rootUri, response: outputBase)
+        commandRunner.setResponse(for: "mybazel info output_path", cwd: rootUri, response: baseIndexDataFolder)
         commandRunner.setResponse(
             for: "mybazel --output_base=/_bazel_user/abc123/sourcekit-bazel-bsp info output_path",
             cwd: rootUri,
@@ -122,6 +132,14 @@ struct InitializeHandlerTests {
         commandRunner.setResponse(
             for: "xcodebuild -version | grep 'Build version' | awk '{print $3}'",
             response: xcodeVersion
+        )
+
+        // Mock symlink setup commands
+        commandRunner.setResponse(for: "rm -rf '\(outputPath)/_global_index_store'", response: "")
+        commandRunner.setResponse(for: "mkdir -p '\(outputPath)'", response: "")
+        commandRunner.setResponse(
+            for: "ln -s '\(baseIndexDataFolder)/_global_index_store' '\(outputPath)/_global_index_store'",
+            response: ""
         )
 
         let handler = InitializeHandler(baseConfig: baseConfig, commandRunner: commandRunner)
@@ -151,6 +169,7 @@ struct InitializeHandlerTests {
         let xcodeVersion: String = "17B100"
 
         commandRunner.setResponse(for: "mybazel info output_base", cwd: rootUri, response: outputBase)
+        commandRunner.setResponse(for: "mybazel info output_path", cwd: rootUri, response: baseIndexDataFolder)
         commandRunner.setResponse(
             for: "mybazel --output_base=/_bazel_user/abc123/sourcekit-bazel-bsp info output_path",
             cwd: rootUri,
