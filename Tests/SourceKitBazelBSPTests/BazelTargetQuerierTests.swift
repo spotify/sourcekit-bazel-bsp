@@ -334,7 +334,7 @@ struct BazelTargetQuerierTests {
 
         // Second cquery: find owning targets
         let expectedCquery =
-            "bazelisk --output_base=/path/to/output/base cquery \"rdeps(//HelloWorld:HelloWorld, '//HelloWorld:HelloWorld/Sources/File.swift', 1)\" --output=proto"
+            "bazelisk --output_base=/path/to/output/base cquery \"kind('swift_library|objc_library|cc_library|source file', rdeps(//HelloWorld:HelloWorld, '//HelloWorld:HelloWorld/Sources/File.swift'))\" --output=proto"
         runnerMock.setResponse(for: expectedCquery, cwd: Self.mockRootUri, response: exampleCqueryAddedFilesOutput)
 
         parserMock.mockCqueryAddedFilesResult = ProcessedCqueryAddedFilesResult(
@@ -345,6 +345,7 @@ struct BazelTargetQuerierTests {
         _ = try querier.cqueryTargets(
             forAddedSrcs: [srcUri],
             inTopLevelTargets: ["//HelloWorld:HelloWorld"],
+            supportedDependencyRuleTypes: DependencyRuleType.allCases,
             config: config
         )
 
@@ -375,7 +376,7 @@ struct BazelTargetQuerierTests {
         )
 
         let expectedCquery =
-            "bazelisk --output_base=/path/to/output/base cquery \"rdeps(//HelloWorld:HelloWorld, '//HelloWorld:HelloWorld/Sources/File.swift', 1)\" --output=proto"
+            "bazelisk --output_base=/path/to/output/base cquery \"kind('swift_library|objc_library|cc_library|source file', rdeps(//HelloWorld:HelloWorld, '//HelloWorld:HelloWorld/Sources/File.swift'))\" --output=proto"
         runnerMock.setResponse(for: expectedCquery, cwd: Self.mockRootUri, response: exampleCqueryAddedFilesOutput)
 
         parserMock.mockCqueryAddedFilesResult = ProcessedCqueryAddedFilesResult(
@@ -386,6 +387,7 @@ struct BazelTargetQuerierTests {
         _ = try querier.cqueryTargets(
             forAddedSrcs: [localSrcUri, externalSrcUri],
             inTopLevelTargets: ["//HelloWorld:HelloWorld"],
+            supportedDependencyRuleTypes: DependencyRuleType.allCases,
             config: config
         )
 
@@ -409,6 +411,7 @@ struct BazelTargetQuerierTests {
         let result = try querier.cqueryTargets(
             forAddedSrcs: [externalSrcUri],
             inTopLevelTargets: ["//HelloWorld:HelloWorld"],
+            supportedDependencyRuleTypes: DependencyRuleType.allCases,
             config: config
         )
 
@@ -436,7 +439,7 @@ struct BazelTargetQuerierTests {
         )
 
         let expectedCquery =
-            "bazelisk --output_base=/path/to/output/base cquery \"rdeps(//HelloWorld:HelloWorld, '//HelloWorld:HelloWorld/Sources/File.swift', 1)\" --output=proto"
+            "bazelisk --output_base=/path/to/output/base cquery \"kind('swift_library|objc_library|cc_library|source file', rdeps(//HelloWorld:HelloWorld, '//HelloWorld:HelloWorld/Sources/File.swift'))\" --output=proto"
         runnerMock.setResponse(for: expectedCquery, cwd: Self.mockRootUri, response: exampleCqueryAddedFilesOutput)
 
         parserMock.mockCqueryAddedFilesResult = ProcessedCqueryAddedFilesResult(
@@ -447,6 +450,7 @@ struct BazelTargetQuerierTests {
         _ = try querier.cqueryTargets(
             forAddedSrcs: [srcUri],
             inTopLevelTargets: ["//HelloWorld:HelloWorld"],
+            supportedDependencyRuleTypes: DependencyRuleType.allCases,
             config: config
         )
 
@@ -478,7 +482,7 @@ struct BazelTargetQuerierTests {
 
         // Second cquery only includes the valid file
         let expectedCquery =
-            "bazelisk --output_base=/path/to/output/base cquery \"rdeps(//HelloWorld:HelloWorld, '//HelloWorld:HelloWorld/Sources/Valid.swift', 1)\" --output=proto"
+            "bazelisk --output_base=/path/to/output/base cquery \"kind('swift_library|objc_library|cc_library|source file', rdeps(//HelloWorld:HelloWorld, '//HelloWorld:HelloWorld/Sources/Valid.swift'))\" --output=proto"
         runnerMock.setResponse(for: expectedCquery, cwd: Self.mockRootUri, response: exampleCqueryAddedFilesOutput)
 
         parserMock.mockCqueryAddedFilesResult = ProcessedCqueryAddedFilesResult(
@@ -489,6 +493,7 @@ struct BazelTargetQuerierTests {
         let result = try querier.cqueryTargets(
             forAddedSrcs: [validSrcUri, invalidSrcUri],
             inTopLevelTargets: ["//HelloWorld:HelloWorld"],
+            supportedDependencyRuleTypes: DependencyRuleType.allCases,
             config: config
         )
 
@@ -520,6 +525,7 @@ struct BazelTargetQuerierTests {
         let result = try querier.cqueryTargets(
             forAddedSrcs: [srcUri],
             inTopLevelTargets: ["//HelloWorld:HelloWorld"],
+            supportedDependencyRuleTypes: DependencyRuleType.allCases,
             config: config
         )
 
@@ -549,7 +555,7 @@ let exampleCqueryOutput: Data = {
 }()
 
 /// Example cquery output for an added file event, for the example app shipped with this repo.
-/// bazelisk cquery "rdeps(//HelloWorld:HelloWorldLibBuildTest, '//HelloWorld:HelloWorldLib/Sources/TodoItemRow.swift', 1)" --output=proto --config=index_build > cquery_added_files.pb
+/// bazelisk cquery "kind('swift_library|objc_library|cc_library|source file', rdeps(//HelloWorld:HelloWorldLibBuildTest, '//HelloWorld:HelloWorldLib/Sources/TodoItemRow.swift'))" --output=proto --config=index_build > cquery_added_files.pb
 let exampleCqueryAddedFilesOutput: Data = {
     guard let url = Bundle.module.url(forResource: "cquery_added_files", withExtension: "pb"),
         let data = try? Data.init(contentsOf: url)
