@@ -124,6 +124,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         var configurationToTopLevelLabelsMap: [String: [String]] = [:]
         var allTopLevelLabels = [(String, TopLevelRuleType)]()
         var allAliases = [BlazeQuery_Target]()
+        var allFilegroups = [BlazeQuery_Target]()
         var allTestBundles: [BlazeQuery_Target] = []
         var unfilteredDependencyTargets = [Analysis_ConfiguredTarget]()
         var seenSourceFiles = Set<String>()
@@ -156,6 +157,8 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                     }
                 } else if kind == "alias" {
                     allAliases.append(target)
+                } else if kind == "filegroup" {
+                    allFilegroups.append(target)
                 } else if supportedTestBundleRulesSet.contains(kind) {
                     guard let configuration = configIdToMnemonicMap[configuredTarget.configurationID] else {
                         throw BazelTargetQuerierParserError.missingMnemonic(configuredTarget.configurationID)
@@ -255,6 +258,15 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             depLabelToUriMap[label, default: []].append((id, config))
         }
 
+        // Process filegroups so that we can expand their labels into individual source files
+        // when building source items for targets that reference them in their srcs attribute.
+        var filegroupLabelToSrcsMap: [String: [String]] = [:]
+        for target in allFilegroups {
+            let label = target.rule.name
+            let srcs = target.rule.attribute.first { $0.name == "srcs" }?.stringListValue ?? []
+            filegroupLabelToSrcsMap[label] = srcs
+        }
+
         // Similarly, process the list of aliases. The cquery result's deps field does not
         // follow aliases, so we need to do this to find the actual targets.
         // We track a separate array for determinism reasons.
@@ -304,6 +316,8 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 sources: try buildSourceItems(
                     rule: rule,
                     srcToUriMap: srcToUriMap,
+                    filegroupLabelToSrcsMap: filegroupLabelToSrcsMap,
+                    aliasToLabelMap: aliasToLabelMap,
                     rootUri: rootUri,
                     executionRoot: executionRoot
                 )
@@ -408,6 +422,27 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         return current
     }
 
+    /// Resolves a **source** label by resolving its alias (if any) and expanding filegroups.
+    /// For each label: aliases are resolved first, then if the result is a filegroup,
+    /// its srcs are expanded and each entry goes through the same process.
+    private func resolveSourceFile(
+        label: String,
+        filegroupLabelToSrcsMap: [String: [String]],
+        aliasToLabelMap: [String: String]
+    ) -> [String] {
+        var pending = [label]
+        var result = [String]()
+        while let current = pending.popLast() {
+            let resolved = resolveAlias(label: current, from: aliasToLabelMap)
+            if let filegroupSrcs = filegroupLabelToSrcsMap[resolved] {
+                pending.append(contentsOf: filegroupSrcs)
+            } else {
+                result.append(resolved)
+            }
+        }
+        return result
+    }
+
     /// Builds a map of source file labels to their BSP URIs for quick lookup.
     private func preprocess(srcs allSrcs: [BlazeQuery_Target]) throws -> [String: URI] {
         var srcToUriMap: [String: URI] = [:]
@@ -423,12 +458,23 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
     private func buildSourceItems(
         rule: BlazeQuery_Rule,
         srcToUriMap: [String: URI],
+        filegroupLabelToSrcsMap: [String: [String]] = [:],
+        aliasToLabelMap: [String: String] = [:],
         rootUri: String,
         executionRoot: String
     ) throws -> [SourceItem] {
         let srcsAttribute = rule.attribute.first { $0.name == "srcs" }?.stringListValue ?? []
         let hdrsAttribute = rule.attribute.first { $0.name == "hdrs" }?.stringListValue ?? []
-        let srcs: [URI] = (srcsAttribute + hdrsAttribute).compactMap {
+        let allLabels = (srcsAttribute + hdrsAttribute)
+        // Resolve BOTH aliases and filegroups.
+        let expandedLabels = allLabels.flatMap {
+            resolveSourceFile(
+                label: $0,
+                filegroupLabelToSrcsMap: filegroupLabelToSrcsMap,
+                aliasToLabelMap: aliasToLabelMap
+            )
+        }
+        let srcs: [URI] = expandedLabels.compactMap {
             guard let srcUri = srcToUriMap[$0] else {
                 return nil
             }

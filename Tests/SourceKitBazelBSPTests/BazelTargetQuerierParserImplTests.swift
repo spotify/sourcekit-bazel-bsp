@@ -183,7 +183,31 @@ struct BazelTargetQuerierParserImplTests {
 
         // Verify counts - with multi-variant support, targets can have multiple URIs (one per config)
         #expect(result.bspURIsToSrcsMap.keys.count == 15, "bspURIsToSrcsMap should have 15 target URIs")
-        #expect(result.srcToBspURIsMap.count == 24, "srcToBspURIsMap should have 24 source files")
+        #expect(result.srcToBspURIsMap.count == 30, "srcToBspURIsMap should have 30 source files")
+
+        // Verify filegroup sources are included in the correct targets' source lists.
+        // HelloWorldTestsLib should contain filegroup sources from HelloWorldTestsAdditionalSources,
+        // including sources from a nested filegroup and an aliased source file.
+        let testsLibSrcs = result.bspURIsToSrcsMap.first {
+            result.bspURIsToBazelLabelsMap[$0.key] == "//HelloWorld:HelloWorldTestsLib"
+        }?.value
+        #expect(testsLibSrcs?.sources.contains { $0.uri.stringValue.contains("FilegroupForUnitTest.swift") } == true)
+        #expect(testsLibSrcs?.sources.contains { $0.uri.stringValue.contains("FilegroupForUnitTest2.swift") } == true)
+        // Nested filegroup source
+        #expect(testsLibSrcs?.sources.contains { $0.uri.stringValue.contains("FilegroupNested.swift") } == true)
+        // Aliased source file within the filegroup
+        #expect(testsLibSrcs?.sources.contains { $0.uri.stringValue.contains("FilegroupAliased.swift") } == true)
+
+        // HelloWorldE2ETestsLib should contain filegroup sources from HelloWorldE2ETestsAdditionalSources.
+        let e2eTestsLibSrcs = result.bspURIsToSrcsMap.first {
+            result.bspURIsToBazelLabelsMap[$0.key] == "//HelloWorld:HelloWorldE2ETestsLib"
+        }?.value
+        #expect(
+            e2eTestsLibSrcs?.sources.contains { $0.uri.stringValue.contains("FilegroupForE2ETest.swift") } == true
+        )
+        #expect(
+            e2eTestsLibSrcs?.sources.contains { $0.uri.stringValue.contains("FilegroupForE2ETest2.swift") } == true
+        )
 
         // BSP URI to parent config map - verify URIs map to configs
         #expect(result.bspUriToParentConfigMap.count == 15, "bspUriToParentConfigMap should have 15 entries")

@@ -99,7 +99,7 @@ struct BazelTargetQuerierTests {
         let config = Self.makeInitializedConfig()
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", deps(//HelloWorld)) in   $topLevelTargets   union   (kind(\"swift_library|objc_library|cc_library|alias|source file\", deps($topLevelTargets)))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", deps(//HelloWorld)) in   $topLevelTargets   union   (kind(\"swift_library|objc_library|cc_library|alias|filegroup|source file\", deps($topLevelTargets)))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleCqueryOutput)
 
         _ = try querier.cqueryTargets(
@@ -122,7 +122,7 @@ struct BazelTargetQuerierTests {
         let config = Self.makeInitializedConfig(targets: ["//HelloWorld", "//Tests"])
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", deps(//HelloWorld) union deps(//Tests)) in   $topLevelTargets   union   (kind(\"swift_library|objc_library|cc_library|alias|source file\", deps($topLevelTargets)))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", deps(//HelloWorld) union deps(//Tests)) in   $topLevelTargets   union   (kind(\"swift_library|objc_library|cc_library|alias|filegroup|source file\", deps($topLevelTargets)))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleCqueryOutput)
 
         _ = try querier.cqueryTargets(
@@ -145,7 +145,7 @@ struct BazelTargetQuerierTests {
         let config = Self.makeInitializedConfig()
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application|watchos_unit_test\", deps(//HelloWorld)) in   $topLevelTargets   union   (kind(\"swift_library|objc_library|cc_library|alias|source file|_watchos_internal_unit_test_bundle\", deps($topLevelTargets)))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application|watchos_unit_test\", deps(//HelloWorld)) in   $topLevelTargets   union   (kind(\"swift_library|objc_library|cc_library|alias|filegroup|source file|_watchos_internal_unit_test_bundle\", deps($topLevelTargets)))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleCqueryOutput)
 
         _ = try querier.cqueryTargets(
@@ -170,7 +170,7 @@ struct BazelTargetQuerierTests {
         )
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", deps(//HelloWorld)) except set(//HelloWorld:Excluded) in   $topLevelTargets   union   (kind(\"swift_library|objc_library|cc_library|alias|source file\", deps($topLevelTargets)))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", deps(//HelloWorld)) except set(//HelloWorld:Excluded) in   $topLevelTargets   union   (kind(\"swift_library|objc_library|cc_library|alias|filegroup|source file\", deps($topLevelTargets)))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleCqueryOutput)
 
         _ = try querier.cqueryTargets(
@@ -195,7 +195,7 @@ struct BazelTargetQuerierTests {
         )
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", deps(//HelloWorld)) in   $topLevelTargets   union   (kind(\"swift_library|objc_library|cc_library|alias|source file\", deps($topLevelTargets)) except set(//Libs/ExcludedLib:ExcludedLib))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", deps(//HelloWorld)) in   $topLevelTargets   union   (kind(\"swift_library|objc_library|cc_library|alias|filegroup|source file\", deps($topLevelTargets)) except set(//Libs/ExcludedLib:ExcludedLib))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleCqueryOutput)
 
         _ = try querier.cqueryTargets(
@@ -221,7 +221,7 @@ struct BazelTargetQuerierTests {
         )
 
         let expectedCommand =
-            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", deps(//HelloWorld)) except set(//HelloWorld:Excluded //HelloWorld:AlsoExcluded) in   $topLevelTargets   union   (kind(\"swift_library|objc_library|cc_library|alias|source file\", deps($topLevelTargets)) except set(//Libs/ExcludedLib:ExcludedLib))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
+            "bazelisk --output_base=/path/to/output/base cquery \'let topLevelTargets = kind(\"ios_application\", deps(//HelloWorld)) except set(//HelloWorld:Excluded //HelloWorld:AlsoExcluded) in   $topLevelTargets   union   (kind(\"swift_library|objc_library|cc_library|alias|filegroup|source file\", deps($topLevelTargets)) except set(//Libs/ExcludedLib:ExcludedLib))\' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=test"
         runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleCqueryOutput)
 
         _ = try querier.cqueryTargets(
@@ -539,7 +539,7 @@ let exampleAqueryOutput: Data = {
 }()
 
 /// Example cquery output for the example app shipped with this repo.
-/// bazelisk cquery 'let topLevelTargets = kind("ios_application|ios_unit_test|macos_application|ios_ui_test|macos_command_line_application|macos_unit_test|watchos_application|watchos_extension|watchos_unit_test", deps(//HelloWorld/...)) in   $topLevelTargets   union   (kind("swift_library|objc_library|cc_library|alias|source file|_ios_internal_unit_test_bundle|_ios_internal_ui_test_bundle|_watchos_internal_unit_test_bundle|_watchos_internal_ui_test_bundle|_macos_internal_unit_test_bundle|_macos_internal_ui_test_bundle|_tvos_internal_unit_test_bundle|_tvos_internal_ui_test_bundle|_visionos_internal_unit_test_bundle|_visionos_internal_ui_test_bundle", deps($topLevelTargets)))' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=index_build > ../Tests/SourceKitBazelBSPTests/Resources/cquery.pb
+/// bazelisk cquery 'let topLevelTargets = kind("ios_application|ios_unit_test|macos_application|ios_ui_test|macos_command_line_application|macos_unit_test|watchos_application|watchos_extension|watchos_unit_test", deps(//HelloWorld/...)) in   $topLevelTargets   union   (kind("swift_library|objc_library|cc_library|alias|filegroup|source file|_ios_internal_unit_test_bundle|_ios_internal_ui_test_bundle|_watchos_internal_unit_test_bundle|_watchos_internal_ui_test_bundle|_macos_internal_unit_test_bundle|_macos_internal_ui_test_bundle|_tvos_internal_unit_test_bundle|_tvos_internal_ui_test_bundle|_visionos_internal_unit_test_bundle|_visionos_internal_ui_test_bundle", deps($topLevelTargets)))' --noinclude_aspects --notool_deps --noimplicit_deps --output proto --config=index_build > ../Tests/SourceKitBazelBSPTests/Resources/cquery.pb
 let exampleCqueryOutput: Data = {
     guard let url = Bundle.module.url(forResource: "cquery", withExtension: "pb"),
         let data = try? Data.init(contentsOf: url)
