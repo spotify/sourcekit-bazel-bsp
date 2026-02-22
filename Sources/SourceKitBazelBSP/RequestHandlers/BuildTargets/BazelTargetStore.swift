@@ -271,6 +271,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         let addedFilesResult = try bazelTargetQuerier.cqueryTargets(
             forAddedSrcs: addedFiles.map { $0.uri },
             inTopLevelTargets: cqueryResult.topLevelTargets.map { $0.0 },
+            supportedDependencyRuleTypes: supportedDependencyRuleTypes,
             config: initializedConfig
         )
         guard

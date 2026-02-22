@@ -197,6 +197,7 @@ final class BazelTargetQuerier {
     func cqueryTargets(
         forAddedSrcs srcsURIs: [URI],
         inTopLevelTargets topLevelTargets: [String],
+        supportedDependencyRuleTypes: [DependencyRuleType],
         config: InitializedServerConfig
     ) throws -> ProcessedCqueryAddedFilesResult? {
 
@@ -246,10 +247,14 @@ final class BazelTargetQuerier {
             return nil
         }
 
-        // `rdeps(1)`` returns the list of targets that directly depend on the given files.
+        // Use a kind filter to find the library targets that depend on the given files.
+        // This traverses through filegroups and aliases without needing a depth limit.
+        // We also include "source file" so the parser can build its srcToUriMap.
+        let kindsFilter =
+            (supportedDependencyRuleTypes.map { $0.rawValue } + ["source file"]).joined(separator: "|")
         let filesSet = filesToCheck.map { "'\($0)'" }.joined(separator: " + ")
         let topLevelUnion = Self.unionString(forTargets: topLevelTargets)
-        let query = "cquery \"rdeps(\(topLevelUnion), \(filesSet), 1)\""
+        let query = "cquery \"kind('\(kindsFilter)', rdeps(\(topLevelUnion), \(filesSet)))\""
 
         logger.info("Determining targets for added files: \(filesToCheck, privacy: .public)")
 
