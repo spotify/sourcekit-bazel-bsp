@@ -70,10 +70,21 @@ final class SKOptionsHandler {
 
     func handle(request: TextDocumentSourceKitOptionsRequest) throws -> TextDocumentSourceKitOptionsResponse? {
         let targetUri = request.target.uri
-        let (platformInfo, aqueryResult) = try targetStore.stateLock.withLockUnchecked {
-            let platformInfo = try targetStore.platformBuildLabelInfo(forBSPURI: targetUri)
-            let aqueryResult = try targetStore.targetsAqueryForArgsExtraction()
-            return (platformInfo, aqueryResult)
+
+        // Return nil for unknown targets (e.g., external dependencies like SPM packages)
+        // instead of throwing errors that would spam logs.
+        let platformInfo: BazelTargetPlatformInfo
+        let aqueryResult: ProcessedAqueryResult
+        do {
+            (platformInfo, aqueryResult) = try targetStore.stateLock.withLockUnchecked {
+                let info = try targetStore.platformBuildLabelInfo(forBSPURI: targetUri)
+                let aquery = try targetStore.targetsAqueryForArgsExtraction()
+                return (info, aquery)
+            }
+        } catch BazelTargetStoreError.unknownBSPURI {
+            return nil
+        } catch BazelTargetStoreError.unableToMapBSPURIToParentConfig {
+            return nil
         }
 
         let strategy = try extractor.getParsingStrategy(

@@ -160,9 +160,7 @@ final class BazelTargetCompilerArgsExtractor {
         let processedArgs = _processCompilerArguments(
             rawArguments: targetAction.arguments,
             sdkRoot: sdkRoot,
-            strategy: strategy,
-            originalConfigName: platformInfo.topLevelParentConfig.configurationName,
-            effectiveConfigName: platformInfo.topLevelParentConfig.effectiveConfigurationName
+            strategy: strategy
         )
 
         logger.debug("Finished processing compiler arguments")
@@ -258,9 +256,7 @@ extension BazelTargetCompilerArgsExtractor {
     private func _processCompilerArguments(
         rawArguments: [String],
         sdkRoot: String,
-        strategy: ParsingStrategy,
-        originalConfigName: String,
-        effectiveConfigName: String
+        strategy: ParsingStrategy
     ) -> [String] {
         let devDir = config.devDir
         let rootUri = config.rootUri
@@ -352,15 +348,7 @@ extension BazelTargetCompilerArgsExtractor {
             // Transform bazel-out/ paths
             // FIXME: How to be sure this is actually the placeholder and not an actual "bazel-out" folder?
             if arg.contains("bazel-out/") {
-                var transformedArg = arg.replacingOccurrences(of: "bazel-out/", with: outputPath + "/")
-                // If compiling libraries individually, we need to also map the full apps' conf name
-                // with the one that will be used in practice.
-                if !config.baseConfig.compileTopLevel {
-                    transformedArg = transformedArg.replacingOccurrences(
-                        of: "/\(originalConfigName)/",
-                        with: "/\(effectiveConfigName)/"
-                    )
-                }
+                let transformedArg = arg.replacingOccurrences(of: "bazel-out/", with: outputPath + "/")
                 compilerArguments.append(transformedArg)
                 index += 1
                 continue

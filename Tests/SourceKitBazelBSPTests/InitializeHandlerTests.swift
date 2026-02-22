@@ -34,8 +34,7 @@ struct InitializeHandlerTests {
             bazelWrapper: "mybazel",
             targets: ["//HelloWorld"],
             indexFlags: ["--config=index"],
-            filesToWatch: nil,
-            compileTopLevel: false
+            filesToWatch: nil
         )
 
         let fullRootUri = "file:///path/to/project"
@@ -96,8 +95,7 @@ struct InitializeHandlerTests {
             bazelWrapper: "mybazel",
             targets: ["//HelloWorld"],
             indexFlags: [],
-            filesToWatch: nil,
-            compileTopLevel: false
+            filesToWatch: nil
         )
 
         let fullRootUri = "file:///path/to/project"
@@ -142,8 +140,7 @@ struct InitializeHandlerTests {
             bazelWrapper: "mybazel",
             targets: ["//HelloWorld"],
             indexFlags: ["--config=index1", "--config=index2"],
-            filesToWatch: nil,
-            compileTopLevel: false
+            filesToWatch: nil
         )
 
         let fullRootUri = "file:///path/to/project"

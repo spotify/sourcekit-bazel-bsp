@@ -45,7 +45,7 @@ package struct BaseServerConfig: Equatable {
         aqueryFlags: [String] = [],
         queryFlags: [String] = [],
         filesToWatch: String?,
-        compileTopLevel: Bool,
+        compileTopLevel: Bool = false,
         topLevelRulesToDiscover: [TopLevelRuleType] = TopLevelRuleType.allCases,
         dependencyRulesToDiscover: [DependencyRuleType] = DependencyRuleType.allCases,
         topLevelTargetsToExclude: [String] = [],

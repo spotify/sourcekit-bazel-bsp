@@ -89,32 +89,30 @@ final class PrepareHandler {
                 title: taskTitle
             )
             didStartTask = true
-            let labelsToBuild: [[String]]
-            let extraArgs: [[String]]
+
+            var labelsToBuild: [[String]] = []
+            var extraArgs: [[String]] = []
             if initializedConfig.baseConfig.compileTopLevel {
-                // We might get repeat labels in this case, so we need to dedupe them.
+                // Build entire top-level targets
                 let topLevelLabelsToBuild = Set(platformInfo.map { $0.topLevelParentLabel })
                 labelsToBuild = [topLevelLabelsToBuild.sorted()]
-                extraArgs = [[]]  // Not applicable in this case
+                extraArgs = [[]]
             } else {
-                // When passing arguments manually, we might be asked to prepare targets
-                // pertaining to different platforms or min-SDK versions. To enable this,
-                // we split the request into multiple Bazel invocations if needed.
-                var argsToLabelsMap: [[String]: [String]] = [:]
-                for labelToBuild in platformInfo {
-                    let args = Self.buildArgs(
-                        minimumOsVersion: labelToBuild.topLevelParentConfig.minimumOsVersion,
-                        platform: labelToBuild.topLevelParentConfig.platform,
-                        cpuArch: labelToBuild.topLevelParentConfig.cpuArch,
-                        devDir: initializedConfig.devDir,
-                        xcodeVersion: initializedConfig.xcodeVersion,
-                        appleSupportRepoName: initializedConfig.baseConfig.appleSupportRepoName
-                    )
-                    argsToLabelsMap[args, default: []].append(labelToBuild.label)
+                // Build libraries using aspect approach through their parent targets.
+                // Note: targets received here are always libraries, not top-level targets.
+                var parentToLibraryLabelsMap: [String: [String]] = [:]
+                for info in platformInfo {
+                    parentToLibraryLabelsMap[info.topLevelParentLabel, default: []].append(info.label)
                 }
-                let asTuple = argsToLabelsMap.map { ($0.key, $0.value) }
-                labelsToBuild = asTuple.map { $0.1 }
-                extraArgs = asTuple.map { $0.0 }
+
+                for (parent, libraries) in parentToLibraryLabelsMap {
+                    let outputGroups = libraries.map { Self.sanitizeLabel($0) }.joined(separator: ",")
+                    labelsToBuild.append([parent])
+                    extraArgs.append([
+                        "--aspects=//.bsp/skbsp_generated:aspect.bzl%platform_deps_aspect",
+                        "--output_groups=\(outputGroups)",
+                    ])
+                }
             }
             nonisolated(unsafe) let reply = reply
             try build(
@@ -196,59 +194,31 @@ final class PrepareHandler {
         }
     }
 
-    static func buildArgs(
-        minimumOsVersion: String,
-        platform: String,
-        cpuArch: String,
-        devDir: String,
-        xcodeVersion: String,
-        appleSupportRepoName: String
-    ) -> [String] {
-        // As of writing, Bazel does not provides a "build X as if it were a child of Y" flag.
-        // This means that to compile individual libraries accurately, we need to replicate
-        // all the transitions that are applied by ios_application rules and friends.
-        // https://github.com/bazelbuild/rules_apple/blob/716568e34b158d67adf83b64d2cea5ea142b641f/apple/internal/transition_support.bzl#L30
-        let friendlyPlatName: String = {
-            // Special case: macOS is sometimes referred to as Darwin
-            // in the infra, so we need to handle that here. Not an issue for the
-            // other platforms.
-            if platform == "darwin" {
-                return "macos"
-            }
-            return platform
-        }()
-        let cpuFlagName: String = {
-            // Special case 2: This flag is different for iOS.
-            if platform == "ios" {
-                return "multi_cpus"
-            }
-            return "cpus"
-        }()
-        return [
-            "--platforms=@\(appleSupportRepoName)//platforms:\(friendlyPlatName)_\(cpuArch)",
-            "--\(friendlyPlatName)_\(cpuFlagName)=\(cpuArch)",
-            "--apple_platform_type=\(friendlyPlatName)",
-            "--apple_split_cpu=\(cpuArch)",
-            "--\(friendlyPlatName)_minimum_os=\(minimumOsVersion)",
-            "--cpu=\(platform)_\(cpuArch)",
-            "--minimum_os_version=\(minimumOsVersion)",
-            "--xcode_version=\(xcodeVersion)",
-            "--repo_env=DEVELOPER_DIR=\(devDir)",
-            "--repo_env=USE_CLANG_CL=\(xcodeVersion)",
-            "--repo_env=XCODE_VERSION=\(xcodeVersion)",
-        ]
+    /// Converts a Bazel label to a safe output group name with aspect prefix.
+    /// Example: //path/to/library:LibraryName -> aspect_path_to_library_LibraryName
+    static func sanitizeLabel(_ label: String) -> String {
+        var sanitized = label
+        if sanitized.hasPrefix("//") {
+            sanitized = String(sanitized.dropFirst(2))
+        }
+        return "aspect_"
+            + sanitized
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: ":", with: "_")
+            .replacingOccurrences(of: "-", with: "_")
+            .replacingOccurrences(of: ".", with: "_")
     }
 
     func makeTaskTitle(
         for platformInfo: [BazelTargetPlatformInfo],
         compileTopLevel: Bool
     ) -> String {
-        guard compileTopLevel else {
-            let targetLabels = platformInfo.map { $0.label }
-            let targetNames = targetLabels.joined(separator: ", ")
-            return "sourcekit-bazel-bsp: Building \(targetLabels.count) target(s): \(targetNames)"
+        guard !compileTopLevel else {
+            let topLevelLabels = Set(platformInfo.map { $0.topLevelParentLabel }).sorted()
+            let topLevelNames = topLevelLabels.joined(separator: ", ")
+            return "sourcekit-bazel-bsp: Building \(topLevelLabels.count) top-level target(s): \(topLevelNames)"
         }
-        let targetLabels = Set(platformInfo.map { $0.topLevelParentLabel }).sorted()
+        let targetLabels = platformInfo.map { $0.label }
         let targetNames = targetLabels.joined(separator: ", ")
         return "sourcekit-bazel-bsp: Building \(targetLabels.count) target(s): \(targetNames)"
     }

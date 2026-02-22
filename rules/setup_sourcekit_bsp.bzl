@@ -173,7 +173,7 @@ setup_sourcekit_bsp = rule(
             mandatory = False,
         ),
         "compile_top_level": attr.bool(
-            doc = "Instead of attempting to build targets individually, build the top-level parent. If your project contains build_test targets for your individual libraries and you're passing them as the top-level targets for the BSP, you can use this flag to build those targets directly for better predictability and caching.",
+            doc = "When enabled, builds entire top-level targets instead of using the aspect-based approach for individual libraries. This is slower but may be needed for certain build configurations. If your project contains build_test targets for your individual libraries and you're passing them as the top-level targets for the BSP, you can use this flag to build those targets directly for better predictability and caching.",
             default = False,
         ),
         "lsp_timeout": attr.int(

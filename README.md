@@ -90,11 +90,32 @@ The setup instructions for other IDEs (and by extension, Claude Code) will depen
     - The BSP's many filtering arguments can be particularly useful for more complex cases.
     - For smaller apps, this doesn't make much difference and it should be fine to import the entire app.
 
+## How Library Builds Work
+
+When sourcekit-lsp requests building a specific library for indexing, the BSP needs to compile it with the correct platform configuration (iOS, tvOS, etc.). The BSP uses a **Bazel aspect** to build libraries through their parent application:
+
+```
+bazel build //App:MyApp --aspects=//.bsp/skbsp_generated:aspect.bzl%platform_deps_aspect --output_groups=aspect_path_to_MyLibrary
+```
+
+This approach provides several benefits:
+
+1. **Cache consistency**: Library builds share the same action cache keys as full app builds, meaning no duplicate compilation work.
+2. **Correct platform configuration**: Libraries automatically inherit the correct platform transitions from their parent app.
+3. **Incremental efficiency**: Only the requested library outputs are produced, even though the build is routed through the parent.
+
+The aspect is automatically generated in `.bsp/skbsp_generated/aspect.bzl` when you run the setup command.
+
 ## Bazel Caching Implications
 
-The BSP by default works by attempting to build your library targets individually with a set of platform flags based on the library's parent app, which is an action that currently does not share action cache keys with the compilation of the apps themselves. If your goal is to have index builds share cache with regular app builds, this would mean that as of writing you would end up with two sets of artifacts.
+If you encounter issues with the aspect-based approach, you can pass the `--compile-top-level` flag to make the BSP compile the target's **parent** instead of using aspects. We recommend using this for projects that define fine-grained `*_build_test` targets and providing them as top-level targets for the BSP, as those don't suffer from this issue and thus enables maximum predictability and cacheability.
 
-If this is undesirable, you can pass the `--compile-top-level` flag to make the BSP compile the target's **parent** instead, without any special flags. We recommend using this for projects that define fine-grained `*_build_test` targets and providing them as top-level targets for the BSP, as those don't suffer from this issue and thus enables maximum predictability and cacheability.
+```python
+setup_sourcekit_bsp(
+    # ...
+    compile_top_level = True,
+)
+```
 
 ## Troubleshooting
 

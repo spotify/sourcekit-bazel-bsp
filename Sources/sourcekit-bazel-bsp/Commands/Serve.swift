@@ -75,7 +75,7 @@ struct Serve: AsyncParsableCommand {
 
     @Flag(
         help:
-            "Instead of attempting to build targets individually, build the top-level parent. If your project contains build_test targets for your individual libraries and you're passing them as the top-level targets for the BSP, you can use this flag to build those targets directly for better predictability and caching."
+            "When enabled, builds entire top-level targets instead of individual libraries. This is slower but may be needed for certain build configurations."
     )
     var compileTopLevel: Bool = false
 
