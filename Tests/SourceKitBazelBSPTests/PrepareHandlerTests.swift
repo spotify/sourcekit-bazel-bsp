@@ -45,6 +45,7 @@ struct PrepareHandlerTests {
             workspaceName: "_main",
             outputBase: "/tmp/output_base",
             outputPath: "/tmp/output_path",
+            baseIndexDataFolder: "/tmp/regular_output_path",
             devDir: "/Applications/Xcode.app/Contents/Developer",
             xcodeVersion: "17B100",
             devToolchainPath: "/a/b/XcodeDefault.xctoolchain/",

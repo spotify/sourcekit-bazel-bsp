@@ -72,6 +72,7 @@ struct BazelTargetQuerierTests {
             workspaceName: "_main",
             outputBase: "/path/to/output/base",
             outputPath: "/path/to/output/path",
+            baseIndexDataFolder: "/path/to/regular/output/path",
             devDir: "/path/to/dev/dir",
             xcodeVersion: "17B100",
             devToolchainPath: "/path/to/toolchain",
