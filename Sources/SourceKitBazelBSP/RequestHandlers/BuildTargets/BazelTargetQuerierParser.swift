@@ -189,12 +189,14 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
 
         // We can now properly connect each top-level label to its configuration id.
         var topLevelTargets: [(String, TopLevelRuleType, String)] = []
+        var topLevelLabelToRuleTypeMap: [String: TopLevelRuleType] = [:]
         for (label, ruleType) in allTopLevelLabels {
             guard let configMnemonic = topLevelLabelToConfigMap[label] else {
                 logger.error("Missing info for \(label) in topLevelLabelToConfigMap. This should not happen.")
                 continue
             }
             topLevelTargets.append((label, ruleType, configMnemonic))
+            topLevelLabelToRuleTypeMap[label] = ruleType
         }
 
         guard !topLevelTargets.isEmpty else {
@@ -386,6 +388,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         return ProcessedCqueryResult(
             buildTargets: buildTargets.map { $0.0 },
             topLevelTargets: topLevelTargets,
+            topLevelLabelToRuleTypeMap: topLevelLabelToRuleTypeMap,
             bspURIsToBazelLabelsMap: bspURIsToBazelLabelsMap,
             bspURIsToSrcsMap: bspURIsToSrcsMap,
             srcToBspURIsMap: srcToBspURIsMap,
