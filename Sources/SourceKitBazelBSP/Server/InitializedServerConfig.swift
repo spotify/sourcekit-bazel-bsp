@@ -22,11 +22,16 @@ import Foundation
 /// The full configuration of the server, including all information needed to operate the BSP.
 /// Created by the BSP based on the initial `BaseServerConfig`` when the LSP sends us the `initialize` request.
 struct InitializedServerConfig: Equatable {
+
+    static let rulesSwiftIndexStoreFolderName = "_global_index_store"
+    static let lspIndexDatabaseFolderName = "_global_index_database"
+
     let baseConfig: BaseServerConfig
     let rootUri: String
     let workspaceName: String
     let outputBase: String
     let outputPath: String
+    let baseIndexDataFolder: String
     let devDir: String
     let xcodeVersion: String
     let devToolchainPath: String
@@ -34,10 +39,10 @@ struct InitializedServerConfig: Equatable {
     let sdkRootPaths: [String: String]
 
     var indexDatabasePath: String {
-        outputPath + "/_global_index_database"
+        baseIndexDataFolder + "/" + Self.lspIndexDatabaseFolderName
     }
 
     var indexStorePath: String {
-        outputPath + "/_global_index_store"
+        baseIndexDataFolder + "/" + Self.rulesSwiftIndexStoreFolderName
     }
 }
