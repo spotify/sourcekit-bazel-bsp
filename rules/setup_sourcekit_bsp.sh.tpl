@@ -22,8 +22,11 @@ mkdir -p "$bsp_folder_path"
 mkdir -p "$bsp_folder_path/skbsp_generated"
 mkdir -p "$lsp_folder_path"
 
-# Create empty BUILD file to make skbsp_generated a valid Bazel package
-touch "$bsp_folder_path/skbsp_generated/BUILD"
+# Create empty BUILD.bazel file to make skbsp_generated a valid Bazel package
+# (skip if one already exists)
+if [ ! -f "$bsp_folder_path/skbsp_generated/BUILD.bazel" ] && [ ! -f "$bsp_folder_path/skbsp_generated/BUILD" ]; then
+    touch "$bsp_folder_path/skbsp_generated/BUILD.bazel"
+fi
 
 # Write the platform deps aspect for library builds
 # This aspect ensures consistent action keys between full app builds and individual library builds
