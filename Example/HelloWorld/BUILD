@@ -7,15 +7,50 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@sourcekit_bazel_bsp//rules:setup_sourcekit_bsp.bzl", "setup_sourcekit_bsp")
 load("//tools:apple.bzl", "IOS_MINIMUM_OS_VERSION", "WATCHOS_MINIMUM_OS_VERSION", "MACOS_MINIMUM_OS_VERSION")
 
+# This file defines a variety of targets that are used to test the BSP.
+# Note that many of these targets are convoluted on purpose. These are used to serve as tests for the BSP's ability to handle more complex scenarios.
+
 ## MARK: iOS / Shared targets
+
+# Nested filegroup to test that the BSP can resolve filegroups-within-filegroups
+filegroup(
+    name = "HelloWorldTestsNestedSources",
+    srcs = [
+        "Filegroup/FilegroupNested.swift",
+    ],
+)
+
+# Alias to a source file to test that the BSP can resolve aliases within filegroups
+alias(
+    name = "FilegroupAliasedFile",
+    actual = "Filegroup/FilegroupAliased.swift",
+)
+
+filegroup(
+    name = "HelloWorldTestsAdditionalSources",
+    srcs = [
+        "Filegroup/FilegroupForUnitTest.swift",
+        "Filegroup/FilegroupForUnitTest2.swift",
+        ":HelloWorldTestsNestedSources",
+        ":FilegroupAliasedFile",
+    ],
+)
 
 swift_library(
     name = "HelloWorldTestsLib",
     module_name = "HelloWorldTestsLib",
     testonly = True,
     tags = ["manual"],
-    srcs = glob(["HelloWorldTests/*.swift"]),
+    srcs = glob(["HelloWorldTests/*.swift"]) + [":HelloWorldTestsAdditionalSources"],
     deps = [":HelloWorldLib"],
+)
+
+filegroup(
+    name = "HelloWorldE2ETestsAdditionalSources",
+    srcs = [
+        "Filegroup/FilegroupForE2ETest.swift",
+        "Filegroup/FilegroupForE2ETest2.swift",
+    ],
 )
 
 swift_library(
@@ -23,7 +58,7 @@ swift_library(
     module_name = "HelloWorldE2ETestsLib",
     testonly = True,
     tags = ["manual"],
-    srcs = glob(["HelloWorldE2ETests/*.swift"]),
+    srcs = glob(["HelloWorldE2ETests/*.swift"]) + [":HelloWorldE2ETestsAdditionalSources"],
 )
 
 swift_library(
