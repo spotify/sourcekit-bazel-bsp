@@ -72,7 +72,7 @@ struct ProcessedCqueryResultTests {
             srcToBspURIsMap: [fileToDelete: [targetUri], fileToKeep: [targetUri], irrelevantFile: [otherTargetUri]],
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
-            bazelLabelToTestFilesMap: [:]
+            testTargetToBundleTargetMap: [:]
         )
 
         let (newResult, invalidatedTargets) = try #require(
@@ -131,7 +131,7 @@ struct ProcessedCqueryResultTests {
             srcToBspURIsMap: [fileToKeep: [targetUri], irrelevantFile: [otherTargetUri]],
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
-            bazelLabelToTestFilesMap: [:]
+            testTargetToBundleTargetMap: [:]
         )
 
         let (newResult, invalidatedTargets) = try #require(
@@ -195,7 +195,7 @@ struct ProcessedCqueryResultTests {
             srcToBspURIsMap: [fileToKeep: [targetUri], fileToDelete: [targetUri], irrelevantFile: [otherTargetUri]],
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
-            bazelLabelToTestFilesMap: [:]
+            testTargetToBundleTargetMap: [:]
         )
 
         let (newResult, invalidatedTargets) = try #require(
@@ -272,7 +272,7 @@ struct ProcessedCqueryResultTests {
             ],
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
-            bazelLabelToTestFilesMap: [:]
+            testTargetToBundleTargetMap: [:]
         )
 
         let (newResult, invalidatedTargets) = try #require(
@@ -352,7 +352,7 @@ struct ProcessedCqueryResultTests {
             ],
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
-            bazelLabelToTestFilesMap: [:]
+            testTargetToBundleTargetMap: [:]
         )
 
         let (newResult, invalidatedTargets) = try #require(
@@ -420,7 +420,7 @@ struct ProcessedCqueryResultTests {
             srcToBspURIsMap: [filetoKepp: [targetUri]],
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
-            bazelLabelToTestFilesMap: [:]
+            testTargetToBundleTargetMap: [:]
         )
 
         var response = initialResult.processFileChanges(

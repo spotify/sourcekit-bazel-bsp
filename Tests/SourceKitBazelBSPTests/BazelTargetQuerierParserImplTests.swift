@@ -310,42 +310,43 @@ struct BazelTargetQuerierParserImplTests {
                 ])
         )
 
-        // Verify bazelLabelToTestFilesMap - maps test targets to their source files
-        // These are the test bundle targets that should have source files mapped
+        // Verify testTargetToBundleTargetMap - maps test targets to their bundle target URIs
+        // These are the test bundle targets that should have their bundle URIs mapped
         let expectedTestTargets = Set([
             "//HelloWorld:HelloWorldTests",
             "//HelloWorld:HelloWorldE2ETests",
             "//HelloWorld:HelloWorldMacTests",
             "//HelloWorld:HelloWorldWatchTests",
         ])
-        let actualTestTargets = Set(result.bazelLabelToTestFilesMap.keys)
+        let actualTestTargets = Set(result.testTargetToBundleTargetMap.keys)
         #expect(
             actualTestTargets == expectedTestTargets,
-            "bazelLabelToTestFilesMap keys don't match expected test targets"
+            "testTargetToBundleTargetMap keys don't match expected test targets"
         )
 
-        // Verify each test target has non-empty source files
+        // Verify each test target maps to a valid bundle target URI
         for testTarget in expectedTestTargets {
-            let sourceFiles = try #require(
-                result.bazelLabelToTestFilesMap[testTarget],
-                "Missing source files for test target: \(testTarget)"
+            let bundleTargetUri = try #require(
+                result.testTargetToBundleTargetMap[testTarget],
+                "Missing bundle target URI for test target: \(testTarget)"
             )
+            // The bundle target URI should exist in bspURIsToSrcsMap
             #expect(
-                !sourceFiles.isEmpty,
-                "Source files should not be empty for test target: \(testTarget)"
+                result.bspURIsToSrcsMap[bundleTargetUri] != nil,
+                "Bundle target URI should be a valid target with sources: \(testTarget)"
             )
         }
 
-        // Verify specific source file mappings
-        // HelloWorldTests should have source files from the HelloWorldTests directory
-        // (HelloWorldTestsLib library sources are in HelloWorldTests/*.swift)
-        let unitTestFiles = try #require(result.bazelLabelToTestFilesMap["//HelloWorld:HelloWorldTests"])
-        #expect(unitTestFiles.contains { $0.stringValue.contains("HelloWorldTests/") })
+        // Verify specific bundle target mappings
+        // HelloWorldTests should map to a bundle target containing test sources
+        let unitTestBundleUri = try #require(result.testTargetToBundleTargetMap["//HelloWorld:HelloWorldTests"])
+        let unitTestSources = try #require(result.bspURIsToSrcsMap[unitTestBundleUri])
+        #expect(unitTestSources.sources.contains { $0.uri.stringValue.contains("HelloWorldTests/") })
 
-        // HelloWorldE2ETests should have source files from the HelloWorldE2ETests directory
-        // (HelloWorldE2ETestsLib library sources are in HelloWorldE2ETests/*.swift)
-        let e2eTestFiles = try #require(result.bazelLabelToTestFilesMap["//HelloWorld:HelloWorldE2ETests"])
-        #expect(e2eTestFiles.contains { $0.stringValue.contains("HelloWorldE2ETests/") })
+        // HelloWorldE2ETests should map to a bundle target containing E2E test sources
+        let e2eTestBundleUri = try #require(result.testTargetToBundleTargetMap["//HelloWorld:HelloWorldE2ETests"])
+        let e2eTestSources = try #require(result.bspURIsToSrcsMap[e2eTestBundleUri])
+        #expect(e2eTestSources.sources.contains { $0.uri.stringValue.contains("HelloWorldE2ETests/") })
     }
 
     @Test
