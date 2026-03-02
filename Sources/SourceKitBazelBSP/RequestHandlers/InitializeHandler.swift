@@ -97,9 +97,16 @@ final class InitializeHandler {
 
         // Setup the special output base path where we will run indexing commands from.
         // Nesting into a subfolder for easier cleanup. For example: /private/var/tmp/_bazel_<User>/<ProjectHash>/sourcekit-bazel-bsp
-        let outputBase = regularOutputBase.appendingPathComponent(
-            "sourcekit-bazel-bsp"
-        ).path
+        let outputBase: String
+        if baseConfig.noExtraOutputBase {
+            outputBase = regularOutputBase.path
+            logger.debug("Will use the regular output base for all actions")
+        } else {
+            outputBase =
+                regularOutputBase.appendingPathComponent(
+                    "sourcekit-bazel-bsp"
+                ).path
+        }
         logger.debug("outputBase: \(outputBase, privacy: .public)")
 
         // Now, get the full output path based on the above output base.

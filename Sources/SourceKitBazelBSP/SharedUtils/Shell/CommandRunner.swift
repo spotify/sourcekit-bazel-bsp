@@ -101,7 +101,8 @@ extension CommandRunner {
         } else {
             startupFlagsString = " " + additionalStartupFlags.joined(separator: " ")
         }
-        return "--output_base=\(outputBase)\(startupFlagsString) \(cmd)\(flagsString)"
+        let outputBasePrefix = baseConfig.noExtraOutputBase ? "" : "--output_base=\(outputBase)"
+        return "\(outputBasePrefix)\(startupFlagsString) \(cmd)\(flagsString)"
     }
 
     /// A regular bazel command, but at this BSP's special output base and taking into account the special index flags.

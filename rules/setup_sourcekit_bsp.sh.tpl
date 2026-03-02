@@ -13,6 +13,7 @@ sourcekit_bazel_bsp_path="%sourcekit_bazel_bsp_path%"
 bsp_config_path="%bsp_config_path%"
 lsp_config_path="%lsp_config_path%"
 bazel_wrapper="%bazel_wrapper%"
+no_extra_output_base_env="%no_extra_output_base_env%"
 
 bsp_folder_path="$BUILD_WORKSPACE_DIRECTORY/.bsp"
 lsp_folder_path="$BUILD_WORKSPACE_DIRECTORY/.sourcekit-lsp"
@@ -167,7 +168,11 @@ exec_root=$(cd "$WORKSPACE_ROOT" && $bazel_wrapper info execution_root)
 exec_root_difference=$(echo "$exec_root" | sed "s|$output_base/||")
 output_path_name=$(echo "$output_path" | sed "s|$exec_root/||")
 old_bsp_output_base="${output_base}-sourcekit-bazel-bsp"
-bsp_output_base="${output_base}/sourcekit-bazel-bsp"
+if [ "$no_extra_output_base_env" = "1" ]; then
+    bsp_output_base="${output_base}"
+else
+    bsp_output_base="${output_base}/sourcekit-bazel-bsp"
+fi
 output_path="${bsp_output_base}/${output_path_difference}"
 external_root="${bsp_output_base}/${exec_root_difference}/external"
 
