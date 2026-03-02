@@ -45,6 +45,8 @@ def _setup_sourcekit_bsp_impl(ctx):
     if ctx.attr.apple_support_repo_name:
         bsp_config_argv.append("--apple-support-repo-name")
         bsp_config_argv.append(ctx.attr.apple_support_repo_name)
+    if ctx.attr.experimental_no_extra_output_base:
+        bsp_config_argv.append("--experimental-no-extra-output-base)
     ctx.actions.expand_template(
         template = ctx.file._bsp_config_template,
         output = rendered_bsp_config,
@@ -187,6 +189,10 @@ setup_sourcekit_bsp = rule(
         "merge_lsp_config": attr.bool(
             doc = "If set to true, the generated .sourcekit-lsp/config.json will merge with any existing contents instead of fully overriding the file.",
             default = True,
+        ),
+        "experimental_no_extra_output_base": attr.bool(
+            doc = "(EXPERIMENTAL) If enabled, the BSP will not create a separate output base for its indexing actions. Can greatly reduce disk usage and improve cache hits at the cost of more pressure on the single Bazel server.",
+            default = False,
         ),
     },
 )
