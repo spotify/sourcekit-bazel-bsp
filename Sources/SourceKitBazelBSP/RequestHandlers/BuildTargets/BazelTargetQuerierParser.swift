@@ -371,18 +371,15 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             }
         }
 
-        // Use the previously parsed test bundle info to infer which files
+        // This particular information is used later to infer which files
         // belong to which test targets. Used to power test tabs in IDE integrations.
-        var bazelLabelToTestFilesMap: [String: [URI]] = [:]
+        var testTargetToBundleTargetMap: [String: URI] = [:]
         for (testBundle, realTestTarget) in testBundleToRealNameMap {
             let targetHoldingSources = resolveAlias(label: testBundle, from: aliasToLabelMap)
             guard let targetUri = displayNameToURIMap[targetHoldingSources] else {
                 continue
             }
-            guard let sourcesItem = bspURIsToSrcsMap[targetUri] else {
-                continue
-            }
-            bazelLabelToTestFilesMap[realTestTarget] = sourcesItem.sources.map { $0.uri }
+            testTargetToBundleTargetMap[realTestTarget] = targetUri
         }
 
         return ProcessedCqueryResult(
@@ -394,7 +391,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             srcToBspURIsMap: srcToBspURIsMap,
             configurationToTopLevelLabelsMap: configurationToTopLevelLabelsMap,
             bspUriToParentConfigMap: bspUriToParentConfigMap,
-            bazelLabelToTestFilesMap: bazelLabelToTestFilesMap
+            testTargetToBundleTargetMap: testTargetToBundleTargetMap
         )
     }
 
