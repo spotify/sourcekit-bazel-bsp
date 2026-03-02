@@ -32,7 +32,7 @@ struct ProcessedCqueryResult {
     let srcToBspURIsMap: [URI: [URI]]
     let configurationToTopLevelLabelsMap: [String: [String]]
     let bspUriToParentConfigMap: [URI: String]
-    let bazelLabelToTestFilesMap: [String: [URI]]
+    let testTargetToBundleTargetMap: [String: URI]
 
     /// Merges the result of a cquery for added and removed files into the current result.
     /// Makes sure files that are unrelated to known targets are ignored.
@@ -105,7 +105,7 @@ struct ProcessedCqueryResult {
             srcToBspURIsMap: _srcToBspURIsMap,
             configurationToTopLevelLabelsMap: configurationToTopLevelLabelsMap,
             bspUriToParentConfigMap: bspUriToParentConfigMap,
-            bazelLabelToTestFilesMap: bazelLabelToTestFilesMap
+            testTargetToBundleTargetMap: testTargetToBundleTargetMap
         )
         return (result, invalidatedTargets)
     }

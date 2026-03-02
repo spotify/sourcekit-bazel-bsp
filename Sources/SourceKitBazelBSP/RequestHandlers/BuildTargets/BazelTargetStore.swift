@@ -240,12 +240,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         let result = cqueryResult.buildTargets
         cachedTargets = result
 
-        reportQueue.async { [weak self] in
-            guard let self = self else { return }
-            let graphDir = self.initializedConfig.rootUri + "/.bsp/skbsp_generated"
-            let graphPath = graphDir + "/graph.json"
-            self.writeReport(toPath: graphPath, creatingDirectoryAt: graphDir)
-        }
+        writeGraphReportAsync()
 
         return result
     }
@@ -280,6 +275,9 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         // FIXME: We should try to edit the existing aquery instead of running a new one.
         self.aqueryResult = try processCompilerArguments(from: newCqueryResult)
         self.cqueryResult = newCqueryResult
+
+        writeGraphReportAsync()
+
         return invalidatedTargets
     }
 
@@ -301,6 +299,15 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 }
 
 extension BazelTargetStoreImpl {
+    private func writeGraphReportAsync() {
+        reportQueue.async { [weak self] in
+            guard let self = self else { return }
+            let graphDir = self.initializedConfig.rootUri + "/.bsp/skbsp_generated"
+            let graphPath = graphDir + "/graph.json"
+            self.writeReport(toPath: graphPath, creatingDirectoryAt: graphDir)
+        }
+    }
+
     private func writeReport(toPath path: String, creatingDirectoryAt directoryPath: String) {
         try? FileManager.default.createDirectory(
             atPath: directoryPath,
@@ -335,9 +342,11 @@ extension BazelTargetStoreImpl {
                     return nil
                 }
             }()
-            let testSources: [String]? = {
+            let testSources: [String]? = try {
                 guard launchType == .test else { return nil }
-                return cqueryResult?.bazelLabelToTestFilesMap[label]?.map { $0.stringValue }
+                guard let bundleTarget = cqueryResult?.testTargetToBundleTargetMap[label] else { return nil }
+                let bundleTargetSrcs = try bazelTargetSrcs(forBSPURI: bundleTarget)
+                return bundleTargetSrcs.sources.map { $0.uri.stringValue }
             }()
             reportTopLevel.append(
                 .init(
