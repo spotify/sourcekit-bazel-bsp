@@ -95,6 +95,15 @@ final class InitializeHandler {
         )
         logger.debug("regularOutputBase: \(regularOutputBase, privacy: .public)")
 
+        // Get the base path where rules_swift stores the global index path on the _original_ output base.
+        // This is what we will use for the BSP builds as well.
+        let baseIndexDataFolder: String = try commandRunner.bazel(
+            baseConfig: baseConfig,
+            rootUri: rootUri,
+            cmd: "info output_path"
+        )
+        logger.debug("baseIndexDataFolder: \(baseIndexDataFolder, privacy: .public)")
+
         // Setup the special output base path where we will run indexing commands from.
         let regularOutputBaseLastPath = regularOutputBase.lastPathComponent
         let outputBase = regularOutputBase.deletingLastPathComponent().appendingPathComponent(
@@ -111,6 +120,13 @@ final class InitializeHandler {
             skipIndexFlags: true
         )
         logger.debug("outputPath: \(outputPath, privacy: .public)")
+
+        // Create a symlink for _global_index_store so that the custom output base shares
+        // the index store with the original output base. This allows both regular builds
+        // and BSP builds to share the same index data.
+        let bspIndexStorePath = outputPath + "/" + InitializedServerConfig.rulesSwiftIndexStoreFolderName
+        let originalIndexStorePath = baseIndexDataFolder + "/" + InitializedServerConfig.rulesSwiftIndexStoreFolderName
+        try setupIndexStoreSymlink(from: bspIndexStorePath, to: originalIndexStorePath, with: commandRunner)
 
         // Get the execution root based on the above output base.
         let executionRoot: String = try commandRunner.bazelIndexAction(
@@ -145,6 +161,7 @@ final class InitializeHandler {
             workspaceName: workspaceName,
             outputBase: outputBase,
             outputPath: outputPath,
+            baseIndexDataFolder: baseIndexDataFolder,
             devDir: devDir,
             xcodeVersion: xcodeVersion,
             devToolchainPath: toolchain,
@@ -186,6 +203,28 @@ final class InitializeHandler {
             result[sdkType] = sdkRootPath
         }
         return sdkRootPaths
+    }
+
+    private func setupIndexStoreSymlink(
+        from customPath: String,
+        to originalPath: String,
+        with commandRunner: CommandRunner
+    ) throws {
+        // Remove existing path if it exists (whether file, directory, or symlink)
+        // Using rm -rf to handle all cases, and ignoring errors if path doesn't exist
+        logger.debug("Removing existing index store at \(customPath, privacy: .public) if present")
+        _ = try? commandRunner.run("rm -rf '\(customPath)'")
+
+        // Create parent directory if needed
+        let parentDir = URL(fileURLWithPath: customPath).deletingLastPathComponent().path
+        logger.debug("Ensuring parent directory exists at \(parentDir, privacy: .public)")
+        _ = try? commandRunner.run("mkdir -p '\(parentDir)'")
+
+        // Create the symlink
+        logger.debug(
+            "Creating index store symlink from \(customPath, privacy: .public) to \(originalPath, privacy: .public)"
+        )
+        _ = try commandRunner.run("ln -s '\(originalPath)' '\(customPath)'")
     }
 
     func buildResponse(
