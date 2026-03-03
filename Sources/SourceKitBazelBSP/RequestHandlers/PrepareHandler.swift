@@ -107,9 +107,9 @@ final class PrepareHandler {
 
                 for (parent, libraries) in parentToLibraryLabelsMap {
                     let outputGroups = libraries.map { Self.sanitizeLabel($0) }.joined(separator: ",")
-                    labelsToBuild.append([parent])
+                    let wrapperTarget = "//.bsp/skbsp_generated:\(Self.wrapperTargetName(forLabel: parent))"
+                    labelsToBuild.append([wrapperTarget])
                     extraArgs.append([
-                        "--aspects=//.bsp/skbsp_generated:aspect.bzl%platform_deps_aspect",
                         "--output_groups=\(outputGroups)",
                     ])
                 }
@@ -197,16 +197,13 @@ final class PrepareHandler {
     /// Converts a Bazel label to a safe output group name with aspect prefix.
     /// Example: //path/to/library:LibraryName -> aspect_path_to_library_LibraryName
     static func sanitizeLabel(_ label: String) -> String {
-        var sanitized = label
-        if sanitized.hasPrefix("//") {
-            sanitized = String(sanitized.dropFirst(2))
-        }
-        return "aspect_"
-            + sanitized
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: ":", with: "_")
-            .replacingOccurrences(of: "-", with: "_")
-            .replacingOccurrences(of: ".", with: "_")
+        return BazelLabelSanitizer.sanitize(label, prefix: "aspect_")
+    }
+
+    /// Converts a Bazel label to a wrapper target name.
+    /// Example: //path/to/app:MyApp -> wrapper_path_to_app_MyApp
+    static func wrapperTargetName(forLabel label: String) -> String {
+        return BazelLabelSanitizer.wrapperTargetName(forLabel: label)
     }
 
     func makeTaskTitle(
