@@ -46,8 +46,8 @@ struct BazelTargetGraphReport: Codable, Equatable {
         let minimumOsVersion: String
         let cpuArch: String
         let sdkName: String
-        /// Build invocation template for building dependencies using the aspect approach.
-        /// Format: "build {parent} --aspects=... --output_groups={OUTPUT_GROUP}"
+        /// Build invocation template for building dependencies via wrapper targets.
+        /// Format: "build {wrapper_target} --output_groups={OUTPUT_GROUP}"
         let buildInvocation: String
     }
 

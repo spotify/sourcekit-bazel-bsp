@@ -192,7 +192,7 @@ _platform_deps_wrapper = rule(
     doc = "Wrapper that applies platform_deps_aspect via rule attribute for stable caching.",
 )
 
-def platform_deps_targets(name, target, visibility = None):
+def platform_deps_wrapper(name, target, visibility = None):
     """Create a wrapper target for an app.
 
     Args:

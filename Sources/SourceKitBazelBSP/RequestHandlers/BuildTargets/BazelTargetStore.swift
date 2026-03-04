@@ -307,10 +307,10 @@ extension BazelTargetStoreImpl {
         forTopLevelTargets targets: [(String, TopLevelRuleType, String)]
     ) {
         let uniqueLabels = Set(targets.map { $0.0 }).sorted()
-        var content = "load(\":rules.bzl\", \"platform_deps_targets\")\n\n"
+        var content = "load(\":rules.bzl\", \"platform_deps_wrapper\")\n\n"
         for label in uniqueLabels {
             let wrapperName = BazelLabelSanitizer.wrapperTargetName(forLabel: label)
-            content += "platform_deps_targets(\n"
+            content += "platform_deps_wrapper(\n"
             content += "    name = \"\(wrapperName)\",\n"
             content += "    target = \"\(label)\",\n"
             content += ")\n"
