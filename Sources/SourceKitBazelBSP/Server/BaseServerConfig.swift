@@ -37,6 +37,7 @@ package struct BaseServerConfig: Equatable {
     let topLevelTargetsToExclude: [String]
     let dependencyTargetsToExclude: [String]
     let appleSupportRepoName: String
+    let noExtraOutputBase: Bool
 
     package init(
         bazelWrapper: String,
@@ -50,7 +51,8 @@ package struct BaseServerConfig: Equatable {
         dependencyRulesToDiscover: [DependencyRuleType] = DependencyRuleType.allCases,
         topLevelTargetsToExclude: [String] = [],
         dependencyTargetsToExclude: [String] = [],
-        appleSupportRepoName: String = "apple_support"
+        appleSupportRepoName: String = "apple_support",
+        noExtraOutputBase: Bool = false
     ) {
         self.bazelWrapper = bazelWrapper
         self.targets = targets
@@ -64,5 +66,6 @@ package struct BaseServerConfig: Equatable {
         self.topLevelTargetsToExclude = topLevelTargetsToExclude
         self.dependencyTargetsToExclude = dependencyTargetsToExclude
         self.appleSupportRepoName = appleSupportRepoName
+        self.noExtraOutputBase = noExtraOutputBase
     }
 }
