@@ -389,7 +389,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         let validBuildTargets = buildTargets.filter { (target, _) in
             let hasParent = bspUriToTopLevelLabelsMap[target.id.uri] != nil
             if !hasParent {
-                logger.warning(
+                logger.info(
                     "Dropping orphan target '\(target.displayName ?? target.id.uri.stringValue, privacy: .public)' - not found in any top-level target's dependency graph. This can be either a bug in the BSP or a consequence of filters passed to the server."
                 )
             }
@@ -397,7 +397,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         }
 
         if validBuildTargets.count < buildTargets.count {
-            logger.warning(
+            logger.info(
                 "Dropped \(buildTargets.count - validBuildTargets.count, privacy: .public) orphan target(s) from BSP"
             )
         }
