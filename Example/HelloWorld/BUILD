@@ -286,4 +286,5 @@ setup_sourcekit_bsp(
         "//HelloWorld/...",
     ],
     merge_lsp_config = False,
+    experimental_no_extra_output_base = True
 )

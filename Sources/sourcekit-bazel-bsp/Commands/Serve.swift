@@ -99,7 +99,13 @@ struct Serve: AsyncParsableCommand {
     )
     var appleSupportRepoName: String = "apple_support"
 
-    func run() async throws {
+    @Flag(
+        help:
+            "(EXPERIMENTAL) If enabled, the BSP will not create a separate output base for its indexing actions. Can greatly reduce disk usage and improve cache hits at the cost of more pressure on the single Bazel server."
+    )
+    var experimentalNoExtraOutputBase: Bool = false
+
+    func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
         let topLevelRulesToDiscover: [TopLevelRuleType] =
@@ -123,7 +129,8 @@ struct Serve: AsyncParsableCommand {
             dependencyRulesToDiscover: dependencyRulesToDiscover,
             topLevelTargetsToExclude: topLevelTargetToExclude,
             dependencyTargetsToExclude: dependencyTargetToExclude,
-            appleSupportRepoName: appleSupportRepoName
+            appleSupportRepoName: appleSupportRepoName,
+            noExtraOutputBase: experimentalNoExtraOutputBase
         )
 
         logger.debug("Initializing BSP with targets: \(targets)")
