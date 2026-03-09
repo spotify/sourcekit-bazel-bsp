@@ -130,6 +130,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         var seenSourceFiles = Set<String>()
         var allSrcs = [BlazeQuery_Target]()
         var testBundleToRealNameMap: [String: String] = [:]
+        var topLevelTestonlyLabels = Set<String>()
         // We need to map configuration info based on the mnemonic instead of the actual UInt32 id
         // because build_test targets technically have their own configuration info despite being the
         // same mnemonic.
@@ -148,6 +149,11 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                     if supportedTopLevelRuleTypesSet.contains(topLevelRuleType) {
                         let label = target.rule.name
                         allTopLevelLabels.append((label, topLevelRuleType))
+                        // Track if the target has testonly = True
+                        let isTestonly = target.rule.attribute.first { $0.name == "testonly" }?.booleanValue ?? false
+                        if isTestonly {
+                            topLevelTestonlyLabels.insert(label)
+                        }
                         // If this rule generates a bundle target, the real information we're looking for will be available
                         // on said bundle target and will be handled below.
                         if topLevelRuleType.testBundleRule == nil {
@@ -173,6 +179,11 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                     testBundleToRealNameMap[target.rule.name] = realTopLevelName
                     configurationToTopLevelLabelsMap[configuration, default: []].append(realTopLevelName)
                     topLevelLabelToConfigMap[realTopLevelName] = configuration
+                    // Track if the test bundle target has testonly = True
+                    let isTestonly = target.rule.attribute.first { $0.name == "testonly" }?.booleanValue ?? false
+                    if isTestonly {
+                        topLevelTestonlyLabels.insert(realTopLevelName)
+                    }
                 } else {
                     unfilteredDependencyTargets.append(configuredTarget)
                 }
@@ -405,8 +416,25 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             aliasToLabelMap: aliasToLabelMap
         )
 
+        // Filter out orphan targets (targets without a parent in the dependency graph)
+        let validBuildTargets = buildTargets.filter { (target, _) in
+            let hasParent = bspUriToTopLevelLabelsMap[target.id.uri] != nil
+            if !hasParent {
+                logger.warning(
+                    "Dropping orphan target '\(target.displayName ?? target.id.uri.stringValue, privacy: .public)' - not found in any top-level target's dependency graph"
+                )
+            }
+            return hasParent
+        }
+
+        if validBuildTargets.count < buildTargets.count {
+            logger.warning(
+                "Dropped \(buildTargets.count - validBuildTargets.count, privacy: .public) orphan target(s) from BSP"
+            )
+        }
+
         return ProcessedCqueryResult(
-            buildTargets: buildTargets.map { $0.0 },
+            buildTargets: validBuildTargets.map { $0.0 },
             topLevelTargets: topLevelTargets,
             topLevelLabelToRuleTypeMap: topLevelLabelToRuleTypeMap,
             bspURIsToBazelLabelsMap: bspURIsToBazelLabelsMap,
@@ -415,7 +443,8 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             configurationToTopLevelLabelsMap: configurationToTopLevelLabelsMap,
             bspUriToParentConfigMap: bspUriToParentConfigMap,
             bspUriToTopLevelLabelsMap: bspUriToTopLevelLabelsMap,
-            testTargetToBundleTargetMap: testTargetToBundleTargetMap
+            testTargetToBundleTargetMap: testTargetToBundleTargetMap,
+            topLevelTestonlyLabels: topLevelTestonlyLabels
         )
     }
 

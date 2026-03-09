@@ -193,17 +193,19 @@ _platform_deps_wrapper = rule(
     doc = "Wrapper that applies platform_deps_aspect via rule attribute for stable caching.",
 )
 
-def platform_deps_wrapper(name, target, visibility = None):
+def platform_deps_wrapper(name, target, testonly = False, visibility = None):
     """Create a wrapper target for an app.
 
     Args:
         name: Base name for the wrapper target.
         target: The app target label.
+        testonly: If True, marks the wrapper as testonly (required for test targets).
         visibility: Visibility for the generated target.
     """
     _platform_deps_wrapper(
         name = name,
         target = target,
+        testonly = testonly,
         tags = ["manual"],
         visibility = visibility or ["//visibility:public"],
     )

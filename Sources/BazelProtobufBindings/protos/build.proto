@@ -41,6 +41,9 @@ message Attribute {
 
   // The value of the attribute has a list of string values.
   repeated string string_list_value = 6;
+
+  // If type == BOOLEAN, this is the value of the attribute.
+  optional bool boolean_value = 14;
 }
 
 // A rule instance (e.g., cc_library foo, java_binary bar).

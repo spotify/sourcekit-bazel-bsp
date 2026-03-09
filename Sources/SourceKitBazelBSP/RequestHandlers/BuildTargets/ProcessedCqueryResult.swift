@@ -36,6 +36,8 @@ struct ProcessedCqueryResult {
     /// This is more precise than `configurationToTopLevelLabelsMap` which only matches by config mnemonic.
     let bspUriToTopLevelLabelsMap: [URI: [String]]
     let testTargetToBundleTargetMap: [String: URI]
+    /// Set of top-level labels that have testonly = True in the cquery.
+    let topLevelTestonlyLabels: Set<String>
 
     /// Merges the result of a cquery for added and removed files into the current result.
     /// Makes sure files that are unrelated to known targets are ignored.
@@ -109,7 +111,8 @@ struct ProcessedCqueryResult {
             configurationToTopLevelLabelsMap: configurationToTopLevelLabelsMap,
             bspUriToParentConfigMap: bspUriToParentConfigMap,
             bspUriToTopLevelLabelsMap: bspUriToTopLevelLabelsMap,
-            testTargetToBundleTargetMap: testTargetToBundleTargetMap
+            testTargetToBundleTargetMap: testTargetToBundleTargetMap,
+            topLevelTestonlyLabels: topLevelTestonlyLabels
         )
         return (result, invalidatedTargets)
     }

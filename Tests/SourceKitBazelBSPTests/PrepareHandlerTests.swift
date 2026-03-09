@@ -143,6 +143,9 @@ struct PrepareHandlerTests {
     func wrapperTargetNameSanitizesCorrectly() {
         #expect(PrepareHandler.wrapperTargetName(forLabel: "//path/to/app:MyApp") == "wrapper_path_to_app_MyApp")
         #expect(PrepareHandler.wrapperTargetName(forLabel: "//App:MyApp") == "wrapper_App_MyApp")
-        #expect(PrepareHandler.wrapperTargetName(forLabel: "//path-with-dashes:Target.Name") == "wrapper_path_with_dashes_Target_Name")
+        #expect(
+            PrepareHandler.wrapperTargetName(forLabel: "//path-with-dashes:Target.Name")
+                == "wrapper_path_with_dashes_Target_Name"
+        )
     }
 }

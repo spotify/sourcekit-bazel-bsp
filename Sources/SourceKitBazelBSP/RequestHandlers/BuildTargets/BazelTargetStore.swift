@@ -246,7 +246,10 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         self.aqueryResult = try processCompilerArguments(from: cqueryResult)
         self.cqueryResult = cqueryResult
 
-        writeWrapperBuildFile(forTopLevelTargets: cqueryResult.topLevelTargets)
+        writeWrapperBuildFile(
+            forTopLevelTargets: cqueryResult.topLevelTargets,
+            testonlyLabels: cqueryResult.topLevelTestonlyLabels
+        )
 
         let result = cqueryResult.buildTargets
         cachedTargets = result
@@ -314,16 +317,21 @@ extension BazelTargetStoreImpl {
     /// Generates a BUILD.bazel file with wrapper targets for each unique top-level target.
     /// These wrapper targets apply the aspect via rule attribute instead of CLI --aspects.
     private func writeWrapperBuildFile(
-        forTopLevelTargets targets: [(String, TopLevelRuleType, String)]
+        forTopLevelTargets targets: [(String, TopLevelRuleType, String)],
+        testonlyLabels: Set<String>
     ) {
         let uniqueLabels = Set(targets.map { $0.0 }).sorted()
         var content = "load(\":rules.bzl\", \"platform_deps_wrapper\")\n\n"
         for label in uniqueLabels {
             let wrapperName = BazelLabelSanitizer.wrapperTargetName(forLabel: label)
+            let isTestonly = testonlyLabels.contains(label)
             content += "platform_deps_wrapper(\n"
             content += "    name = \"\(wrapperName)\",\n"
             content += "    target = \"\(label)\",\n"
-            content += ")\n"
+            if isTestonly {
+                content += "    testonly = True,\n"
+            }
+            content += ")\n\n"
         }
         let buildFilePath = initializedConfig.rootUri + "/.bsp/skbsp_generated/BUILD.bazel"
         do {
@@ -393,30 +401,38 @@ extension BazelTargetStoreImpl {
                     testSources: testSources
                 )
             )
-            // Build invocation using the wrapper rule approach
-            let wrapperName = BazelLabelSanitizer.wrapperTargetName(forLabel: label)
-            let buildInvocation =
-                "build //.bsp/skbsp_generated:\(wrapperName) --output_groups={OUTPUT_GROUP}"
             reportConfigurations[configMnemonic] = .init(
                 mnemonic: configMnemonic,
                 platform: topLevelConfig.platform,
                 minimumOsVersion: topLevelConfig.minimumOsVersion,
                 cpuArch: topLevelConfig.cpuArch,
-                sdkName: topLevelConfig.sdkName,
-                buildInvocation: buildInvocation
+                sdkName: topLevelConfig.sdkName
             )
         }
         var reportDependencies: [BazelTargetGraphReport.DependencyTarget] = []
         let dependencyTargets = cqueryResult?.buildTargets ?? []
+        let compileTopLevel = initializedConfig.baseConfig.compileTopLevel
         for target in dependencyTargets {
             guard let label = target.displayName else { continue }
             let configMnemonic = try parentConfig(forBSPURI: target.id.uri)
-            let topLevelParent = try preferredTopLevelLabel(forBSPURI: target.id.uri)
+            let topLevelLabel = try preferredTopLevelLabel(forBSPURI: target.id.uri)
+            let topLevelParent: String
+            let extraBuildArgs: [String]
+            if compileTopLevel {
+                topLevelParent = topLevelLabel
+                extraBuildArgs = []
+            } else {
+                topLevelParent =
+                    "//.bsp/skbsp_generated:\(BazelLabelSanitizer.wrapperTargetName(forLabel: topLevelLabel))"
+                let outputGroup = BazelLabelSanitizer.sanitize(label, prefix: "aspect_")
+                extraBuildArgs = ["--output_groups=\(outputGroup)"]
+            }
             reportDependencies.append(
                 .init(
                     label: label,
                     configMnemonic: configMnemonic,
-                    topLevelParent: topLevelParent
+                    topLevelParent: topLevelParent,
+                    extraBuildArgs: extraBuildArgs
                 )
             )
         }

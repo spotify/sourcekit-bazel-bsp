@@ -73,7 +73,8 @@ struct ProcessedCqueryResultTests {
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
             bspUriToTopLevelLabelsMap: [:],
-            testTargetToBundleTargetMap: [:]
+            testTargetToBundleTargetMap: [:],
+            topLevelTestonlyLabels: []
         )
 
         let (newResult, invalidatedTargets) = try #require(
@@ -133,7 +134,8 @@ struct ProcessedCqueryResultTests {
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
             bspUriToTopLevelLabelsMap: [:],
-            testTargetToBundleTargetMap: [:]
+            testTargetToBundleTargetMap: [:],
+            topLevelTestonlyLabels: []
         )
 
         let (newResult, invalidatedTargets) = try #require(
@@ -198,7 +200,8 @@ struct ProcessedCqueryResultTests {
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
             bspUriToTopLevelLabelsMap: [:],
-            testTargetToBundleTargetMap: [:]
+            testTargetToBundleTargetMap: [:],
+            topLevelTestonlyLabels: []
         )
 
         let (newResult, invalidatedTargets) = try #require(
@@ -276,7 +279,8 @@ struct ProcessedCqueryResultTests {
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
             bspUriToTopLevelLabelsMap: [:],
-            testTargetToBundleTargetMap: [:]
+            testTargetToBundleTargetMap: [:],
+            topLevelTestonlyLabels: []
         )
 
         let (newResult, invalidatedTargets) = try #require(
@@ -357,7 +361,8 @@ struct ProcessedCqueryResultTests {
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
             bspUriToTopLevelLabelsMap: [:],
-            testTargetToBundleTargetMap: [:]
+            testTargetToBundleTargetMap: [:],
+            topLevelTestonlyLabels: []
         )
 
         let (newResult, invalidatedTargets) = try #require(
@@ -426,7 +431,8 @@ struct ProcessedCqueryResultTests {
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
             bspUriToTopLevelLabelsMap: [:],
-            testTargetToBundleTargetMap: [:]
+            testTargetToBundleTargetMap: [:],
+            topLevelTestonlyLabels: []
         )
 
         var response = initialResult.processFileChanges(
