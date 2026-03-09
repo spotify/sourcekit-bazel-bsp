@@ -65,6 +65,7 @@ struct BazelTargetCompilerArgsExtractorTests {
             workspaceName: "_main",
             outputBase: mockOutputBase,
             outputPath: mockOutputPath,
+            originalOutputPath: mockOutputPath,
             devDir: mockDevDir,
             xcodeVersion: mockXcodeVersion,
             devToolchainPath: mockDevToolchainPath,

@@ -105,6 +105,12 @@ struct Serve: AsyncParsableCommand {
     )
     var experimentalNoExtraOutputBase: Bool = false
 
+    @Flag(
+        help:
+            "(EXPERIMENTAL) If enabled, the BSP will create a symlink so that the BSP's output base shares the index store with the main output base. This allows both regular builds and BSP builds to share the same index data. Has no effect if --experimental-no-extra-output-base is enabled."
+    )
+    var experimentalSharedIndexStore: Bool = false
+
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
@@ -130,7 +136,8 @@ struct Serve: AsyncParsableCommand {
             topLevelTargetsToExclude: topLevelTargetToExclude,
             dependencyTargetsToExclude: dependencyTargetToExclude,
             appleSupportRepoName: appleSupportRepoName,
-            noExtraOutputBase: experimentalNoExtraOutputBase
+            noExtraOutputBase: experimentalNoExtraOutputBase,
+            sharedIndexStore: experimentalSharedIndexStore
         )
 
         logger.debug("Initializing BSP with targets: \(targets)")

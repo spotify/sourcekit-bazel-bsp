@@ -94,30 +94,52 @@ final class InitializeHandler {
             fileURLWithPath: try commandRunner.bazel(baseConfig: baseConfig, rootUri: rootUri, cmd: "info output_base")
         )
         logger.debug("regularOutputBase: \(regularOutputBase, privacy: .public)")
+        let regularOutputPath: String = try commandRunner.bazel(
+            baseConfig: baseConfig,
+            rootUri: rootUri,
+            cmd: "info output_path"
+        )
+        logger.debug("regularOutputPath: \(regularOutputPath, privacy: .public)")
 
         // Setup the special output base path where we will run indexing commands from.
         // Nesting into a subfolder for easier cleanup. For example: /private/var/tmp/_bazel_<User>/<ProjectHash>/sourcekit-bazel-bsp
         let outputBase: String
+        let outputPath: String
         if baseConfig.noExtraOutputBase {
             outputBase = regularOutputBase.path
             logger.debug("Will use the regular output base for all actions")
+            outputPath = regularOutputPath
         } else {
             outputBase =
                 regularOutputBase.appendingPathComponent(
                     "sourcekit-bazel-bsp"
                 ).path
+            outputPath = try commandRunner.bazelIndexAction(
+                baseConfig: baseConfig,
+                outputBase: outputBase,
+                cmd: "info output_path",
+                rootUri: rootUri,
+                skipIndexFlags: true
+            )
         }
         logger.debug("outputBase: \(outputBase, privacy: .public)")
-
-        // Now, get the full output path based on the above output base.
-        let outputPath: String = try commandRunner.bazelIndexAction(
-            baseConfig: baseConfig,
-            outputBase: outputBase,
-            cmd: "info output_path",
-            rootUri: rootUri,
-            skipIndexFlags: true
-        )
         logger.debug("outputPath: \(outputPath, privacy: .public)")
+
+        // Create a symlink for _global_index_store so that the custom output base shares
+        // the index store with the original output base. This allows both regular builds
+        // and BSP builds to share the same index data.
+        if baseConfig.sharedIndexStore && !baseConfig.noExtraOutputBase {
+            // Get the base path where rules_swift stores the global index path on the _original_ output base.
+            // This is what we will use for the BSP builds as well.
+            let bspIndexStorePath = outputPath + "/" + InitializedServerConfig.rulesSwiftIndexStoreFolderName
+            let originalIndexStorePath =
+                regularOutputPath + "/" + InitializedServerConfig.rulesSwiftIndexStoreFolderName
+            try setupIndexStoreSymlink(from: bspIndexStorePath, to: originalIndexStorePath, with: commandRunner)
+        } else if !baseConfig.sharedIndexStore {
+            // Remove any existing symlink from a previous run with sharedIndexStore enabled
+            let indexStorePath = outputPath + "/" + InitializedServerConfig.rulesSwiftIndexStoreFolderName
+            try removeSymlinkIfPresent(at: indexStorePath, with: commandRunner)
+        }
 
         // Get the execution root based on the above output base.
         let executionRoot: String = try commandRunner.bazelIndexAction(
@@ -152,6 +174,7 @@ final class InitializeHandler {
             workspaceName: workspaceName,
             outputBase: outputBase,
             outputPath: outputPath,
+            originalOutputPath: regularOutputPath,
             devDir: devDir,
             xcodeVersion: xcodeVersion,
             devToolchainPath: toolchain,
@@ -193,6 +216,51 @@ final class InitializeHandler {
             result[sdkType] = sdkRootPath
         }
         return sdkRootPaths
+    }
+
+    private func setupIndexStoreSymlink(
+        from customPath: String,
+        to originalPath: String,
+        with commandRunner: CommandRunner
+    ) throws {
+        // Create parent directory if needed
+        let parentDir = URL(fileURLWithPath: customPath).deletingLastPathComponent().path
+        logger.debug("Ensuring parent directory exists at \(parentDir, privacy: .public)")
+        _ = try? commandRunner.run("mkdir -p '\(parentDir)'")
+        logger.debug("Ensuring destination directory exists at \(originalPath, privacy: .public)")
+        _ = try? commandRunner.run("mkdir -p '\(originalPath)'")
+
+        // Remove existing path if present
+        logger.debug("Removing existing index store at \(customPath, privacy: .public) if present")
+        _ = try? commandRunner.run("mv '\(customPath)' '\(parentDir)/old_indestore.backup'")
+
+        // Need to give the filesystem a moment to finish the rename operation
+        sleep(1)
+
+        // Create the symlink inside the parent directory
+        // ln -s <target> <directory> creates <directory>/<basename(target)> -> <target>
+        logger.debug(
+            "Creating index store symlink from \(customPath, privacy: .public) to \(originalPath, privacy: .public)"
+        )
+        _ = try commandRunner.run("ln -s '\(originalPath)' '\(parentDir)'")
+        _ = try? commandRunner.run("rm -rf '\(parentDir)/old_indestore.backup'")
+    }
+
+    private func removeSymlinkIfPresent(
+        at path: String,
+        with commandRunner: CommandRunner
+    ) throws {
+        // Check if the path is a symlink and remove it if so
+        // This handles the case where a previous run had sharedIndexStore enabled
+        // readlink returns exit code 0 only if the path is a symlink
+        let process = try commandRunner.run("readlink '\(path)'")
+        // Wait for the process to exit
+        let (_, _): (String, String) = process.outputs()
+        let isSymlink = process.wrappedProcess.terminationStatus == 0
+        if isSymlink {
+            logger.debug("Removing existing symlink at \(path, privacy: .public)")
+            _ = try? commandRunner.run("rm '\(path)'")
+        }
     }
 
     func buildResponse(
