@@ -131,9 +131,12 @@ final class InitializeHandler {
         // Create a symlink for _global_index_store so that the custom output base shares
         // the index store with the original output base. This allows both regular builds
         // and BSP builds to share the same index data.
-        let bspIndexStorePath = outputPath + "/" + InitializedServerConfig.rulesSwiftIndexStoreFolderName
-        let originalIndexStorePath = baseIndexDataFolder + "/" + InitializedServerConfig.rulesSwiftIndexStoreFolderName
-        try setupIndexStoreSymlink(from: bspIndexStorePath, to: originalIndexStorePath, with: commandRunner)
+        if baseConfig.sharedIndexStore && !baseConfig.noExtraOutputBase {
+            let bspIndexStorePath = outputPath + "/" + InitializedServerConfig.rulesSwiftIndexStoreFolderName
+            let originalIndexStorePath =
+                baseIndexDataFolder + "/" + InitializedServerConfig.rulesSwiftIndexStoreFolderName
+            try setupIndexStoreSymlink(from: bspIndexStorePath, to: originalIndexStorePath, with: commandRunner)
+        }
 
         // Get the execution root based on the above output base.
         let executionRoot: String = try commandRunner.bazelIndexAction(
@@ -231,6 +234,7 @@ final class InitializeHandler {
         logger.debug(
             "Creating index store symlink from \(customPath, privacy: .public) to \(originalPath, privacy: .public)"
         )
+
         _ = try commandRunner.run("ln -s '\(originalPath)' '\(customPath)'")
     }
 

@@ -47,6 +47,8 @@ def _setup_sourcekit_bsp_impl(ctx):
         bsp_config_argv.append(ctx.attr.apple_support_repo_name)
     if ctx.attr.experimental_no_extra_output_base:
         bsp_config_argv.append("--experimental-no-extra-output-base")
+    if ctx.attr.experimental_shared_index_store:
+        bsp_config_argv.append("--experimental-shared-index-store")
     ctx.actions.expand_template(
         template = ctx.file._bsp_config_template,
         output = rendered_bsp_config,
@@ -194,6 +196,10 @@ setup_sourcekit_bsp = rule(
         ),
         "experimental_no_extra_output_base": attr.bool(
             doc = "(EXPERIMENTAL) If enabled, the BSP will not create a separate output base for its indexing actions. Can greatly reduce disk usage and improve cache hits at the cost of more pressure on the single Bazel server.",
+            default = False,
+        ),
+        "experimental_shared_index_store": attr.bool(
+            doc = "(EXPERIMENTAL) If enabled, the BSP will create a symlink so that the BSP's output base shares the index store with the main output base. This allows both regular builds and BSP builds to share the same index data. Has no effect if experimental_no_extra_output_base is enabled.",
             default = False,
         ),
     },
