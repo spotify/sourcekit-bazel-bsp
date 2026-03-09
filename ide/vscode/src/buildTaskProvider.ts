@@ -25,25 +25,40 @@ import { selectSimulator } from "./simulatorPicker";
 
 const BUILD_TASK_TYPE = "sourcekit-bazel-bsp-build";
 
+/** The task source identifier used for all tasks created by this extension. */
+export const TASK_SOURCE = "sourcekit-bazel-bsp";
+
+// Task name prefixes. Used by label functions to construct names and by parseTaskName to reverse them.
+const BUILD_PREFIX = "Build ";
+const RUN_WITHOUT_DEBUGGING_PREFIX = "Run without debugging ";
+const PRELAUNCH_PREFIX = "z_IGNORE_DO_NOT_USE_DIRECTLY_prelaunch_";
+const TEST_WITHOUT_DEBUGGING_PREFIX = "Test without debugging ";
+const TEST_PRELAUNCH_PREFIX = "z_IGNORE_DO_NOT_USE_DIRECTLY_test_prelaunch_";
+
+// Webview action names. Shared between parseTaskName, extension callbacks, and webview JS.
+export const ACTION_BUILD = "build";
+export const ACTION_LAUNCH = "launch";
+export const ACTION_LAUNCH_WITHOUT_DEBUGGING = "launchWithoutDebugging";
+
 function getScriptPath(extensionPath: string, scriptName: string): string {
     return path.join(extensionPath, "scripts", scriptName);
 }
 
 export function getLaunchTaskLabel(targetLabel: string, withoutDebugging: boolean = false): string {
     if (withoutDebugging) {
-        return `Run without debugging ${targetLabel}`;
+        return `${RUN_WITHOUT_DEBUGGING_PREFIX}${targetLabel}`;
     } else {
         // There is no way to completely hide a task, so we need to name it accordingly
-        return `z_IGNORE_DO_NOT_USE_DIRECTLY_prelaunch_${targetLabel}`;
+        return `${PRELAUNCH_PREFIX}${targetLabel}`;
     }
 }
 
 export function getTestLaunchTaskLabel(targetLabel: string, withoutDebugging: boolean = false): string {
     if (withoutDebugging) {
-        return `Test without debugging ${targetLabel}`;
+        return `${TEST_WITHOUT_DEBUGGING_PREFIX}${targetLabel}`;
     } else {
         // There is no way to completely hide a task, so we need to name it accordingly
-        return `z_IGNORE_DO_NOT_USE_DIRECTLY_test_prelaunch_${targetLabel}`;
+        return `${TEST_PRELAUNCH_PREFIX}${targetLabel}`;
     }
 }
 
@@ -86,8 +101,8 @@ function createBuildTask(extensionPath: string, config: Configuration, target: P
     const task = new vscode.Task(
         { type: BUILD_TASK_TYPE, target: target.label },
         vscode.TaskScope.Workspace,
-        `Build ${target.label}`,
-        "sourcekit-bazel-bsp",
+        `${BUILD_PREFIX}${target.label}`,
+        TASK_SOURCE,
         new vscode.ShellExecution(getScriptPath(extensionPath, "lldb_build.sh"), { env })
     );
     task.group = vscode.TaskGroup.Build;
@@ -118,7 +133,7 @@ function createLaunchTask(extensionPath: string, config: Configuration, target: 
         { type: BUILD_TASK_TYPE, target: taskLabel, hide: !withoutDebugging },
         vscode.TaskScope.Workspace,
         taskLabel,
-        "sourcekit-bazel-bsp",
+        TASK_SOURCE,
         new vscode.ShellExecution(getScriptPath(extensionPath, "lldb_launch_and_debug.sh"), { env })
     );
     task.isBackground = true;
@@ -152,13 +167,16 @@ function createTestTask(extensionPath: string, config: Configuration, target: Pr
         { type: BUILD_TASK_TYPE, target: taskLabel, hide: !withoutDebugging },
         vscode.TaskScope.Workspace,
         taskLabel,
-        "sourcekit-bazel-bsp",
+        TASK_SOURCE,
         new vscode.ShellExecution(getScriptPath(extensionPath, "lldb_launch_and_debug.sh"), {
             env,
         })
     );
     if (withoutDebugging) {
         task.group = vscode.TaskGroup.Test;
+    } else {
+        task.isBackground = true;
+        task.presentationOptions = { reveal: vscode.TaskRevealKind.Always };
     }
     task.problemMatchers = ["$sourcekit-bazel-bsp-launcher", "$sourcekit-bazel-bsp-launcher-bazelisk"];
     return task;
@@ -169,7 +187,7 @@ function createSimulatorTask(name: string): vscode.Task {
         { type: BUILD_TASK_TYPE, target: name },
         vscode.TaskScope.Workspace,
         name,
-        "sourcekit-bazel-bsp",
+        TASK_SOURCE,
         new vscode.CustomExecution(async () => {
             return new (class implements vscode.Pseudoterminal {
                 private writeEmitter = new vscode.EventEmitter<string>();
@@ -195,6 +213,35 @@ function createSimulatorTask(name: string): vscode.Task {
     );
     task.problemMatchers = [];
     return task;
+}
+
+/** Parses a task name back into the webview action and target label. */
+export function parseTaskName(taskName: string): { action: string; targetLabel: string } | undefined {
+    if (taskName.startsWith(PRELAUNCH_PREFIX)) {
+        return { action: ACTION_LAUNCH, targetLabel: taskName.slice(PRELAUNCH_PREFIX.length) };
+    } else if (taskName.startsWith(TEST_PRELAUNCH_PREFIX)) {
+        return { action: ACTION_LAUNCH, targetLabel: taskName.slice(TEST_PRELAUNCH_PREFIX.length) };
+    } else if (taskName.startsWith(RUN_WITHOUT_DEBUGGING_PREFIX)) {
+        return { action: ACTION_LAUNCH_WITHOUT_DEBUGGING, targetLabel: taskName.slice(RUN_WITHOUT_DEBUGGING_PREFIX.length) };
+    } else if (taskName.startsWith(TEST_WITHOUT_DEBUGGING_PREFIX)) {
+        return { action: ACTION_LAUNCH_WITHOUT_DEBUGGING, targetLabel: taskName.slice(TEST_WITHOUT_DEBUGGING_PREFIX.length) };
+    } else if (taskName.startsWith(BUILD_PREFIX)) {
+        return { action: ACTION_BUILD, targetLabel: taskName.slice(BUILD_PREFIX.length) };
+    }
+    return undefined;
+}
+
+/** Stops all running build/launch tasks from this extension without showing any dialog. */
+export async function stopAllRunningBuildTasks(): Promise<void> {
+    const runningTasks = vscode.tasks.taskExecutions.filter(
+        execution => execution.task.source === TASK_SOURCE,
+    );
+    for (const task of runningTasks) {
+        task.terminate();
+    }
+    if (vscode.debug.activeDebugSession) {
+        await vscode.debug.stopDebugging();
+    }
 }
 
 export async function stopExistingLaunchTasksIfNeeded(targetLabel: string): Promise<boolean> {
@@ -236,7 +283,7 @@ export class BuildTaskProvider implements vscode.TaskProvider {
 
     private config: Configuration;
     private extensionPath: string;
-    private targets: ProcessedTarget[] = [];
+    public targets: ProcessedTarget[] = [];
     private bazelWrapper: string = "bazel";
     private tasksByLabel = new Map<string, vscode.Task>();
     private launchTasksByLabel = new Map<string, vscode.Task>();

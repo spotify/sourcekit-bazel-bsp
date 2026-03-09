@@ -31,6 +31,8 @@ export class Configuration {
     private _enableTestDiscovery: boolean;
     private _rulesAppleName: string;
     private _testDiscoveryConcurrency: number;
+    private _pinnedTargets: string[];
+    private _additionalLLDBCommands: string[];
     private _disposable: vscode.Disposable;
     private _onDidChange = new vscode.EventEmitter<void>();
 
@@ -46,6 +48,8 @@ export class Configuration {
         this._enableTestDiscovery = true;
         this._rulesAppleName = "rules_apple";
         this._testDiscoveryConcurrency = 10;
+        this._pinnedTargets = [];
+        this._additionalLLDBCommands = [];
         this.reload();
 
         this._disposable = vscode.workspace.onDidChangeConfiguration((e) => {
@@ -67,6 +71,8 @@ export class Configuration {
         this._enableTestDiscovery = config.get<boolean>("enableTestDiscovery", true);
         this._rulesAppleName = config.get<string>("rulesAppleName", "rules_apple");
         this._testDiscoveryConcurrency = config.get<number>("testDiscoveryConcurrency", 10);
+        this._pinnedTargets = config.get<string[]>("pinnedTargets", []);
+        this._additionalLLDBCommands = config.get<string[]>("additionalLLDBCommands", []);
     }
 
     get extraBuildFlags(): string {
@@ -103,6 +109,14 @@ export class Configuration {
 
     get testDiscoveryConcurrency(): number {
         return this._testDiscoveryConcurrency;
+    }
+
+    get pinnedTargets(): string[] {
+        return this._pinnedTargets;
+    }
+
+    get additionalLLDBCommands(): string[] {
+        return this._additionalLLDBCommands;
     }
 
     dispose(): void {

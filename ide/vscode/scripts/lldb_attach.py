@@ -1,4 +1,4 @@
-from lldb_common import load_launch_info, load_bazel_info, run_command
+from lldb_common import load_launch_info, load_bazel_info, run_command, load_additional_lldb_commands
 import os
 
 launch_info = load_launch_info()
@@ -36,13 +36,21 @@ run_command(
     'settings set plugin.process.gdb-remote.packet-timeout 300',
 )
 
-if device_platform == "device":
-    run_command(f"device select {device_udid}")
-else:
-    run_command(f"platform select {device_platform}")
-    run_command(f"platform connect {device_udid}")
+# Execute additional LLDB commands before attaching
+for cmd in load_additional_lldb_commands():
+    run_command(cmd)
 
 if device_platform == "device":
+    # For physical devices, select the device using CoreDevice ID
+    # This may fail if lldb-dap already selected it, which is fine
+    try:
+        run_command(f"device select {device_udid}")
+    except RuntimeError:
+        # Device already selected by lldb-dap, continue
+        print(f"Device {device_udid} already selected", flush=True)
     run_command(f"device process attach --pid {debug_pid}")
 else:
+    # For simulators
+    run_command(f"platform select {device_platform}")
+    run_command(f"platform connect {device_udid}")
     run_command(f"process attach --pid {debug_pid}")

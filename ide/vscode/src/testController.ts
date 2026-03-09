@@ -18,8 +18,10 @@
 // under the License.
 
 import * as vscode from "vscode";
+import * as path from "path";
+import * as fs from "fs";
 import { ProcessedTarget } from "./graphProcessor";
-import { BuildTaskProvider, getTestLaunchTaskLabel } from "./buildTaskProvider";
+import { BuildTaskProvider, getTestLaunchTaskLabel, stopExistingLaunchTasksIfNeeded } from "./buildTaskProvider";
 import { LSPTestDiscovery, LSPTestItem } from "./lspTestDiscovery";
 import { discoverTestsByBuilding } from "./syntax_test_discovery/sourceTestDiscovery";
 import { Configuration } from "./configuration";
@@ -38,13 +40,22 @@ export class TestController {
     private pendingDiscoveries = new Map<string, boolean>();
     private statusBarItem: vscode.StatusBarItem;
     private bazelWrapper: string = "bazel";
+    private extensionPath: string;
 
-    constructor(context: vscode.ExtensionContext, buildTaskProvider: BuildTaskProvider, lspTestDiscovery: LSPTestDiscovery, outputChannel: vscode.OutputChannel, configuration: Configuration) {
+    constructor(
+        context: vscode.ExtensionContext,
+        buildTaskProvider: BuildTaskProvider,
+        lspTestDiscovery: LSPTestDiscovery,
+        outputChannel: vscode.OutputChannel,
+        configuration: Configuration,
+        extensionPath: string,
+    ) {
         this.context = context;
         this.buildTaskProvider = buildTaskProvider;
         this.lspTestDiscovery = lspTestDiscovery;
         this.outputChannel = outputChannel;
         this.configuration = configuration;
+        this.extensionPath = extensionPath;
         this.controller = vscode.tests.createTestController(
             "sourcekit-bazel-bsp-test-controller",
             "SourceKit Bazel BSP Tests"
@@ -53,7 +64,13 @@ export class TestController {
             "Run Tests",
             vscode.TestRunProfileKind.Run,
             (request, token) => this.runTests(request, token),
-            true
+            true,
+        );
+        this.controller.createRunProfile(
+            "Debug Tests",
+            vscode.TestRunProfileKind.Debug,
+            (request, token) => this.debugTests(request, token),
+            true,
         );
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
         context.subscriptions.push(this.statusBarItem);
@@ -437,9 +454,42 @@ export class TestController {
 
     private async runTests(
         request: vscode.TestRunRequest,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
+    ): Promise<void> {
+        await this.executeTestRun(
+            request,
+            token,
+            (id, t, rt) => this.executeTest(id, t, rt),
+        );
+    }
+
+    private async debugTests(
+        request: vscode.TestRunRequest,
+        token: vscode.CancellationToken,
+    ): Promise<void> {
+        await this.executeTestRun(
+            request,
+            token,
+            (id, t, rt) => this.executeTestWithDebugger(id, t, rt),
+        );
+    }
+
+    /**
+     * Shared test run orchestration used by both Run and Debug profiles.
+     * Iterates over requested test items, delegates execution to the provided executor,
+     * and processes results into the TestRun.
+     */
+    private async executeTestRun(
+        request: vscode.TestRunRequest,
+        token: vscode.CancellationToken,
+        executor: (testItemId: string, token: vscode.CancellationToken, runToken: vscode.CancellationToken) => Promise<{ success: boolean; testResults?: TestCaseResult[]; errorType?: 'failed' | 'errored' | 'cancelled' }>,
     ): Promise<void> {
         const run = this.controller.createTestRun(request);
+        const runToken = run.token;
+
+        function isCancelled(): boolean {
+            return token.isCancellationRequested || runToken.isCancellationRequested;
+        }
 
         const testsToRun: vscode.TestItem[] = [];
         if (request.include) {
@@ -455,7 +505,7 @@ export class TestController {
         let erroredTests = 0;
 
         for (const testItem of testsToRun) {
-            if (token.isCancellationRequested) {
+            if (isCancelled()) {
                 run.skipped(testItem);
                 continue;
             }
@@ -463,76 +513,18 @@ export class TestController {
             // Mark test and all children as started
             run.started(testItem);
 
-            const childTests: vscode.TestItem[] = [];
-
-            // Detect if this is a target (has classes) or a class (has methods)
-            // If children have children, we're at target level; otherwise we're at class level
-            const firstChild = testItem.children.size > 0 ? Array.from(testItem.children)[0][1] : undefined;
-            const isTargetLevel = firstChild && firstChild.children.size > 0;
-
-            if (isTargetLevel) {
-                // Target level: children are classes, grandchildren are methods
-                testItem.children.forEach(child => {
-                    child.children.forEach(method => {
-                        run.started(method);
-                        childTests.push(method);
-                    });
-                });
-            } else if (testItem.children.size > 0) {
-                // Class level: children are methods
-                testItem.children.forEach(child => {
-                    run.started(child);
-                    childTests.push(child);
-                });
-            }
+            const childTests = this.collectChildTests(run, testItem);
 
             try {
-                const { success, testResults, errorType } = await this.executeTest(testItem.id, token);
-                const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+                const { success, testResults, errorType } = await executor(testItem.id, token, runToken);
 
-                // Handle build/execution errors (not test failures)
-                if (errorType === 'errored') {
-                    const errorMsg = new vscode.TestMessage("Build or execution error");
-                    run.errored(testItem, errorMsg);
-                    childTests.forEach(child => run.errored(child, errorMsg));
-                    erroredTests += (childTests.length > 0 ? childTests.length : 1);
-                    totalTests += (childTests.length > 0 ? childTests.length : 1);
-                }
-                // Case 1: Test item is a leaf (individual test method)
-                else if (childTests.length === 0 && testResults && testResults.length > 0 && workspaceRoot) {
-                    // This is a single test method - apply results to it directly
-                    const result = testResults[0]; // Should only be one result
-                    totalTests++;
-                    if (result.passed) {
-                        run.passed(testItem, result.time * 1000);
-                        passedTests++;
-                    } else {
-                        const messages = createFailureMessages(workspaceRoot, result, testItem);
-                        run.failed(testItem, messages, result.time * 1000);
-                        failedTests++;
-                    }
-                }
-                // Case 2: Test item has children (target or class) - update children with detailed results
-                else if (testResults && testResults.length > 0 && childTests.length > 0) {
-                    const childResults = this.updateTestItemsWithResults(run, testItem, childTests, testResults);
-                    totalTests += childResults.total;
-                    passedTests += childResults.passed;
-                    failedTests += childResults.failed;
-                }
-                // Case 3: Fallback to simple pass/fail
-                else {
-                    const count = childTests.length > 0 ? childTests.length : 1;
-                    totalTests += count;
-                    if (success) {
-                        run.passed(testItem);
-                        childTests.forEach(child => run.passed(child));
-                        passedTests += count;
-                    } else {
-                        run.failed(testItem, new vscode.TestMessage("Test failed"));
-                        childTests.forEach(child => run.failed(child, new vscode.TestMessage("Test failed")));
-                        failedTests += count;
-                    }
-                }
+                const resultCounts = this.processTestItemResult(
+                    run, testItem, childTests, { success, testResults, errorType },
+                );
+                totalTests += resultCounts.total;
+                passedTests += resultCounts.passed;
+                failedTests += resultCounts.failed;
+                erroredTests += resultCounts.errored;
             } catch (err) {
                 const message = err instanceof Error ? err.message : String(err);
                 run.errored(testItem, new vscode.TestMessage(message));
@@ -545,21 +537,126 @@ export class TestController {
 
         run.end();
 
-        // Show notification with test results
-        if (totalTests > 0) {
-            if (erroredTests > 0) {
-                vscode.window.showErrorMessage(
-                    `Tests failed to build or run: ${erroredTests} errored, ${failedTests} failed, ${passedTests} passed`
-                );
-            } else if (failedTests > 0) {
-                vscode.window.showWarningMessage(
-                    `Tests completed: ${failedTests} failed, ${passedTests} passed`
-                );
+        this.showTestResultNotification(totalTests, passedTests, failedTests, erroredTests);
+    }
+
+    /**
+     * Marks child tests as started and returns them.
+     */
+    private collectChildTests(run: vscode.TestRun, testItem: vscode.TestItem): vscode.TestItem[] {
+        const childTests: vscode.TestItem[] = [];
+
+        // Detect if this is a target (has classes) or a class (has methods)
+        // If children have children, we're at target level; otherwise we're at class level
+        const firstChild = testItem.children.size > 0 ? Array.from(testItem.children)[0][1] : undefined;
+        const isTargetLevel = firstChild && firstChild.children.size > 0;
+
+        if (isTargetLevel) {
+            // Target level: children are classes, grandchildren are methods
+            testItem.children.forEach(child => {
+                child.children.forEach(method => {
+                    run.started(method);
+                    childTests.push(method);
+                });
+            });
+        } else if (testItem.children.size > 0) {
+            // Class level: children are methods
+            testItem.children.forEach(child => {
+                run.started(child);
+                childTests.push(child);
+            });
+        }
+
+        return childTests;
+    }
+
+    /**
+     * Maps test execution results to TestRun pass/fail/error calls.
+     * Returns counts for notification summary.
+     */
+    private processTestItemResult(
+        run: vscode.TestRun,
+        testItem: vscode.TestItem,
+        childTests: vscode.TestItem[],
+        result: { success: boolean; testResults?: TestCaseResult[]; errorType?: 'failed' | 'errored' | 'cancelled' },
+    ): { total: number; passed: number; failed: number; errored: number } {
+        const { success, testResults, errorType } = result;
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+        // Handle cancelled tests
+        if (errorType === 'cancelled') {
+            this.log(`Test ${testItem.id} was cancelled, marking as skipped`);
+            run.skipped(testItem);
+            childTests.forEach(child => run.skipped(child));
+            return { total: 0, passed: 0, failed: 0, errored: 0 };
+        }
+
+        // Handle build/execution errors (not test failures)
+        if (errorType === 'errored') {
+            const errorMsg = new vscode.TestMessage("Build or execution error");
+            run.errored(testItem, errorMsg);
+            childTests.forEach(child => run.errored(child, errorMsg));
+            const count = childTests.length > 0 ? childTests.length : 1;
+            return { total: count, passed: 0, failed: 0, errored: count };
+        }
+
+        // Case 1: Test item is a leaf (individual test method)
+        if (childTests.length === 0 && testResults && testResults.length > 0 && workspaceRoot) {
+            const testResult = testResults[0];
+            if (testResult.passed) {
+                run.passed(testItem, testResult.time * 1000);
+                return { total: 1, passed: 1, failed: 0, errored: 0 };
             } else {
-                vscode.window.showInformationMessage(
-                    `All ${passedTests} test${passedTests === 1 ? '' : 's'} passed`
-                );
+                const messages = createFailureMessages(workspaceRoot, testResult, testItem);
+                run.failed(testItem, messages, testResult.time * 1000);
+                return { total: 1, passed: 0, failed: 1, errored: 0 };
             }
+        }
+
+        // Case 2: Test item has children (target or class) - update children with detailed results
+        if (testResults && testResults.length > 0 && childTests.length > 0) {
+            const childResults = this.updateTestItemsWithResults(run, testItem, childTests, testResults);
+            return { total: childResults.total, passed: childResults.passed, failed: childResults.failed, errored: 0 };
+        }
+
+        // Case 3: Fallback to simple pass/fail
+        const count = childTests.length > 0 ? childTests.length : 1;
+        if (success) {
+            run.passed(testItem);
+            childTests.forEach(child => run.passed(child));
+            return { total: count, passed: count, failed: 0, errored: 0 };
+        } else {
+            run.failed(testItem, new vscode.TestMessage("Test failed"));
+            childTests.forEach(child => run.failed(child, new vscode.TestMessage("Test failed")));
+            return { total: count, passed: 0, failed: count, errored: 0 };
+        }
+    }
+
+    /**
+     * Shows a notification summarizing test results.
+     */
+    private showTestResultNotification(
+        totalTests: number,
+        passedTests: number,
+        failedTests: number,
+        erroredTests: number,
+    ): void {
+        if (totalTests <= 0) {
+            return;
+        }
+
+        if (erroredTests > 0) {
+            vscode.window.showErrorMessage(
+                `Tests failed to build or run: ${erroredTests} errored, ${failedTests} failed, ${passedTests} passed`
+            );
+        } else if (failedTests > 0) {
+            vscode.window.showWarningMessage(
+                `Tests completed: ${failedTests} failed, ${passedTests} passed`
+            );
+        } else {
+            vscode.window.showInformationMessage(
+                `All ${passedTests} test${passedTests === 1 ? '' : 's'} passed`
+            );
         }
     }
 
@@ -651,10 +748,45 @@ export class TestController {
         return { target: testItemId, filter: undefined };
     }
 
+    /**
+     * Clones a task with a BAZEL_TEST_FILTER environment variable set.
+     */
+    private cloneTaskWithFilter(baseTask: vscode.Task, filter: string): vscode.Task {
+        const baseExecution = baseTask.execution as vscode.ShellExecution;
+        if (!baseExecution.commandLine && !baseExecution.command) {
+            throw new Error("Task execution has no command");
+        }
+
+        const newEnv = { ...baseExecution.options?.env, BAZEL_TEST_FILTER: filter };
+
+        // ShellExecution can be created with either commandLine or command+args
+        const newExecution = baseExecution.commandLine
+            ? new vscode.ShellExecution(baseExecution.commandLine, { ...baseExecution.options, env: newEnv })
+            : new vscode.ShellExecution(
+                baseExecution.command!,
+                baseExecution.args || [],
+                { ...baseExecution.options, env: newEnv },
+            );
+
+        const task = new vscode.Task(
+            baseTask.definition,
+            baseTask.scope || vscode.TaskScope.Workspace,
+            baseTask.name + " (Filter: " + filter + ")",
+            baseTask.source,
+            newExecution,
+            baseTask.problemMatchers,
+        );
+        task.group = baseTask.group;
+        task.isBackground = baseTask.isBackground;
+        task.presentationOptions = baseTask.presentationOptions;
+        return task;
+    }
+
     private async executeTest(
         testItemId: string,
-        token: vscode.CancellationToken
-    ): Promise<{ success: boolean; testResults?: TestCaseResult[]; errorType?: 'failed' | 'errored' }> {
+        token: vscode.CancellationToken,
+        runToken: vscode.CancellationToken,
+    ): Promise<{ success: boolean; testResults?: TestCaseResult[]; errorType?: 'failed' | 'errored' | 'cancelled' }> {
         const { target, filter } = this.parseTestId(testItemId);
         if (filter) {
             this.log(`Parsed filter ${filter} for test task ${target}`);
@@ -664,37 +796,7 @@ export class TestController {
             throw new Error(`Test task not found for target: ${target}`);
         }
 
-        // Create a new task with the filter to avoid modifying the cached task
-        let task = baseTask;
-        if (filter) {
-            const baseExecution = baseTask.execution as vscode.ShellExecution;
-            if (!baseExecution.commandLine && !baseExecution.command) {
-                throw new Error("Task execution has no command");
-            }
-
-            const newEnv = { ...baseExecution.options?.env, BAZEL_TEST_FILTER: filter };
-
-            // ShellExecution can be created with either commandLine or command+args
-            const newExecution = baseExecution.commandLine
-                ? new vscode.ShellExecution(baseExecution.commandLine, { ...baseExecution.options, env: newEnv })
-                : new vscode.ShellExecution(
-                    baseExecution.command!,
-                    baseExecution.args || [],
-                    { ...baseExecution.options, env: newEnv }
-                );
-
-            task = new vscode.Task(
-                baseTask.definition,
-                baseTask.scope || vscode.TaskScope.Workspace,
-                baseTask.name + " (Filter: " + filter + ")",
-                baseTask.source,
-                newExecution,
-                baseTask.problemMatchers
-            );
-            task.group = baseTask.group;
-            task.isBackground = baseTask.isBackground;
-            task.presentationOptions = baseTask.presentationOptions;
-        }
+        const task = filter ? this.cloneTaskWithFilter(baseTask, filter) : baseTask;
 
         // Record when we start the test so we can detect stale test.xml files
         const testStartTime = Date.now();
@@ -731,16 +833,281 @@ export class TestController {
 
                         resolve({ success, testResults, errorType });
                     }
-                })
+                }),
             );
+            function cancel() {
+                taskExecution.then((exec) => {
+                    exec.terminate();
+                });
+                disposables.forEach((d) => d.dispose());
+                resolve({ success: false, errorType: 'cancelled' });
+            }
+
             disposables.push(
-                token.onCancellationRequested(() => {
-                    taskExecution.then((exec) => exec.terminate());
-                    disposables.forEach((d) => d.dispose());
-                    resolve({ success: false, errorType: 'errored' });
-                })
+                token.onCancellationRequested(cancel),
+                runToken.onCancellationRequested(cancel),
             );
         });
+    }
+
+    /**
+     * Executes a test under the debugger using the execute-then-attach pattern.
+     * Launches the test task in debug mode, polls for lldb.json, attaches the debugger,
+     * waits for the debug session to end, then parses test results.
+     */
+    private async executeTestWithDebugger(
+        testItemId: string,
+        token: vscode.CancellationToken,
+        runToken: vscode.CancellationToken,
+    ): Promise<{ success: boolean; testResults?: TestCaseResult[]; errorType?: 'failed' | 'errored' | 'cancelled' }> {
+        const { target, filter } = this.parseTestId(testItemId);
+        if (filter) {
+            this.log(`Parsed filter ${filter} for debug test task ${target}`);
+        }
+
+        // Get the debug-mode test task (without BAZEL_APPLE_RUN_WITHOUT_DEBUGGING)
+        const baseTask = this.buildTaskProvider.getTask(getTestLaunchTaskLabel(target, false));
+        if (!baseTask) {
+            throw new Error(
+                `Debug test task not found for target: ${target}. ` +
+                `Debugging tests is only supported for iOS simulator targets.`
+            );
+        }
+
+        // Stop any existing launch/test tasks for this target to avoid stale process events
+        const shouldContinue = await stopExistingLaunchTasksIfNeeded(target);
+        if (!shouldContinue) {
+            return { success: false, errorType: 'cancelled' };
+        }
+
+        const task = filter ? this.cloneTaskWithFilter(baseTask, filter) : baseTask;
+
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (!workspaceRoot) {
+            throw new Error("No workspace folder found");
+        }
+
+        const launchInfoPath = path.join(workspaceRoot, ".bsp", "skbsp_generated", "lldb.json");
+        const attachScriptPath = path.join(this.extensionPath, "scripts", "lldb_attach.py");
+        const killScriptPath = path.join(this.extensionPath, "scripts", "lldb_kill_app.py");
+
+        const testStartTime = Date.now();
+
+        // Track task completion state
+        let taskFinished = false;
+        let taskExitCode: number | undefined;
+
+        function isCancelled(): boolean {
+            return token.isCancellationRequested || runToken.isCancellationRequested;
+        }
+
+        // Register the task end listener BEFORE starting the task to avoid
+        // a race where a fast-failing task ends before the listener is set up.
+        const taskEndPromise = new Promise<number | undefined>((resolve) => {
+            const disposable = vscode.tasks.onDidEndTaskProcess((e) => {
+                if (e.execution.task.name === task.name) {
+                    disposable.dispose();
+                    taskFinished = true;
+                    taskExitCode = e.exitCode ?? undefined;
+                    this.log(`Debug test task process ended: exitCode=${e.exitCode}`);
+                    resolve(e.exitCode ?? undefined);
+                }
+            });
+        });
+
+        // Step 1: Execute the test task
+        this.log(`Starting debug test task for ${target}`);
+        const taskExecution = await vscode.tasks.executeTask(task);
+
+        // Handle cancellation
+        if (isCancelled()) {
+            taskExecution.terminate();
+            return { success: false, errorType: 'cancelled' };
+        }
+
+        const cancelDisposables: vscode.Disposable[] = [];
+        let cancelled = false;
+        const onCancel = () => {
+            cancelled = true;
+            taskExecution.terminate();
+            cancelDisposables.forEach(d => d.dispose());
+        };
+        cancelDisposables.push(
+            token.onCancellationRequested(onCancel),
+            runToken.onCancellationRequested(onCancel),
+        );
+
+        try {
+            // Step 2: Poll for lldb.json
+            this.log(`Polling for launch info at ${launchInfoPath}`);
+            const pollResult = await this.pollForFile(
+                launchInfoPath,
+                testStartTime,
+                500,
+                3_600_000, // 1 hour — the real exit conditions are task finish and cancellation
+                () => cancelled || isCancelled(),
+                () => taskFinished,
+            );
+
+            if (cancelled || isCancelled()) {
+                return { success: false, errorType: 'cancelled' };
+            }
+
+            if (!pollResult.found) {
+                this.log(
+                    `Launch info not found — taskFinished=${taskFinished}, ` +
+                    `exitCode=${taskExitCode}, reason=${pollResult.reason}`
+                );
+                if (!taskFinished) {
+                    taskExecution.terminate();
+                }
+                await taskEndPromise;
+                return { success: false, errorType: 'errored' };
+            }
+
+            // Step 3: Start debug session (no preLaunchTask — we already launched the task)
+            this.log(`Launch info found, starting debug session for ${target}`);
+            const debugSessionName = `Debug Test ${target}`;
+            const debugConfig: vscode.DebugConfiguration = {
+                name: debugSessionName,
+                type: "lldb-dap",
+                request: "attach",
+                debuggerRoot: workspaceRoot,
+                attachCommands: [`command script import "${attachScriptPath}"`],
+                terminateCommands: [`command script import "${killScriptPath}"`],
+                internalConsoleOptions: "openOnSessionStart",
+                timeout: 9999,
+            };
+
+            const workspaceFolder = vscode.workspace.workspaceFolders![0];
+            const debugStarted = await vscode.debug.startDebugging(workspaceFolder, debugConfig);
+
+            if (!debugStarted) {
+                this.log(`Failed to start debug session for ${target}`);
+                taskExecution.terminate();
+                await taskEndPromise;
+                return { success: false, errorType: 'errored' };
+            }
+
+            // Step 4: Wait for debug session to end
+            this.log(`Debug session started, waiting for it to end`);
+            await new Promise<void>((resolve) => {
+                let resolved = false;
+                const cleanup: vscode.Disposable[] = [];
+
+                const doResolve = () => {
+                    if (resolved) {
+                        return;
+                    }
+                    resolved = true;
+                    cleanup.forEach(d => d.dispose());
+                    resolve();
+                };
+
+                cleanup.push(
+                    vscode.debug.onDidTerminateDebugSession((session) => {
+                        if (session.configuration.name === debugSessionName) {
+                            doResolve();
+                        }
+                    }),
+                );
+
+                if (cancelled || isCancelled()) {
+                    vscode.debug.stopDebugging();
+                    doResolve();
+                } else {
+                    cleanup.push(
+                        token.onCancellationRequested(() => {
+                            vscode.debug.stopDebugging();
+                            doResolve();
+                        }),
+                        runToken.onCancellationRequested(() => {
+                            vscode.debug.stopDebugging();
+                            doResolve();
+                        }),
+                    );
+                }
+            });
+
+            if (cancelled || isCancelled()) {
+                if (!taskFinished) {
+                    taskExecution.terminate();
+                }
+                return { success: false, errorType: 'cancelled' };
+            }
+
+            // Step 5: Wait for task to finish and parse results
+            this.log(`Debug session ended, waiting for test task to finish`);
+            const exitCode = taskFinished ? taskExitCode : await taskEndPromise;
+            const success = exitCode === 0;
+
+            let testResults: TestCaseResult[] | undefined;
+            if (workspaceRoot) {
+                testResults = parseTestXml(this.outputChannel, workspaceRoot, target, testStartTime, this.bazelWrapper);
+            }
+
+            let errorType: 'failed' | 'errored' | undefined;
+            if (!success) {
+                if (!testResults || testResults.length === 0) {
+                    errorType = 'errored';
+                } else {
+                    errorType = 'failed';
+                }
+            }
+
+            this.log(`Debug test completed for ${target}: success=${success}, exitCode=${exitCode}, results=${testResults?.length ?? 0}`);
+            return { success, testResults, errorType };
+        } finally {
+            cancelDisposables.forEach(d => d.dispose());
+        }
+    }
+
+    /**
+     * Polls for a file to appear with a modification time newer than startTime.
+     * Returns early if cancelled or the task finishes.
+     */
+    private async pollForFile(
+        filePath: string,
+        startTime: number,
+        intervalMs: number,
+        timeoutMs: number,
+        isCancelled: () => boolean,
+        isTaskFinished: () => boolean,
+    ): Promise<{ found: boolean; reason?: string }> {
+        const deadline = Date.now() + timeoutMs;
+
+        const checkFile = (): boolean => {
+            try {
+                const stats = fs.statSync(filePath);
+                return stats.mtimeMs > startTime;
+            } catch {
+                return false;
+            }
+        };
+
+        while (Date.now() < deadline) {
+            if (isCancelled()) {
+                return { found: false, reason: "cancelled" };
+            }
+
+            if (checkFile()) {
+                return { found: true };
+            }
+
+            if (isTaskFinished()) {
+                // One last check — the file might have been written just before exit
+                if (checkFile()) {
+                    return { found: true };
+                }
+                return { found: false, reason: "task_finished" };
+            }
+
+            await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+
+        // Timeout reached
+        this.log(`Timed out waiting for ${filePath}`);
+        return { found: false, reason: "timeout" };
     }
 
     private log(message: string): void {

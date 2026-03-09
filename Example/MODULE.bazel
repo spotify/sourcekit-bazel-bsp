@@ -19,6 +19,8 @@ bazel_dep(
 )
 archive_override(
     module_name = "rules_apple",
+    patches = ["//tools/patches:rules_apple_watchos_run_support.patch"],
+    patch_strip = 1,
     sha256 = "ba7aa10aa13f6faf84c307e0822deebcc80d25bbea8abb658a2b94a225be55b4",
     strip_prefix = "rules_apple-c26e9b758d756a3470a495907952c27f421480f8",
     url = "https://github.com/bazelbuild/rules_apple/archive/c26e9b758d756a3470a495907952c27f421480f8.zip",

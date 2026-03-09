@@ -10,13 +10,16 @@ function set_launch_info() {
     return
   fi
 
-  # Read information regarding the user's selected simulator.
-  SIMULATOR_INFO_FILE=${WORKSPACE_ROOT}/.bsp/skbsp_generated/simulator_info.txt
-  if [ -f "${SIMULATOR_INFO_FILE}" ]; then
-    SIMULATOR_INFO=$(cat "${SIMULATOR_INFO_FILE}")
-    echo "Will use simulator: ${SIMULATOR_INFO}"
+  # Read information regarding the user's selected device.
+  # Format: UDID:deviceType (e.g., "12345678-1234-1234-1234-123456789012:physical")
+  DEVICE_INFO_FILE=${WORKSPACE_ROOT}/.bsp/skbsp_generated/simulator_info.txt
+  if [ -f "${DEVICE_INFO_FILE}" ]; then
+    DEVICE_INFO_RAW=$(cat "${DEVICE_INFO_FILE}")
+    DEVICE_INFO="${DEVICE_INFO_RAW%%:*}"
+    DEVICE_TYPE="${DEVICE_INFO_RAW##*:}"
+    echo "Will use device: ${DEVICE_INFO}"
   else
-    emit_launcher_error "No simulator selected! You need to first run the 'Select Simulator for Apple Development' task before being able to run this script. You can find it in the 'SourceKit Bazel BSP' tab of the IDE."
+    emit_launcher_error "No device selected! You need to first run the 'Select Device for Apple Development' task before being able to run this script. You can find it in the 'SourceKit Bazel BSP' tab of the IDE."
   fi
 
   if [ -n "${BAZEL_APPLE_RUN_WITHOUT_DEBUGGING}" ]; then
@@ -57,32 +60,74 @@ EOF
 
 set_launch_info
 
-if [ "${BAZEL_RUN_MODE}" != "test" ]; then
-    if [ "${BAZEL_PLATFORM_TYPE}" = "ios" ]; then
-        ADDITIONAL_FLAGS+=("--@${BAZEL_RULES_APPLE_NAME}//apple/build_settings:ios_device=${SIMULATOR_INFO}")
-    fi
-    if [ -n "${BAZEL_APPLE_RUN_WITHOUT_DEBUGGING}" ]; then
-        SIMCTL_LAUNCH_FLAGS="--console-pty"
-    else
-        SIMCTL_LAUNCH_FLAGS="--wait-for-debugger --console-pty"
-    fi
-    BAZEL_APPLE_SIMULATOR_UDID="${SIMULATOR_INFO}" \
-    BAZEL_APPLE_PREFER_PERSISTENT_SIMS=1 \
-    BAZEL_APPLE_LAUNCH_INFO_PATH="${LAUNCH_INFO_JSON}" \
-    BAZEL_SIMCTL_LAUNCH_FLAGS="${SIMCTL_LAUNCH_FLAGS}" \
-    run_bazel "${BAZEL_RUN_MODE}"
+# Determine if device is simulator or physical based on stored device type.
+if [ "${DEVICE_TYPE}" = "physical" ]; then
+    IS_PHYSICAL_DEVICE=true
 else
-    if [ -n "${BAZEL_TEST_FILTER:-}" ]; then
-        BAZEL_TEST_FILTER_ARG="--test_filter=${BAZEL_TEST_FILTER}"
-        ADDITIONAL_FLAGS+=("${BAZEL_TEST_FILTER_ARG}")
+    IS_PHYSICAL_DEVICE=false
+fi
+
+if [ "${BAZEL_RUN_MODE}" != "test" ]; then
+    if [ "${IS_PHYSICAL_DEVICE}" = "true" ]; then
+        # Physical device: use bazel run with device-specific flags and env vars
+        ADDITIONAL_FLAGS+=("--ios_multi_cpus=arm64")
+        ADDITIONAL_FLAGS+=("--platforms=@build_bazel_apple_support//platforms:ios_arm64")
+        # Pass device ID via build setting (same as simulator)
+        ADDITIONAL_FLAGS+=("--@${BAZEL_RULES_APPLE_NAME}//apple/build_settings:ios_device=${DEVICE_INFO}")
+
+        if [ -n "${BAZEL_APPLE_RUN_WITHOUT_DEBUGGING}" ]; then
+            DEVICECTL_LAUNCH_FLAGS="--console"
+        else
+            DEVICECTL_LAUNCH_FLAGS="--start-stopped"
+        fi
+
+        BAZEL_APPLE_DEVICE_UDID="${DEVICE_INFO}" \
+        BAZEL_APPLE_LAUNCH_INFO_PATH="${LAUNCH_INFO_JSON}" \
+        BAZEL_DEVICECTL_LAUNCH_FLAGS="${DEVICECTL_LAUNCH_FLAGS}" \
+        run_bazel "${BAZEL_RUN_MODE}"
+    else
+        # Simulator or non-iOS platform
+        if [ "${BAZEL_PLATFORM_TYPE}" = "ios" ]; then
+            ADDITIONAL_FLAGS+=("--@${BAZEL_RULES_APPLE_NAME}//apple/build_settings:ios_device=${DEVICE_INFO}")
+        fi
+
+        if [ -n "${BAZEL_APPLE_RUN_WITHOUT_DEBUGGING}" ]; then
+            SIMCTL_LAUNCH_FLAGS="--console-pty"
+        else
+            SIMCTL_LAUNCH_FLAGS="--wait-for-debugger --console-pty"
+        fi
+        BAZEL_APPLE_SIMULATOR_UDID="${DEVICE_INFO}" \
+        BAZEL_APPLE_PREFER_PERSISTENT_SIMS=1 \
+        BAZEL_APPLE_LAUNCH_INFO_PATH="${LAUNCH_INFO_JSON}" \
+        BAZEL_SIMCTL_LAUNCH_FLAGS="${SIMCTL_LAUNCH_FLAGS}" \
+        run_bazel "${BAZEL_RUN_MODE}"
     fi
-    ADDITIONAL_FLAGS+=("--test_env=BAZEL_APPLE_SIMULATOR_UDID=${SIMULATOR_INFO}")
-    ADDITIONAL_FLAGS+=("--test_env=BUILD_WORKSPACE_DIRECTORY=${WORKSPACE_ROOT}")
-    ADDITIONAL_FLAGS+=("--local_test_jobs=1")
-    if [ "${BAZEL_PLATFORM_TYPE}" = "ios" ]; then
-        if [ "${BAZEL_SDK_NAME}" = "iphonesimulator" ]; then
-            ADDITIONAL_FLAGS+=("--test_arg=--destination=platform=ios_simulator,id=${SIMULATOR_INFO}")
+else
+    # Test mode
+    if [ -n "${BAZEL_TEST_FILTER:-}" ]; then
+        ADDITIONAL_FLAGS+=("--test_filter=${BAZEL_TEST_FILTER}")
+    fi
+
+    if [ "${IS_PHYSICAL_DEVICE}" = "true" ]; then
+        ADDITIONAL_FLAGS+=("--ios_multi_cpus=arm64")
+        ADDITIONAL_FLAGS+=("--platforms=@build_bazel_apple_support//platforms:ios_arm64")
+        ADDITIONAL_FLAGS+=("--test_arg=--destination=platform=iOS,id=${DEVICE_INFO}")
+    else
+        ADDITIONAL_FLAGS+=("--test_env=BAZEL_APPLE_SIMULATOR_UDID=${DEVICE_INFO}")
+        if [ "${BAZEL_PLATFORM_TYPE}" = "ios" ] && [ "${BAZEL_SDK_NAME}" = "iphonesimulator" ]; then
+            ADDITIONAL_FLAGS+=("--test_arg=--destination=platform=ios_simulator,id=${DEVICE_INFO}")
         fi
     fi
+
+    # Debug mode: pass launch info path to test runner for debugger attachment,
+    # and disable test caching so the test actually executes (otherwise bazel
+    # serves a cached result and the test runner never runs).
+    if [ -z "${BAZEL_APPLE_RUN_WITHOUT_DEBUGGING:-}" ] && [ -n "${LAUNCH_INFO_JSON:-}" ]; then
+        ADDITIONAL_FLAGS+=("--test_env=BAZEL_APPLE_LAUNCH_INFO_PATH=${LAUNCH_INFO_JSON}")
+        ADDITIONAL_FLAGS+=("--cache_test_results=no")
+    fi
+
+    ADDITIONAL_FLAGS+=("--test_env=BUILD_WORKSPACE_DIRECTORY=${WORKSPACE_ROOT}")
+    ADDITIONAL_FLAGS+=("--local_test_jobs=1")
     run_bazel "${BAZEL_RUN_MODE}"
 fi

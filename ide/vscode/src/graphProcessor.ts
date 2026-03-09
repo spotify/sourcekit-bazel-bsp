@@ -20,24 +20,27 @@
 import * as vscode from "vscode";
 
 interface Configuration {
-    id: number;
+    mnemonic: string;
     platform: String
     minimumOsVersion: String
     cpuArch: String
     sdkName: String
-    dependencyBuildArgs: string[];
+    /** Build invocation template for aspect-based builds */
+    buildInvocation: string;
 }
 
 interface TopLevelTarget {
     label: string;
     launchType?: string;
-    configId: number;
+    configMnemonic: string;
     testSources: string[] | undefined;
 }
 
 interface DependencyTarget {
     label: string;
-    configId: number;
+    configMnemonic: string;
+    /** The top-level parent to build through for aspect-based builds */
+    topLevelParent: string;
 }
 
 interface Graph {
@@ -81,7 +84,7 @@ function canRun(_platform: string | undefined, _sdkName: string | undefined): bo
 
 function canDebug(platform: string | undefined, sdkName: string | undefined, launchType: string | undefined): boolean {
     if (platform == "ios" && sdkName == "iphonesimulator") {
-        return launchType == "app";
+        return launchType == "app" || launchType == "test";
     }
     return false;
 }
@@ -90,13 +93,13 @@ export async function processGraph(inputUri: vscode.Uri, appsToAlwaysInclude: st
     const fileContents = await vscode.workspace.fs.readFile(inputUri);
     const graph: Graph = JSON.parse(Buffer.from(fileContents).toString("utf-8"));
 
-    const configIdToConfiguration = new Map<number, Configuration>();
+    const configMnemonicToConfiguration = new Map<string, Configuration>();
     for (const config of graph.configurations) {
-        configIdToConfiguration.set(config.id, config);
+        configMnemonicToConfiguration.set(config.mnemonic, config);
     }
 
     const topLevelTargets: ProcessedTarget[] = graph.topLevelTargets.map((target) => {
-        const config = configIdToConfiguration.get(target.configId);
+        const config = configMnemonicToConfiguration.get(target.configMnemonic);
         const platform = config?.platform?.toString();
         const sdkName = config?.sdkName?.toString();
         const launchType = target.launchType;
@@ -132,17 +135,35 @@ export async function processGraph(inputUri: vscode.Uri, appsToAlwaysInclude: st
     }
 
     const dependencyTargets: ProcessedTarget[] = graph.dependencyTargets.map((dep) => {
-        const config = configIdToConfiguration.get(dep.configId);
+        const config = configMnemonicToConfiguration.get(dep.configMnemonic);
         if (!config) {
             throw new Error("Configuration not found for dependency target: " + dep.label);
         }
         const platform = config.platform;
         const minimumOsVersion = config.minimumOsVersion;
+
+        // Sanitize label for output group: //path/to:Target -> aspect_path_to_Target
+        let sanitized = dep.label;
+        if (sanitized.startsWith("//")) {
+            sanitized = sanitized.substring(2);
+        }
+        sanitized = "aspect_" + sanitized
+            .replace(/\//g, "_")
+            .replace(/:/g, "_")
+            .replace(/-/g, "_")
+            .replace(/\./g, "_");
+
+        // Build through parent using aspect approach
+        const extraBuildArgs = [
+            "--aspects=//.bsp/skbsp_generated:aspect.bzl%platform_deps_aspect",
+            "--output_groups=" + sanitized
+        ];
+
         return {
-            label: dep.label,
+            label: dep.topLevelParent,
             displayName: dep.label + " (" + platform + "_" + minimumOsVersion + ")",
             type: "library" as TargetType,
-            extraBuildArgs: config.dependencyBuildArgs,
+            extraBuildArgs: extraBuildArgs,
             canRun: false,
             canDebug: false,
             testSources: undefined,

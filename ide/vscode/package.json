@@ -2,7 +2,7 @@
     "name": "sourcekit-bazel-bsp",
     "displayName": "SourceKit Bazel BSP",
     "description": "Companion extension for sourcekit-bazel-bsp",
-    "version": "0.0.19",
+    "version": "0.0.34",
     "publisher": "spotify",
     "repository": {
         "type": "git",
@@ -22,6 +22,20 @@
     ],
     "main": "./out/extension.js",
     "contributes": {
+        "commands": [
+            {
+                "command": "sourcekit-bazel-bsp.buildLastTarget",
+                "title": "Build Last Bazel Target"
+            },
+            {
+                "command": "sourcekit-bazel-bsp.runLastTarget",
+                "title": "Run Last Bazel Target"
+            },
+            {
+                "command": "sourcekit-bazel-bsp.testLastTarget",
+                "title": "Test Last Bazel Target"
+            }
+        ],
         "viewsContainers": {
             "activitybar": [
                 {
@@ -88,10 +102,26 @@
                 },
                 "sourcekit-bazel-bsp.testDiscoveryConcurrency": {
                     "type": "number",
-                    "default": 10,
-                    "minimum": 1,
-                    "maximum": 50,
+                    "default": 50,
+                    "minimum": 10,
+                    "maximum": 100,
                     "description": "Maximum number of test files to parse concurrently during test discovery. Higher values may speed up discovery but can consume more system resources."
+                },
+                "sourcekit-bazel-bsp.pinnedTargets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [],
+                    "description": "Bazel target labels to always pin at the top of the Targets view (e.g., [\"//app:MyApp\", \"//tests:MyTests\"])"
+                },
+                "sourcekit-bazel-bsp.additionalLLDBCommands": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [],
+                    "description": "Additional LLDB commands to execute before attaching to the process during debugging"
                 }
             }
         },

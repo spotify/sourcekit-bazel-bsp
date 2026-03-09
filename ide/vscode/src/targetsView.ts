@@ -35,12 +35,15 @@ export class TargetsViewProvider implements vscode.WebviewViewProvider {
 
     private _view?: vscode.WebviewView;
     private targets: ProcessedTarget[] | undefined;
+    private _settingsPinnedTargets: string[] = [];
     private _onBuildTarget?: (target: ProcessedTarget) => void;
     private _onLaunchTarget?: (target: ProcessedTarget) => void;
     private _onLaunchTargetWithoutDebugging?: (target: ProcessedTarget) => void;
     private _onTestTarget?: (target: ProcessedTarget) => void;
     private _onTestTargetWithoutDebugging?: (target: ProcessedTarget) => void;
     private _onSelectSimulator?: () => void;
+    private _onStopBuild?: () => void;
+    private _runningState: { targetLabel: string; action: string; pending: boolean } | null = null;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -71,9 +74,24 @@ export class TargetsViewProvider implements vscode.WebviewViewProvider {
         this._onSelectSimulator = callback;
     }
 
+    onStopBuild(callback: () => void): void {
+        this._onStopBuild = callback;
+    }
+
+    /** Updates the webview with the currently running task state. */
+    updateRunningState(targetLabel: string | null, action: string | null, pending: boolean = false): void {
+        this._runningState = targetLabel && action ? { targetLabel, action, pending } : null;
+        this._sendRunningStateToWebview();
+    }
+
     setTargets(targets: ProcessedTarget[]): void {
         this.targets = targets;
         this._sendTargetsToWebview();
+    }
+
+    setSettingsPinnedTargets(pinnedTargets: string[]): void {
+        this._settingsPinnedTargets = pinnedTargets;
+        this._sendSettingsPinnedTargetsToWebview();
     }
 
     resolveWebviewView(
@@ -93,7 +111,9 @@ export class TargetsViewProvider implements vscode.WebviewViewProvider {
             if (webviewView.visible) {
                 this._sendTargetsToWebview();
                 this._sendFilterStateToWebview();
+                this._sendSettingsPinnedTargetsToWebview();
                 this._sendSimulatorInfoToWebview();
+                this._sendRunningStateToWebview();
             }
         });
 
@@ -101,7 +121,9 @@ export class TargetsViewProvider implements vscode.WebviewViewProvider {
             if (message.type === "ready") {
                 this._sendTargetsToWebview();
                 this._sendFilterStateToWebview();
+                this._sendSettingsPinnedTargetsToWebview();
                 this._sendSimulatorInfoToWebview();
+                this._sendRunningStateToWebview();
             } else if (message.type === "saveFilterState") {
                 this._workspaceState.update(FILTER_STATE_KEY, message.state);
             } else if (message.type === "buildTarget") {
@@ -137,6 +159,10 @@ export class TargetsViewProvider implements vscode.WebviewViewProvider {
                 if (target && this._onTestTargetWithoutDebugging) {
                     this._onTestTargetWithoutDebugging(target);
                 }
+            } else if (message.type === "stopBuild") {
+                if (this._onStopBuild) {
+                    this._onStopBuild();
+                }
             } else if (message.type === "selectSimulator") {
                 if (this._onSelectSimulator) {
                     this._onSelectSimulator();
@@ -156,6 +182,16 @@ export class TargetsViewProvider implements vscode.WebviewViewProvider {
         this._view.webview.postMessage({
             type: "updateTargets",
             targets: this.targets ?? null,
+        });
+    }
+
+    private _sendSettingsPinnedTargetsToWebview(): void {
+        if (!this._view) {
+            return;
+        }
+        this._view.webview.postMessage({
+            type: "updateSettingsPinnedTargets",
+            targets: this._settingsPinnedTargets,
         });
     }
 
@@ -180,6 +216,18 @@ export class TargetsViewProvider implements vscode.WebviewViewProvider {
         this._view.webview.postMessage({
             type: "updateSimulatorInfo",
             simulator: info ?? null,
+        });
+    }
+
+    private _sendRunningStateToWebview(): void {
+        if (!this._view) {
+            return;
+        }
+        this._view.webview.postMessage({
+            type: "updateRunningState",
+            targetLabel: this._runningState?.targetLabel ?? null,
+            action: this._runningState?.action ?? null,
+            pending: this._runningState?.pending ?? false,
         });
     }
 
@@ -334,6 +382,15 @@ export class TargetsViewProvider implements vscode.WebviewViewProvider {
         .action-button:hover {
             background: var(--vscode-toolbar-hoverBackground);
         }
+        .action-button.stop-button {
+            opacity: 1;
+            color: var(--vscode-testing-iconErrored);
+        }
+        .action-button.pending-button {
+            opacity: 1;
+            color: var(--vscode-descriptionForeground);
+            cursor: default;
+        }
         .pin-button {
             opacity: 0;
         }
@@ -469,9 +526,9 @@ export class TargetsViewProvider implements vscode.WebviewViewProvider {
     </div>
     <div class="simulator-row">
         <span class="codicon codicon-device-mobile"></span>
-        <span class="simulator-label" id="simulatorLabel">Select Simulator</span>
+        <span class="simulator-label" id="simulatorLabel">Select Physical or Simulator Device</span>
         <span class="simulator-runtime" id="simulatorRuntime"></span>
-        <button class="action-button" id="simulatorButton" title="Select Simulator for Apple Development">
+        <button class="action-button" id="simulatorButton" title="Select Physical or Simulator Device for Apple Development">
             <span class="codicon codicon-settings-gear"></span>
         </button>
     </div>
@@ -511,6 +568,8 @@ export class TargetsViewProvider implements vscode.WebviewViewProvider {
 
         let allTargets = null;
         let pinnedTargets = [];
+        let settingsPinnedTargets = [];
+        let runningState = null;
 
         function iconForTargetType(type) {
             switch (type) {
@@ -565,14 +624,14 @@ export class TargetsViewProvider implements vscode.WebviewViewProvider {
             const filteredTargets = allTargets.filter(t => {
                 const matchesText = !filterText || t.displayName.toLowerCase().includes(filterText);
                 const matchesType = selectedTypes.includes(t.type);
-                const matchesPath = matchesPathFilters(t.label);
+                const matchesPath = matchesPathFilters(t.displayName);
                 return matchesText && matchesType && matchesPath;
             });
 
-            // Sort so pinned targets appear first
+            // Sort so pinned targets appear first (settings-pinned + UI-pinned)
             const sortedTargets = filteredTargets.sort((a, b) => {
-                const aIsPinned = pinnedTargets.includes(a.label);
-                const bIsPinned = pinnedTargets.includes(b.label);
+                const aIsPinned = settingsPinnedTargets.includes(a.label) || pinnedTargets.includes(a.label);
+                const bIsPinned = settingsPinnedTargets.includes(b.label) || pinnedTargets.includes(b.label);
                 if (aIsPinned && !bIsPinned) return -1;
                 if (!aIsPinned && bIsPinned) return 1;
                 return 0;
@@ -583,17 +642,31 @@ export class TargetsViewProvider implements vscode.WebviewViewProvider {
                 return;
             }
 
+            const isRunning = (label, action) => runningState && runningState.targetLabel === label && runningState.action === action;
+            const pendingButton = '<button class="action-button pending-button" title="Starting..."><span class="codicon codicon-loading codicon-modifier-spin"></span></button>';
+            const stopButton = '<button class="action-button stop-button" data-action="stop" title="Stop"><span class="codicon codicon-debug-stop"></span></button>';
+            const runningButton = () => runningState && runningState.pending ? pendingButton : stopButton;
+
             targetList.innerHTML = sortedTargets.map(target => {
-                const isPinned = pinnedTargets.includes(target.label);
+                const isSettingsPinned = settingsPinnedTargets.includes(target.label);
+                const isUIPinned = pinnedTargets.includes(target.label);
+                const isPinned = isSettingsPinned || isUIPinned;
                 const pinIcon = isPinned ? 'pinned' : 'pin';
                 const pinClass = isPinned ? 'pin-button pinned' : 'pin-button';
-                const pinButton = '<button class="action-button ' + pinClass + '" data-action="pin" data-label="' + escapeHtml(target.label) + '" title="' + (isPinned ? 'Unpin' : 'Pin') + ' target"><span class="codicon codicon-' + pinIcon + '"></span></button>';
-                const buildButton = '<button class="action-button" data-action="build" data-label="' + escapeHtml(target.label) + '" title="Build target"><span class="codicon codicon-tools"></span></button>';
+                const pinTitle = isSettingsPinned ? 'Pinned via settings' : (isUIPinned ? 'Unpin target' : 'Pin target');
+                const pinButton = '<button class="action-button ' + pinClass + '" data-action="pin" data-label="' + escapeHtml(target.label) + '"' + (isSettingsPinned ? ' data-settings-pinned="true"' : '') + ' title="' + pinTitle + '"><span class="codicon codicon-' + pinIcon + '"></span></button>';
+                const buildButton = isRunning(target.label, 'build')
+                    ? runningButton()
+                    : '<button class="action-button" data-action="build" data-label="' + escapeHtml(target.label) + '" title="Build target"><span class="codicon codicon-tools"></span></button>';
                 const launchButton = target.canDebug
-                    ? '<button class="action-button" data-action="launch" data-label="' + escapeHtml(target.label) + '" title="Run and debug"><span class="codicon codicon-debug-alt"></span></button>'
+                    ? (isRunning(target.label, 'launch')
+                        ? runningButton()
+                        : '<button class="action-button" data-action="launch" data-label="' + escapeHtml(target.label) + '" title="Run and debug"><span class="codicon codicon-debug-alt"></span></button>')
                     : '';
                 const launchWithoutDebuggingButton = target.canRun
-                    ? '<button class="action-button" data-action="launchWithoutDebugging" data-label="' + escapeHtml(target.label) + '" title="Run without debugging"><span class="codicon codicon-run"></span></button>'
+                    ? (isRunning(target.label, 'launchWithoutDebugging')
+                        ? runningButton()
+                        : '<button class="action-button" data-action="launchWithoutDebugging" data-label="' + escapeHtml(target.label) + '" title="Run without debugging"><span class="codicon codicon-run"></span></button>')
                     : '';
                 return '<div class="target-item">' +
                     '<span class="codicon codicon-' + iconForTargetType(target.type) + '"></span>' +
@@ -716,7 +789,7 @@ export class TargetsViewProvider implements vscode.WebviewViewProvider {
                 simulatorLabel.textContent = simulator.name;
                 simulatorRuntime.textContent = simulator.runtime;
             } else {
-                simulatorLabel.textContent = 'Select Simulator';
+                simulatorLabel.textContent = 'Select Physical or Simulator Device';
                 simulatorRuntime.textContent = '';
             }
         }
@@ -727,8 +800,18 @@ export class TargetsViewProvider implements vscode.WebviewViewProvider {
                 allTargets = message.targets;
                 renderTargets();
                 saveWebviewState();
+            } else if (message.type === 'updateSettingsPinnedTargets') {
+                settingsPinnedTargets = message.targets || [];
+                renderTargets();
             } else if (message.type === 'restoreFilterState') {
                 restoreFilterState(message.state);
+            } else if (message.type === 'updateRunningState') {
+                if (message.targetLabel && message.action) {
+                    runningState = { targetLabel: message.targetLabel, action: message.action, pending: message.pending };
+                } else {
+                    runningState = null;
+                }
+                renderTargets();
             } else if (message.type === 'updateSimulatorInfo') {
                 updateSimulatorDisplay(message.simulator);
             }
@@ -755,7 +838,13 @@ export class TargetsViewProvider implements vscode.WebviewViewProvider {
                     vscode.postMessage({ type: 'testTarget', label });
                 } else if (action === 'testWithoutDebugging') {
                     vscode.postMessage({ type: 'testTargetWithoutDebugging', label });
+                } else if (action === 'stop') {
+                    vscode.postMessage({ type: 'stopBuild' });
                 } else if (action === 'pin') {
+                    // Don't allow toggling settings-pinned targets from UI
+                    if (button.dataset.settingsPinned === 'true') {
+                        return;
+                    }
                     const index = pinnedTargets.indexOf(label);
                     if (index >= 0) {
                         pinnedTargets.splice(index, 1);

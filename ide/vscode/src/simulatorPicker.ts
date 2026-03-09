@@ -33,8 +33,39 @@ interface SimctlOutput {
     devices: Record<string, SimulatorDevice[]>;
 }
 
+interface PhysicalDevice {
+    name: string;
+    udid: string;
+    identifier: string;
+    osVersion: string;
+    platform: string;
+    connectionState: string;
+}
+
+interface DevicectlOutput {
+    result: {
+        devices: Array<{
+            identifier: string;
+            hardwareProperties: {
+                udid: string;
+                platform: string;
+                reality?: string;
+            };
+            deviceProperties: {
+                name: string;
+                osVersionNumber: string;
+            };
+            connectionProperties: {
+                tunnelState?: string;
+            };
+        }>;
+    };
+}
+
 interface SimulatorQuickPickItem extends vscode.QuickPickItem {
     udid: string;
+    identifier?: string;
+    deviceType: 'simulator' | 'physical';
 }
 
 export interface SimulatorInfo {
@@ -56,6 +87,47 @@ async function getSimctlDevices(): Promise<SimctlOutput> {
     return JSON.parse(output);
 }
 
+async function getPhysicalDevices(): Promise<PhysicalDevice[]> {
+    const tmpFile = path.join(require('os').tmpdir(), `devicectl-${Date.now()}.json`);
+
+    try {
+        await new Promise<void>((resolve, reject) => {
+            cp.exec(`xcrun devicectl list devices --json-output "${tmpFile}"`, (error) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve();
+                }
+            });
+        });
+
+        const output = await fs.promises.readFile(tmpFile, 'utf-8');
+        const data: DevicectlOutput = JSON.parse(output);
+
+        await fs.promises.unlink(tmpFile).catch(() => {});
+
+        const devices: PhysicalDevice[] = [];
+
+        for (const device of data.result.devices) {
+            if (device.hardwareProperties.reality === 'physical') {
+                devices.push({
+                    name: device.deviceProperties.name,
+                    udid: device.hardwareProperties.udid,
+                    identifier: device.identifier,
+                    osVersion: device.deviceProperties.osVersionNumber,
+                    platform: device.hardwareProperties.platform,
+                    connectionState: device.connectionProperties.tunnelState || 'disconnected',
+                });
+            }
+        }
+
+        return devices;
+    } catch (error) {
+        await fs.promises.unlink(tmpFile).catch(() => {});
+        return [];
+    }
+}
+
 function getSimulatorInfoPath(): string | undefined {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) {
@@ -71,10 +143,12 @@ export async function getCurrentSimulatorInfo(): Promise<SimulatorInfo | undefin
     }
 
     try {
-        const savedUdid = (await fs.promises.readFile(infoPath, "utf-8")).trim();
-        if (!savedUdid) {
+        const savedContent = (await fs.promises.readFile(infoPath, "utf-8")).trim();
+        if (!savedContent) {
             return undefined;
         }
+        // Format: UDID:deviceType (e.g., "12345678-...:physical")
+        const savedUdid = savedContent.split(":")[0];
 
         const simctlData = await getSimctlDevices();
 
@@ -95,6 +169,17 @@ export async function getCurrentSimulatorInfo(): Promise<SimulatorInfo | undefin
             }
         }
 
+        const physicalDevices = await getPhysicalDevices();
+        for (const device of physicalDevices) {
+            if (device.udid === savedUdid) {
+                return {
+                    name: device.name,
+                    runtime: `${device.platform} ${device.osVersion}`,
+                    udid: device.udid,
+                };
+            }
+        }
+
         return undefined;
     } catch {
         return undefined;
@@ -109,9 +194,31 @@ export async function selectSimulator(): Promise<SimulatorInfo | undefined> {
     }
 
     try {
-        const simctlData = await getSimctlDevices();
         const items: SimulatorQuickPickItem[] = [];
 
+        const physicalDevices = await getPhysicalDevices();
+        for (const device of physicalDevices) {
+            const connectionIndicator = device.connectionState === 'connected' ? '●' : '○';
+            items.push({
+                label: `${connectionIndicator} ${device.name}`,
+                description: `${device.platform} ${device.osVersion}`,
+                detail: 'Physical Device',
+                udid: device.udid,
+                identifier: device.identifier,
+                deviceType: 'physical',
+            });
+        }
+
+        if (items.length > 0) {
+            items.push({
+                label: '',
+                kind: vscode.QuickPickItemKind.Separator,
+                udid: '',
+                deviceType: 'simulator',
+            } as SimulatorQuickPickItem);
+        }
+
+        const simctlData = await getSimctlDevices();
         for (const [runtime, devices] of Object.entries(simctlData.devices)) {
             const runtimeMatch = runtime.match(/SimRuntime\.(\w+)-(\d+)-(\d+)/);
             const runtimeLabel = runtimeMatch
@@ -122,48 +229,55 @@ export async function selectSimulator(): Promise<SimulatorInfo | undefined> {
                 items.push({
                     label: device.name,
                     description: runtimeLabel,
+                    detail: 'Simulator',
                     udid: device.udid,
+                    deviceType: 'simulator',
                 });
             }
         }
 
         if (items.length === 0) {
-            vscode.window.showErrorMessage("No available simulators found");
+            vscode.window.showErrorMessage("No available devices or simulators found");
             return undefined;
         }
 
         items.sort((a, b) => {
+            if (a.deviceType !== b.deviceType) {
+                return a.deviceType === 'physical' ? -1 : 1;
+            }
             const descCompare = (b.description ?? "").localeCompare(a.description ?? "");
             if (descCompare !== 0) { return descCompare; }
             return a.label.localeCompare(b.label);
         });
 
         const selected = await vscode.window.showQuickPick(items, {
-            placeHolder: "Select the simulator you'd like to use",
+            placeHolder: "Select the device you'd like to use",
             matchOnDescription: true,
         });
 
-        if (!selected) {
+        if (!selected || !selected.udid) {
             return undefined;
         }
 
         const outputDir = path.dirname(infoPath);
         await fs.promises.mkdir(outputDir, { recursive: true });
-        await fs.promises.writeFile(infoPath, selected.udid);
+
+        await fs.promises.writeFile(infoPath, `${selected.udid}:${selected.deviceType}`);
 
         const result: SimulatorInfo = {
-            name: selected.label,
+            name: selected.label.replace(/^[●○] /, ''),
             runtime: selected.description ?? "",
             udid: selected.udid,
         };
 
+        const deviceTypeLabel = selected.deviceType === 'physical' ? 'device' : 'simulator';
         vscode.window.showInformationMessage(
-            `Selected simulator: ${result.name} (${result.runtime})`
+            `Selected ${deviceTypeLabel}: ${result.name} (${result.runtime})`
         );
 
         return result;
     } catch (error) {
-        vscode.window.showErrorMessage(`Failed to list simulators: ${error}`);
+        vscode.window.showErrorMessage(`Failed to list devices: ${error}`);
         return undefined;
     }
 }

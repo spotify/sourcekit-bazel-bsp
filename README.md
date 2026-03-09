@@ -1,6 +1,6 @@
-# iOS Development (and more) in alternative IDEs like Cursor and Claude Code, for Bazel projects
+# iOS Development (and more) in IDEs like Cursor and agents like Claude Code, for Bazel projects
 
-**sourcekit-bazel-bsp** is a [Build Server Protocol](https://build-server-protocol.github.io/) implementation that serves as a bridge between [sourcekit-lsp](https://github.com/swiftlang/sourcekit-lsp) (Swift's official [Language Server Protocol](https://microsoft.github.io/language-server-protocol/)) and your Bazel-based code, giving you the power to break free from the IDE side of Xcode and **develop for Apple platforms like iOS in any IDE that has support for LSPs**, such as Cursor, VSCode, Sublime Text, and even agentic models like Claude Code.
+**sourcekit-bazel-bsp** is a [Build Server Protocol](https://build-server-protocol.github.io/) implementation that serves as a bridge between [sourcekit-lsp](https://github.com/swiftlang/sourcekit-lsp) (Swift's official [Language Server Protocol](https://microsoft.github.io/language-server-protocol/)) and your Bazel-based code, giving you the power to break free from the IDE side of Xcode and **develop for Apple platforms like iOS in any IDE that has support for LSPs**, such as Cursor, VSCode, Sublime Text, and more. If you've fully migrated away from IDEs in favor of agentic models, **you can also use this to give code intelligence to agents like Claude via their LSP integration.**
 
 > [!IMPORTANT]
 > sourcekit-bazel-bsp is designed specifically for projects that use the [Bazel build system](https://bazel.build/) under the hood. It will not work for regular Xcode projects. For Xcode, check out projects like [xcode-build-server](https://github.com/SolaWing/xcode-build-server) (unrelated to this project and Spotify).
@@ -9,7 +9,7 @@ https://github.com/user-attachments/assets/ca5a448d-03b1-4f8e-9de1-e403cc08953c
 
 ## Features
 
-- (All IDEs) All of the usual indexing features such as code completion, jump to definition, error annotations, refactoring and more, for Swift, Obj-C, and C++ (via the official [sourcekit-lsp](https://github.com/swiftlang/sourcekit-lsp))
+- (All IDEs + Claude) All of the usual indexing features such as code completion, jump to definition, error annotations, refactoring and more, for Swift, Obj-C, and C++ (via the official [sourcekit-lsp](https://github.com/swiftlang/sourcekit-lsp))
 - (Cursor / VSCode): Building, launching, debugging (via [lldb-dap](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.lldb-dap)), testing (both via the _Testing_ tab and via the source file itself), as well as simulator management, all from within the IDE (via our [companion extension](ide/vscode/README.md))
 
 ## Requirements
@@ -20,7 +20,7 @@ https://github.com/user-attachments/assets/ca5a448d-03b1-4f8e-9de1-e403cc08953c
 
 ## Initial Setup Instructions
 
-### Shared Instructions for All IDEs
+### Shared Instructions for All IDEs / Models
 
 - Add sourcekit-bazel-bsp as a dependency on your `MODULE.bazel` file:
 
@@ -75,7 +75,7 @@ While a *complete* indexing run can take a very long time on large projects, **k
 
 If you experience any trouble trying to get it to work, check out the [Example/ folder](./Example) for a test project with a pre-configured Bazel and `.bsp/` folder setup. The _Troubleshooting_ section below also contains instructions on how to make sure the integration is working and debug sourcekit-bazel-bsp.
 
-### Other IDEs, and Claude Code
+### Other IDEs, and AI Models
 
 The setup instructions for other IDEs (and by extension, Claude Code) will depend on how the IDE integrates with LSPs. You should then search for instructions on how to install sourcekit-lsp on your IDE of choice and enable background indexing. We also recommend finding a way to override the sourcekit-lsp binary itself for the same reasons described in the Cursor / VSCode instructions.
 
