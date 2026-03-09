@@ -83,11 +83,15 @@ final class BazelTargetStoreFake: BazelTargetStore {
         unimplemented()
     }
 
+    func topLevelLabels(forBSPURI uri: URI) throws -> [String] {
+        unimplemented()
+    }
+
     func topLevelRuleType(forLabel label: String) throws -> TopLevelRuleType {
         unimplemented()
     }
 
-    func preferredTopLevelLabel(forConfig configMnemonic: String) throws -> String {
+    func preferredTopLevelLabel(forBSPURI uri: URI) throws -> String {
         unimplemented()
     }
 

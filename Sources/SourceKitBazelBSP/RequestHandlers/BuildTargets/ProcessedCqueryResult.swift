@@ -32,6 +32,9 @@ struct ProcessedCqueryResult {
     let srcToBspURIsMap: [URI: [URI]]
     let configurationToTopLevelLabelsMap: [String: [String]]
     let bspUriToParentConfigMap: [URI: String]
+    /// Maps each BSP URI to the top-level labels that have it in their dependency graph.
+    /// This is more precise than `configurationToTopLevelLabelsMap` which only matches by config mnemonic.
+    let bspUriToTopLevelLabelsMap: [URI: [String]]
     let testTargetToBundleTargetMap: [String: URI]
 
     /// Merges the result of a cquery for added and removed files into the current result.
@@ -105,6 +108,7 @@ struct ProcessedCqueryResult {
             srcToBspURIsMap: _srcToBspURIsMap,
             configurationToTopLevelLabelsMap: configurationToTopLevelLabelsMap,
             bspUriToParentConfigMap: bspUriToParentConfigMap,
+            bspUriToTopLevelLabelsMap: bspUriToTopLevelLabelsMap,
             testTargetToBundleTargetMap: testTargetToBundleTargetMap
         )
         return (result, invalidatedTargets)

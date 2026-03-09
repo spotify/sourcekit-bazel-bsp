@@ -212,14 +212,16 @@ struct BazelTargetQuerierParserImplTests {
         // BSP URI to parent config map - verify URIs map to configs
         #expect(result.bspUriToParentConfigMap.count == 15, "bspUriToParentConfigMap should have 15 entries")
 
-        // Helper to get parent labels for a given label through the config mapping
-        // Finds all URIs for a label and returns the union of their parent labels
+        // Verify bspUriToTopLevelLabelsMap - this maps each target to its actual top-level parents
+        // based on the dependency graph, not just config mnemonic matching
+        #expect(result.bspUriToTopLevelLabelsMap.count == 15, "bspUriToTopLevelLabelsMap should have 15 entries")
+
+        // Helper to get parent labels for a given label using the new dependency-graph-based mapping
+        // This is more precise than the old config-based mapping
         func getParentLabels(forLabel label: String) -> Set<String> {
             var parentLabels = Set<String>()
             for (uri, targetLabel) in result.bspURIsToBazelLabelsMap where targetLabel == label {
-                guard let configHash = result.bspUriToParentConfigMap[uri],
-                    let labels = result.configurationToTopLevelLabelsMap[configHash]
-                else {
+                guard let labels = result.bspUriToTopLevelLabelsMap[uri] else {
                     continue
                 }
                 parentLabels.formUnion(labels)
@@ -227,7 +229,10 @@ struct BazelTargetQuerierParserImplTests {
             return parentLabels
         }
 
-        // iOS targets should have iOS top-level parents
+        // iOS targets - verify based on actual dependency relationships, not just config matching
+        // ExpandedTemplate and GeneratedDummy are deps of HelloWorldLib, which is dep of HelloWorld.
+        // HelloWorldTests deps on HelloWorldTestsLib which deps on HelloWorldLib.
+        // HelloWorldE2ETests has test_host=HelloWorld, so it includes HelloWorld's deps.
         #expect(
             getParentLabels(forLabel: "//HelloWorld:ExpandedTemplate")
                 == Set([
@@ -252,40 +257,46 @@ struct BazelTargetQuerierParserImplTests {
                     "//HelloWorld:HelloWorld",
                 ])
         )
+        // HelloWorldTestsLib is ONLY a dep of HelloWorldTests, not of HelloWorld or HelloWorldE2ETests
         #expect(
             getParentLabels(forLabel: "//HelloWorld:HelloWorldTestsLib")
                 == Set([
-                    "//HelloWorld:HelloWorldE2ETests",
-                    "//HelloWorld:HelloWorldTests",
-                    "//HelloWorld:HelloWorld",
+                    "//HelloWorld:HelloWorldTests"
                 ])
         )
-        // macOS targets
+        // macOS targets - MacAppLib is dep of HelloWorldMacApp and HelloWorldMacTests (via MacAppTestsLib)
+        // but NOT of HelloWorldMacCLIApp (which only deps on MacCLIAppLib)
         #expect(
             getParentLabels(forLabel: "//HelloWorld:MacAppLib")
                 == Set([
                     "//HelloWorld:HelloWorldMacTests",
-                    "//HelloWorld:HelloWorldMacCLIApp",
                     "//HelloWorld:HelloWorldMacApp",
                 ])
         )
+        // MacAppTestsLib is ONLY a dep of HelloWorldMacTests
         #expect(
             getParentLabels(forLabel: "//HelloWorld:MacAppTestsLib")
                 == Set([
-                    "//HelloWorld:HelloWorldMacTests",
-                    "//HelloWorld:HelloWorldMacCLIApp",
-                    "//HelloWorld:HelloWorldMacApp",
+                    "//HelloWorld:HelloWorldMacTests"
                 ])
         )
+        // MacCLIAppLib is ONLY a dep of HelloWorldMacCLIApp
         #expect(
             getParentLabels(forLabel: "//HelloWorld:MacCLIAppLib")
                 == Set([
-                    "//HelloWorld:HelloWorldMacTests",
-                    "//HelloWorld:HelloWorldMacCLIApp",
-                    "//HelloWorld:HelloWorldMacApp",
+                    "//HelloWorld:HelloWorldMacCLIApp"
                 ])
         )
-        // TodoModels is used by multiple platforms (iOS, macOS, watchOS)
+        // TodoModels is used by multiple targets across platforms
+        // iOS: HelloWorld -> HelloWorldLib -> TodoModelsAlias -> TodoModels
+        //      HelloWorldTests -> HelloWorldTestsLib -> HelloWorldLib -> ...
+        //      HelloWorldE2ETests (test_host: HelloWorld) -> ...
+        // macOS: HelloWorldMacApp -> MacAppLib -> TodoModels
+        //        HelloWorldMacTests -> MacAppTestsLib -> MacAppLib -> ...
+        //        HelloWorldMacCLIApp -> MacCLIAppLib -> TodoModels
+        // watchOS: HelloWorldWatchApp -> HelloWorldWatchExtension -> WatchAppLib -> TodoModels
+        //          HelloWorldWatchExtension -> WatchAppLib -> TodoModels
+        //          HelloWorldWatchTests -> WatchAppTestsLib -> WatchAppLib -> ...
         #expect(
             getParentLabels(forLabel: "//HelloWorld:TodoModels")
                 == Set([
@@ -300,6 +311,7 @@ struct BazelTargetQuerierParserImplTests {
                     "//HelloWorld:HelloWorld",
                 ])
         )
+        // TodoObjCSupport is a dep of HelloWorldLib (iOS only)
         #expect(
             getParentLabels(forLabel: "//HelloWorld:TodoObjCSupport")
                 == Set([
@@ -308,15 +320,15 @@ struct BazelTargetQuerierParserImplTests {
                     "//HelloWorld:HelloWorld",
                 ])
         )
+        // HelloWorldE2ETestsLib is ONLY a dep of HelloWorldE2ETests
         #expect(
             getParentLabels(forLabel: "//HelloWorld:HelloWorldE2ETestsLib")
                 == Set([
-                    "//HelloWorld:HelloWorldE2ETests",
-                    "//HelloWorld:HelloWorldTests",
-                    "//HelloWorld:HelloWorld",
+                    "//HelloWorld:HelloWorldE2ETests"
                 ])
         )
-        // watchOS targets
+        // watchOS targets - WatchAppLib is dep of HelloWorldWatchExtension, which is dep of HelloWorldWatchApp
+        // HelloWorldWatchTests deps on WatchAppTestsLib which deps on WatchAppLib
         #expect(
             getParentLabels(forLabel: "//HelloWorld:WatchAppLib")
                 == Set([
@@ -325,12 +337,11 @@ struct BazelTargetQuerierParserImplTests {
                     "//HelloWorld:HelloWorldWatchTests",
                 ])
         )
+        // WatchAppTestsLib is ONLY a dep of HelloWorldWatchTests
         #expect(
             getParentLabels(forLabel: "//HelloWorld:WatchAppTestsLib")
                 == Set([
-                    "//HelloWorld:HelloWorldWatchExtension",
-                    "//HelloWorld:HelloWorldWatchApp",
-                    "//HelloWorld:HelloWorldWatchTests",
+                    "//HelloWorld:HelloWorldWatchTests"
                 ])
         )
 

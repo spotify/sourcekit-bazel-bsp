@@ -396,6 +396,15 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             testTargetToBundleTargetMap[realTestTarget] = targetUri
         }
 
+        // Build a dependency graph from ruleInput to compute which deps belong to which top-level targets.
+        // This is more precise than just matching by config mnemonic.
+        let bspUriToTopLevelLabelsMap = buildDependencyMapping(
+            cqueryResults: cquery.results,
+            topLevelTargets: topLevelTargets,
+            depLabelToUriMap: depLabelToUriMap,
+            aliasToLabelMap: aliasToLabelMap
+        )
+
         return ProcessedCqueryResult(
             buildTargets: buildTargets.map { $0.0 },
             topLevelTargets: topLevelTargets,
@@ -405,6 +414,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             srcToBspURIsMap: srcToBspURIsMap,
             configurationToTopLevelLabelsMap: configurationToTopLevelLabelsMap,
             bspUriToParentConfigMap: bspUriToParentConfigMap,
+            bspUriToTopLevelLabelsMap: bspUriToTopLevelLabelsMap,
             testTargetToBundleTargetMap: testTargetToBundleTargetMap
         )
     }
@@ -420,6 +430,94 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             current = resolved
         }
         return current
+    }
+
+    /// Builds a mapping from each dependency's BSP URI to the list of top-level labels that have it
+    /// in their transitive dependency graph.
+    /// This is more accurate than matching by config mnemonic, which incorrectly maps deps to
+    /// all top-level targets with the same config regardless of actual dependency relationships.
+    private func buildDependencyMapping(
+        cqueryResults: [Analysis_ConfiguredTarget],
+        topLevelTargets: [(String, TopLevelRuleType, String)],
+        depLabelToUriMap: [String: [(BuildTargetIdentifier, String)]],
+        aliasToLabelMap: [String: String]
+    ) -> [URI: [String]] {
+        // Step 1: Build a forward dependency graph from ruleInput
+        // Maps each label to its direct dependencies (labels from ruleInput)
+        var labelToDeps: [String: Set<String>] = [:]
+        for configuredTarget in cqueryResults {
+            let target = configuredTarget.target
+            guard target.type == .rule else { continue }
+            let label = target.rule.name
+            // ruleInput contains all direct inputs: deps, srcs, etc.
+            // We only care about dependencies that are also rules (not source files)
+            let deps = Set(target.rule.ruleInput.filter { !$0.contains(".") || $0.contains(":") })
+            labelToDeps[label] = deps
+        }
+
+        // Step 2: For each top-level target, compute its transitive dependency closure
+        // We need to include the test bundle rules in this computation as well
+        var topLevelToTransitiveDeps: [String: Set<String>] = [:]
+        for (topLevelLabel, _, _) in topLevelTargets {
+            var visited = Set<String>()
+            var queue = [topLevelLabel]
+            while !queue.isEmpty {
+                let current = queue.removeFirst()
+                guard !visited.contains(current) else { continue }
+                visited.insert(current)
+
+                // Resolve aliases to find the actual target
+                let resolved = resolveAlias(label: current, from: aliasToLabelMap)
+                if resolved != current {
+                    visited.insert(resolved)
+                }
+
+                // Add direct dependencies to the queue
+                if let deps = labelToDeps[current] {
+                    for dep in deps {
+                        if !visited.contains(dep) {
+                            queue.append(dep)
+                        }
+                    }
+                }
+                if resolved != current, let deps = labelToDeps[resolved] {
+                    for dep in deps {
+                        if !visited.contains(dep) {
+                            queue.append(dep)
+                        }
+                    }
+                }
+            }
+            topLevelToTransitiveDeps[topLevelLabel] = visited
+        }
+
+        // Step 3: Map each dependency URI to its top-level parent labels
+        // For each dependency, find which top-level targets have it in their transitive closure
+        var bspUriToTopLevelLabelsMap: [URI: [String]] = [:]
+        for (depLabel, uriAndConfigs) in depLabelToUriMap {
+            let resolvedLabel = resolveAlias(label: depLabel, from: aliasToLabelMap)
+            for (bspId, configMnemonic) in uriAndConfigs {
+                var parentLabels: [String] = []
+                for (topLevelLabel, _, topLevelConfig) in topLevelTargets {
+                    // Only consider top-level targets with matching config
+                    guard topLevelConfig == configMnemonic else { continue }
+                    // Check if this dep is in the top-level's transitive closure
+                    guard let transitiveDeps = topLevelToTransitiveDeps[topLevelLabel] else { continue }
+                    if transitiveDeps.contains(depLabel) || transitiveDeps.contains(resolvedLabel) {
+                        parentLabels.append(topLevelLabel)
+                    }
+                }
+                if !parentLabels.isEmpty {
+                    bspUriToTopLevelLabelsMap[bspId.uri] = parentLabels
+                }
+            }
+        }
+
+        logger.debug(
+            "Built dependency mapping for \(bspUriToTopLevelLabelsMap.count, privacy: .public) targets"
+        )
+
+        return bspUriToTopLevelLabelsMap
     }
 
     /// Resolves a **source** label by resolving its alias (if any) and expanding filegroups.

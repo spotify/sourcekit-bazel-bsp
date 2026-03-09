@@ -38,6 +38,7 @@ struct BazelTargetQuerierTests {
         srcToBspURIsMap: [:],
         configurationToTopLevelLabelsMap: [:],
         bspUriToParentConfigMap: [:],
+        bspUriToTopLevelLabelsMap: [:],
         testTargetToBundleTargetMap: [:]
     )
 

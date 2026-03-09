@@ -58,10 +58,12 @@ protocol BazelTargetStore: AnyObject {
     func parentConfig(forBSPURI uri: URI) throws -> String
     /// Retrieves the list of top-level labels for a given configuration.
     func topLevelLabels(forConfig configMnemonic: String) throws -> [String]
+    /// Retrieves the list of top-level labels that have the given BSP URI in their dependency graph.
+    func topLevelLabels(forBSPURI uri: URI) throws -> [String]
     /// Retrieves the top-level rule type for a given top-level label.
     func topLevelRuleType(forLabel label: String) throws -> TopLevelRuleType
-    /// Returns the best parent label for a given config, preferring apps over extensions/tests.
-    func preferredTopLevelLabel(forConfig configMnemonic: String) throws -> String
+    /// Returns the best parent label for a given BSP URI, preferring apps over extensions/tests.
+    func preferredTopLevelLabel(forBSPURI uri: URI) throws -> String
     /// Clears the cache of the store.
     func clearCache()
 }
@@ -173,6 +175,13 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         return labels
     }
 
+    func topLevelLabels(forBSPURI uri: URI) throws -> [String] {
+        guard let labels = cqueryResult?.bspUriToTopLevelLabelsMap[uri] else {
+            throw BazelTargetStoreError.unknownBSPURI(uri)
+        }
+        return labels
+    }
+
     func topLevelRuleType(forLabel label: String) throws -> TopLevelRuleType {
         guard let ruleType = cqueryResult?.topLevelLabelToRuleTypeMap[label] else {
             throw BazelTargetStoreError.unableToMapLabelToTopLevelRuleType(label)
@@ -180,11 +189,11 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         return ruleType
     }
 
-    /// Returns the best parent label for a given config, preferring apps over extensions/tests.
-    func preferredTopLevelLabel(forConfig configMnemonic: String) throws -> String {
-        let labels = try topLevelLabels(forConfig: configMnemonic)
+    /// Returns the best parent label for a given BSP URI, preferring apps over extensions/tests.
+    func preferredTopLevelLabel(forBSPURI uri: URI) throws -> String {
+        let labels = try topLevelLabels(forBSPURI: uri)
         guard !labels.isEmpty else {
-            throw BazelTargetStoreError.unableToMapConfigMnemonicToTopLevelLabels(configMnemonic)
+            throw BazelTargetStoreError.unknownBSPURI(uri)
         }
         let ruleTypes = try labels.map { try topLevelRuleType(forLabel: $0) }
         return zip(labels, ruleTypes).labelWithHighestBuildPriority() ?? labels[0]
@@ -195,7 +204,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         let configMnemonic = try parentConfig(forBSPURI: uri)
         let config = try topLevelConfigInfo(forConfigMnemonic: configMnemonic)
         // Use preferredTopLevelLabel to get the best parent (app over extension/test)
-        let parentToUse = try preferredTopLevelLabel(forConfig: configMnemonic)
+        let parentToUse = try preferredTopLevelLabel(forBSPURI: uri)
         return BazelTargetPlatformInfo(
             label: bazelLabel,
             topLevelParentLabel: parentToUse,
@@ -402,7 +411,7 @@ extension BazelTargetStoreImpl {
         for target in dependencyTargets {
             guard let label = target.displayName else { continue }
             let configMnemonic = try parentConfig(forBSPURI: target.id.uri)
-            let topLevelParent = try preferredTopLevelLabel(forConfig: configMnemonic)
+            let topLevelParent = try preferredTopLevelLabel(forBSPURI: target.id.uri)
             reportDependencies.append(
                 .init(
                     label: label,
