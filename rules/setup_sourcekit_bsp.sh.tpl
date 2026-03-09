@@ -166,9 +166,16 @@ output_path_difference=$(echo "$output_path" | sed "s|$output_base/||")
 exec_root=$(cd "$WORKSPACE_ROOT" && $bazel_wrapper info execution_root)
 exec_root_difference=$(echo "$exec_root" | sed "s|$output_base/||")
 output_path_name=$(echo "$output_path" | sed "s|$exec_root/||")
-bsp_output_base="${output_base}-sourcekit-bazel-bsp"
+old_bsp_output_base="${output_base}-sourcekit-bazel-bsp"
+bsp_output_base="${output_base}/sourcekit-bazel-bsp"
 output_path="${bsp_output_base}/${output_path_difference}"
 external_root="${bsp_output_base}/${exec_root_difference}/external"
+
+# Clean up the old output base if it exists (from before we nested it in the main one)
+if [ -d "$old_bsp_output_base" ]; then
+    echo "Cleaning up old output base at $old_bsp_output_base"
+    cd "$WORKSPACE_ROOT" && bazel --output_base="$old_bsp_output_base" clean --expunge &
+fi
 
 # Copy to a temp file first since the source may be a symlink in runfiles
 lsp_config_tmp=$(mktemp)

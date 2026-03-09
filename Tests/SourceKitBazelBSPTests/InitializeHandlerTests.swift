@@ -40,20 +40,20 @@ struct InitializeHandlerTests {
         let fullRootUri = "file:///path/to/project"
         let rootUri = "/path/to/project"
         let outputBase = "/_bazel_user/abc123"
-        let outputPath = "/_bazel_user/abc123-sourcekit-bazel-bsp/execroot/_main/bazel-out"
-        let executionRoot = "/_bazel_user/abc123-sourcekit-bazel-bsp/execroot/_main"
+        let outputPath = "/_bazel_user/abc123/sourcekit-bazel-bsp/execroot/_main/bazel-out"
+        let executionRoot = "/_bazel_user/abc123/sourcekit-bazel-bsp/execroot/_main"
         let devDir = "/Applications/Xcode.app/Contents/Developer"
         let xcodeVersion: String = "17B100"
         let toolchain = "/a/b/Toolchains/XcodeDefault.xctoolchain/"
 
         commandRunner.setResponse(for: "mybazel info output_base", cwd: rootUri, response: outputBase)
         commandRunner.setResponse(
-            for: "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info output_path",
+            for: "mybazel --output_base=/_bazel_user/abc123/sourcekit-bazel-bsp info output_path",
             cwd: rootUri,
             response: outputPath
         )
         commandRunner.setResponse(
-            for: "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info execution_root",
+            for: "mybazel --output_base=/_bazel_user/abc123/sourcekit-bazel-bsp info execution_root",
             cwd: rootUri,
             response: executionRoot
         )
@@ -77,7 +77,7 @@ struct InitializeHandlerTests {
                     baseConfig: baseConfig,
                     rootUri: rootUri,
                     workspaceName: "_main",
-                    outputBase: outputBase + "-sourcekit-bazel-bsp",
+                    outputBase: outputBase + "/sourcekit-bazel-bsp",
                     outputPath: outputPath,
                     devDir: devDir,
                     xcodeVersion: xcodeVersion,
@@ -101,18 +101,18 @@ struct InitializeHandlerTests {
         let fullRootUri = "file:///path/to/project"
         let rootUri = "/path/to/project"
         let outputBase = "/_bazel_user/abc123"
-        let outputPath = "/_bazel_user/abc123-sourcekit-bazel-bsp/execroot/_main/bazel-out"
+        let outputPath = "/_bazel_user/abc123/sourcekit-bazel-bsp/execroot/_main/bazel-out"
         let toolchain = "/a/b/Toolchains/XcodeDefault.xctoolchain/"
         let xcodeVersion: String = "17B100"
 
         commandRunner.setResponse(for: "mybazel info output_base", cwd: rootUri, response: outputBase)
         commandRunner.setResponse(
-            for: "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info output_path",
+            for: "mybazel --output_base=/_bazel_user/abc123/sourcekit-bazel-bsp info output_path",
             cwd: rootUri,
             response: outputPath
         )
         commandRunner.setResponse(
-            for: "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info execution_root",
+            for: "mybazel --output_base=/_bazel_user/abc123/sourcekit-bazel-bsp info execution_root",
             cwd: rootUri,
             response: outputPath
         )
@@ -146,18 +146,18 @@ struct InitializeHandlerTests {
         let fullRootUri = "file:///path/to/project"
         let rootUri = "/path/to/project"
         let outputBase = "/_bazel_user/abc123"
-        let outputPath = "/_bazel_user/abc123-sourcekit-bazel-bsp/execroot/_main/bazel-out"
+        let outputPath = "/_bazel_user/abc123/sourcekit-bazel-bsp/execroot/_main/bazel-out"
         let toolchain = "/a/b/Toolchains/XcodeDefault.xctoolchain/"
         let xcodeVersion: String = "17B100"
 
         commandRunner.setResponse(for: "mybazel info output_base", cwd: rootUri, response: outputBase)
         commandRunner.setResponse(
-            for: "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info output_path",
+            for: "mybazel --output_base=/_bazel_user/abc123/sourcekit-bazel-bsp info output_path",
             cwd: rootUri,
             response: outputPath
         )
         commandRunner.setResponse(
-            for: "mybazel --output_base=/_bazel_user/abc123-sourcekit-bazel-bsp info execution_root",
+            for: "mybazel --output_base=/_bazel_user/abc123/sourcekit-bazel-bsp info execution_root",
             cwd: rootUri,
             response: outputPath
         )
