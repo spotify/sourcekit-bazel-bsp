@@ -179,7 +179,7 @@ external_root="${bsp_output_base}/${exec_root_difference}/external"
 # Clean up the old output base if it exists (from before we nested it in the main one)
 if [ -d "$old_bsp_output_base" ]; then
     echo "Cleaning up old output base at $old_bsp_output_base"
-    cd "$WORKSPACE_ROOT" && bazel --output_base="$old_bsp_output_base" clean --expunge &
+    rm -rf "$old_bsp_output_base" > /dev/null 2>&1 &
 fi
 
 # Copy to a temp file first since the source may be a symlink in runfiles

@@ -23,7 +23,7 @@ import XCTest
 @testable import MacAppLib
 
 class TodoItemMacTests: XCTestCase {
-    func canReferenceMacnlyContent() {
+    func canReferenceMacOnlyContent() {
         let title = "Test Task"
         _ = TodoItem(title: title)
         XCTAssertEqual(TodoItem.macOnlyContent(), "Mac only content")

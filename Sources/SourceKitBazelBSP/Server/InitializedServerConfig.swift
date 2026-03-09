@@ -31,18 +31,19 @@ struct InitializedServerConfig: Equatable {
     let workspaceName: String
     let outputBase: String
     let outputPath: String
-    let baseIndexDataFolder: String
+    let originalOutputPath: String
     let devDir: String
     let xcodeVersion: String
     let devToolchainPath: String
     let executionRoot: String
     let sdkRootPaths: [String: String]
 
+    // Always store the database on the main output base for easier cleanup.
     var indexDatabasePath: String {
-        baseIndexDataFolder + "/" + Self.lspIndexDatabaseFolderName
+        originalOutputPath + "/" + Self.lspIndexDatabaseFolderName
     }
 
     var indexStorePath: String {
-        baseIndexDataFolder + "/" + Self.rulesSwiftIndexStoreFolderName
+        outputPath + "/" + Self.rulesSwiftIndexStoreFolderName
     }
 }

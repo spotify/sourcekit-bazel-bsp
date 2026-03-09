@@ -46,7 +46,10 @@ struct InitializeHandlerTests {
         let xcodeVersion: String = "17B100"
         let toolchain = "/a/b/Toolchains/XcodeDefault.xctoolchain/"
 
+        let regularOutputPath = "/_bazel_user/abc123/execroot/_main/bazel-out"
+
         commandRunner.setResponse(for: "mybazel info output_base", cwd: rootUri, response: outputBase)
+        commandRunner.setResponse(for: "mybazel info output_path", cwd: rootUri, response: regularOutputPath)
         commandRunner.setResponse(
             for: "mybazel --output_base=/_bazel_user/abc123/sourcekit-bazel-bsp info output_path",
             cwd: rootUri,
@@ -64,6 +67,12 @@ struct InitializeHandlerTests {
         )
         commandRunner.setResponse(for: "xcrun --find swift", response: toolchain + "usr/bin/swift")
         commandRunner.setResponse(for: "xcrun --sdk iphonesimulator --show-sdk-path", response: "sdkiossim")
+        // readlink returns non-zero exit code when path is not a symlink
+        commandRunner.setResponse(
+            for: "readlink '\(outputPath)/_global_index_store'",
+            response: "",
+            exitCode: 1
+        )
 
         let handler = InitializeHandler(baseConfig: baseConfig, commandRunner: commandRunner)
 
@@ -71,7 +80,6 @@ struct InitializeHandlerTests {
 
         let config = try handler.makeInitializedConfig(fromRequest: request, baseConfig: baseConfig)
 
-        // When sharedIndexStore is false (default), baseIndexDataFolder equals outputPath
         #expect(
             config
                 == InitializedServerConfig(
@@ -80,7 +88,7 @@ struct InitializeHandlerTests {
                     workspaceName: "_main",
                     outputBase: outputBase + "/sourcekit-bazel-bsp",
                     outputPath: outputPath,
-                    baseIndexDataFolder: outputPath,
+                    originalOutputPath: regularOutputPath,
                     devDir: devDir,
                     xcodeVersion: xcodeVersion,
                     devToolchainPath: toolchain,
@@ -107,7 +115,10 @@ struct InitializeHandlerTests {
         let toolchain = "/a/b/Toolchains/XcodeDefault.xctoolchain/"
         let xcodeVersion: String = "17B100"
 
+        let regularOutputPath = "/_bazel_user/abc123/execroot/_main/bazel-out"
+
         commandRunner.setResponse(for: "mybazel info output_base", cwd: rootUri, response: outputBase)
+        commandRunner.setResponse(for: "mybazel info output_path", cwd: rootUri, response: regularOutputPath)
         commandRunner.setResponse(
             for: "mybazel --output_base=/_bazel_user/abc123/sourcekit-bazel-bsp info output_path",
             cwd: rootUri,
@@ -124,6 +135,12 @@ struct InitializeHandlerTests {
         commandRunner.setResponse(
             for: "xcodebuild -version | grep 'Build version' | awk '{print $3}'",
             response: xcodeVersion
+        )
+        // readlink returns non-zero exit code when path is not a symlink
+        commandRunner.setResponse(
+            for: "readlink '\(outputPath)/_global_index_store'",
+            response: "",
+            exitCode: 1
         )
 
         let handler = InitializeHandler(baseConfig: baseConfig, commandRunner: commandRunner)
@@ -149,10 +166,12 @@ struct InitializeHandlerTests {
         let rootUri = "/path/to/project"
         let outputBase = "/_bazel_user/abc123"
         let outputPath = "/_bazel_user/abc123/sourcekit-bazel-bsp/execroot/_main/bazel-out"
+        let regularOutputPath = "/_bazel_user/abc123/execroot/_main/bazel-out"
         let toolchain = "/a/b/Toolchains/XcodeDefault.xctoolchain/"
         let xcodeVersion: String = "17B100"
 
         commandRunner.setResponse(for: "mybazel info output_base", cwd: rootUri, response: outputBase)
+        commandRunner.setResponse(for: "mybazel info output_path", cwd: rootUri, response: regularOutputPath)
         commandRunner.setResponse(
             for: "mybazel --output_base=/_bazel_user/abc123/sourcekit-bazel-bsp info output_path",
             cwd: rootUri,
@@ -169,6 +188,12 @@ struct InitializeHandlerTests {
         commandRunner.setResponse(
             for: "xcodebuild -version | grep 'Build version' | awk '{print $3}'",
             response: xcodeVersion
+        )
+        // readlink returns non-zero exit code when path is not a symlink
+        commandRunner.setResponse(
+            for: "readlink '\(outputPath)/_global_index_store'",
+            response: "",
+            exitCode: 1
         )
 
         let handler = InitializeHandler(baseConfig: baseConfig, commandRunner: commandRunner)
