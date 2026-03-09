@@ -138,4 +138,11 @@ struct PrepareHandlerTests {
         #expect(PrepareHandler.sanitizeLabel("//path/to/library") == "aspect_path_to_library")
         #expect(PrepareHandler.sanitizeLabel("//path-with-dashes:Target.Name") == "aspect_path_with_dashes_Target_Name")
     }
+
+    @Test
+    func wrapperTargetNameSanitizesCorrectly() {
+        #expect(PrepareHandler.wrapperTargetName(forLabel: "//path/to/app:MyApp") == "wrapper_path_to_app_MyApp")
+        #expect(PrepareHandler.wrapperTargetName(forLabel: "//App:MyApp") == "wrapper_App_MyApp")
+        #expect(PrepareHandler.wrapperTargetName(forLabel: "//path-with-dashes:Target.Name") == "wrapper_path_with_dashes_Target_Name")
+    }
 }

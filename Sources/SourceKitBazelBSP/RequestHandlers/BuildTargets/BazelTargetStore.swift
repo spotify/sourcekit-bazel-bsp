@@ -237,6 +237,8 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         self.aqueryResult = try processCompilerArguments(from: cqueryResult)
         self.cqueryResult = cqueryResult
 
+        writeWrapperBuildFile(forTopLevelTargets: cqueryResult.topLevelTargets)
+
         let result = cqueryResult.buildTargets
         cachedTargets = result
 
@@ -300,6 +302,31 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
 }
 
 extension BazelTargetStoreImpl {
+    /// Generates a BUILD.bazel file with wrapper targets for each unique top-level target.
+    /// These wrapper targets apply the aspect via rule attribute instead of CLI --aspects.
+    private func writeWrapperBuildFile(
+        forTopLevelTargets targets: [(String, TopLevelRuleType, String)]
+    ) {
+        let uniqueLabels = Set(targets.map { $0.0 }).sorted()
+        var content = "load(\":rules.bzl\", \"platform_deps_wrapper\")\n\n"
+        for label in uniqueLabels {
+            let wrapperName = BazelLabelSanitizer.wrapperTargetName(forLabel: label)
+            content += "platform_deps_wrapper(\n"
+            content += "    name = \"\(wrapperName)\",\n"
+            content += "    target = \"\(label)\",\n"
+            content += ")\n"
+        }
+        let buildFilePath = initializedConfig.rootUri + "/.bsp/skbsp_generated/BUILD.bazel"
+        do {
+            try content.write(toFile: buildFilePath, atomically: true, encoding: .utf8)
+            logger.info("Wrapper BUILD.bazel written to \(buildFilePath, privacy: .public)")
+        } catch {
+            logger.error(
+                "Failed to write wrapper BUILD.bazel: \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
     private func writeGraphReportAsync() {
         reportQueue.async { [weak self] in
             guard let self = self else { return }
@@ -357,9 +384,10 @@ extension BazelTargetStoreImpl {
                     testSources: testSources
                 )
             )
-            // Build invocation using the aspect approach
+            // Build invocation using the wrapper rule approach
+            let wrapperName = BazelLabelSanitizer.wrapperTargetName(forLabel: label)
             let buildInvocation =
-                "build \(label) --aspects=//.bsp/skbsp_generated:aspect.bzl%platform_deps_aspect --output_groups={OUTPUT_GROUP}"
+                "build //.bsp/skbsp_generated:\(wrapperName) --output_groups={OUTPUT_GROUP}"
             reportConfigurations[configMnemonic] = .init(
                 mnemonic: configMnemonic,
                 platform: topLevelConfig.platform,

@@ -92,7 +92,7 @@ Although the main focus of this project is specifically Cursor / VSCode, we are 
 When building a specific library for indexing, the BSP needs to compile it with the correct platform configuration (iOS, tvOS, etc.) to ensure correctness and proper cache sharing with regular full app builds. The BSP achieves this by using an **aspect** to build libraries _through_ their parent top-level target:
 
 ```
-bazel build //App:MyApp --aspects=//.bsp/skbsp_generated:aspect.bzl%platform_deps_aspect --output_groups=aspect_path_to_MyLibrary
+bazel build //.bsp/skbsp_generated:wrapper_App_MyApp --output_groups=aspect_path_to_MyLibrary
 ```
 
 If this is undesired and/or causes issues with your particular setup, you can pass the `--compile-top-level` flag to make the BSP directly compile the target's **entire parent** instead of using the aspect approach. This can be useful for projects that define fine-grained `*_build_test` targets and providing them as top-level targets for the BSP, as those don't require such workarounds and thus enables maximum predictability and cacheability.
