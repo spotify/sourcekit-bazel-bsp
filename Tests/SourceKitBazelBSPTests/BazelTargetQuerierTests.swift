@@ -38,7 +38,9 @@ struct BazelTargetQuerierTests {
         srcToBspURIsMap: [:],
         configurationToTopLevelLabelsMap: [:],
         bspUriToParentConfigMap: [:],
-        testTargetToBundleTargetMap: [:]
+        bspUriToTopLevelLabelsMap: [:],
+        testTargetToBundleTargetMap: [:],
+        topLevelTestonlyLabels: []
     )
 
     private static let emptyProcessedAqueryResult = ProcessedAqueryResult(

@@ -32,7 +32,12 @@ struct ProcessedCqueryResult {
     let srcToBspURIsMap: [URI: [URI]]
     let configurationToTopLevelLabelsMap: [String: [String]]
     let bspUriToParentConfigMap: [URI: String]
+    /// Maps each BSP URI to the top-level labels that have it in their dependency graph.
+    /// This is more precise than `configurationToTopLevelLabelsMap` which only matches by config mnemonic.
+    let bspUriToTopLevelLabelsMap: [URI: [String]]
     let testTargetToBundleTargetMap: [String: URI]
+    /// Set of top-level labels that have testonly = True in the cquery.
+    let topLevelTestonlyLabels: Set<String>
 
     /// Merges the result of a cquery for added and removed files into the current result.
     /// Makes sure files that are unrelated to known targets are ignored.
@@ -105,7 +110,9 @@ struct ProcessedCqueryResult {
             srcToBspURIsMap: _srcToBspURIsMap,
             configurationToTopLevelLabelsMap: configurationToTopLevelLabelsMap,
             bspUriToParentConfigMap: bspUriToParentConfigMap,
-            testTargetToBundleTargetMap: testTargetToBundleTargetMap
+            bspUriToTopLevelLabelsMap: bspUriToTopLevelLabelsMap,
+            testTargetToBundleTargetMap: testTargetToBundleTargetMap,
+            topLevelTestonlyLabels: topLevelTestonlyLabels
         )
         return (result, invalidatedTargets)
     }

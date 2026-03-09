@@ -58,10 +58,12 @@ protocol BazelTargetStore: AnyObject {
     func parentConfig(forBSPURI uri: URI) throws -> String
     /// Retrieves the list of top-level labels for a given configuration.
     func topLevelLabels(forConfig configMnemonic: String) throws -> [String]
+    /// Retrieves the list of top-level labels that have the given BSP URI in their dependency graph.
+    func topLevelLabels(forBSPURI uri: URI) throws -> [String]
     /// Retrieves the top-level rule type for a given top-level label.
     func topLevelRuleType(forLabel label: String) throws -> TopLevelRuleType
-    /// Returns the best parent label for a given config, preferring apps over extensions/tests.
-    func preferredTopLevelLabel(forConfig configMnemonic: String) throws -> String
+    /// Returns the best parent label for a given BSP URI, preferring apps over extensions/tests.
+    func preferredTopLevelLabel(forBSPURI uri: URI) throws -> String
     /// Clears the cache of the store.
     func clearCache()
 }
@@ -173,6 +175,13 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         return labels
     }
 
+    func topLevelLabels(forBSPURI uri: URI) throws -> [String] {
+        guard let labels = cqueryResult?.bspUriToTopLevelLabelsMap[uri] else {
+            throw BazelTargetStoreError.unknownBSPURI(uri)
+        }
+        return labels
+    }
+
     func topLevelRuleType(forLabel label: String) throws -> TopLevelRuleType {
         guard let ruleType = cqueryResult?.topLevelLabelToRuleTypeMap[label] else {
             throw BazelTargetStoreError.unableToMapLabelToTopLevelRuleType(label)
@@ -180,11 +189,11 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         return ruleType
     }
 
-    /// Returns the best parent label for a given config, preferring apps over extensions/tests.
-    func preferredTopLevelLabel(forConfig configMnemonic: String) throws -> String {
-        let labels = try topLevelLabels(forConfig: configMnemonic)
+    /// Returns the best parent label for a given BSP URI, preferring apps over extensions/tests.
+    func preferredTopLevelLabel(forBSPURI uri: URI) throws -> String {
+        let labels = try topLevelLabels(forBSPURI: uri)
         guard !labels.isEmpty else {
-            throw BazelTargetStoreError.unableToMapConfigMnemonicToTopLevelLabels(configMnemonic)
+            throw BazelTargetStoreError.unknownBSPURI(uri)
         }
         let ruleTypes = try labels.map { try topLevelRuleType(forLabel: $0) }
         return zip(labels, ruleTypes).labelWithHighestBuildPriority() ?? labels[0]
@@ -195,7 +204,7 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         let configMnemonic = try parentConfig(forBSPURI: uri)
         let config = try topLevelConfigInfo(forConfigMnemonic: configMnemonic)
         // Use preferredTopLevelLabel to get the best parent (app over extension/test)
-        let parentToUse = try preferredTopLevelLabel(forConfig: configMnemonic)
+        let parentToUse = try preferredTopLevelLabel(forBSPURI: uri)
         return BazelTargetPlatformInfo(
             label: bazelLabel,
             topLevelParentLabel: parentToUse,
@@ -237,7 +246,10 @@ final class BazelTargetStoreImpl: BazelTargetStore, @unchecked Sendable {
         self.aqueryResult = try processCompilerArguments(from: cqueryResult)
         self.cqueryResult = cqueryResult
 
-        writeWrapperBuildFile(forTopLevelTargets: cqueryResult.topLevelTargets)
+        writeWrapperBuildFile(
+            forTopLevelTargets: cqueryResult.topLevelTargets,
+            testonlyLabels: cqueryResult.topLevelTestonlyLabels
+        )
 
         let result = cqueryResult.buildTargets
         cachedTargets = result
@@ -305,16 +317,21 @@ extension BazelTargetStoreImpl {
     /// Generates a BUILD.bazel file with wrapper targets for each unique top-level target.
     /// These wrapper targets apply the aspect via rule attribute instead of CLI --aspects.
     private func writeWrapperBuildFile(
-        forTopLevelTargets targets: [(String, TopLevelRuleType, String)]
+        forTopLevelTargets targets: [(String, TopLevelRuleType, String)],
+        testonlyLabels: Set<String>
     ) {
         let uniqueLabels = Set(targets.map { $0.0 }).sorted()
         var content = "load(\":rules.bzl\", \"platform_deps_wrapper\")\n\n"
         for label in uniqueLabels {
             let wrapperName = BazelLabelSanitizer.wrapperTargetName(forLabel: label)
+            let isTestonly = testonlyLabels.contains(label)
             content += "platform_deps_wrapper(\n"
             content += "    name = \"\(wrapperName)\",\n"
             content += "    target = \"\(label)\",\n"
-            content += ")\n"
+            if isTestonly {
+                content += "    testonly = True,\n"
+            }
+            content += ")\n\n"
         }
         let buildFilePath = initializedConfig.rootUri + "/.bsp/skbsp_generated/BUILD.bazel"
         do {
@@ -384,30 +401,38 @@ extension BazelTargetStoreImpl {
                     testSources: testSources
                 )
             )
-            // Build invocation using the wrapper rule approach
-            let wrapperName = BazelLabelSanitizer.wrapperTargetName(forLabel: label)
-            let buildInvocation =
-                "build //.bsp/skbsp_generated:\(wrapperName) --output_groups={OUTPUT_GROUP}"
             reportConfigurations[configMnemonic] = .init(
                 mnemonic: configMnemonic,
                 platform: topLevelConfig.platform,
                 minimumOsVersion: topLevelConfig.minimumOsVersion,
                 cpuArch: topLevelConfig.cpuArch,
-                sdkName: topLevelConfig.sdkName,
-                buildInvocation: buildInvocation
+                sdkName: topLevelConfig.sdkName
             )
         }
         var reportDependencies: [BazelTargetGraphReport.DependencyTarget] = []
         let dependencyTargets = cqueryResult?.buildTargets ?? []
+        let compileTopLevel = initializedConfig.baseConfig.compileTopLevel
         for target in dependencyTargets {
             guard let label = target.displayName else { continue }
             let configMnemonic = try parentConfig(forBSPURI: target.id.uri)
-            let topLevelParent = try preferredTopLevelLabel(forConfig: configMnemonic)
+            let topLevelLabel = try preferredTopLevelLabel(forBSPURI: target.id.uri)
+            let topLevelParent: String
+            let extraBuildArgs: [String]
+            if compileTopLevel {
+                topLevelParent = topLevelLabel
+                extraBuildArgs = []
+            } else {
+                topLevelParent =
+                    "//.bsp/skbsp_generated:\(BazelLabelSanitizer.wrapperTargetName(forLabel: topLevelLabel))"
+                let outputGroup = BazelLabelSanitizer.sanitize(label, prefix: "aspect_")
+                extraBuildArgs = ["--output_groups=\(outputGroup)"]
+            }
             reportDependencies.append(
                 .init(
                     label: label,
                     configMnemonic: configMnemonic,
-                    topLevelParent: topLevelParent
+                    topLevelParent: topLevelParent,
+                    extraBuildArgs: extraBuildArgs
                 )
             )
         }

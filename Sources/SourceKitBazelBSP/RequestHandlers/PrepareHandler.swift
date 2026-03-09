@@ -110,7 +110,7 @@ final class PrepareHandler {
                     let wrapperTarget = "//.bsp/skbsp_generated:\(Self.wrapperTargetName(forLabel: parent))"
                     labelsToBuild.append([wrapperTarget])
                     extraArgs.append([
-                        "--output_groups=\(outputGroups)",
+                        "--output_groups=\(outputGroups)"
                     ])
                 }
             }

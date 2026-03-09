@@ -7,6 +7,8 @@ common --flag_alias=host_swiftcopt=@rules_swift//swift:exec_copt
 common --swiftcopt=-whole-module-optimization
 common --host_swiftcopt=-whole-module-optimization
 
+common --check_visibility=false
+
 # All of the following are Debug/Index setup configs inspired by the default rules_xcodeproj template
 
 common --verbose_failures

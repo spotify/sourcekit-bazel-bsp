@@ -72,7 +72,9 @@ struct ProcessedCqueryResultTests {
             srcToBspURIsMap: [fileToDelete: [targetUri], fileToKeep: [targetUri], irrelevantFile: [otherTargetUri]],
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
-            testTargetToBundleTargetMap: [:]
+            bspUriToTopLevelLabelsMap: [:],
+            testTargetToBundleTargetMap: [:],
+            topLevelTestonlyLabels: []
         )
 
         let (newResult, invalidatedTargets) = try #require(
@@ -131,7 +133,9 @@ struct ProcessedCqueryResultTests {
             srcToBspURIsMap: [fileToKeep: [targetUri], irrelevantFile: [otherTargetUri]],
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
-            testTargetToBundleTargetMap: [:]
+            bspUriToTopLevelLabelsMap: [:],
+            testTargetToBundleTargetMap: [:],
+            topLevelTestonlyLabels: []
         )
 
         let (newResult, invalidatedTargets) = try #require(
@@ -195,7 +199,9 @@ struct ProcessedCqueryResultTests {
             srcToBspURIsMap: [fileToKeep: [targetUri], fileToDelete: [targetUri], irrelevantFile: [otherTargetUri]],
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
-            testTargetToBundleTargetMap: [:]
+            bspUriToTopLevelLabelsMap: [:],
+            testTargetToBundleTargetMap: [:],
+            topLevelTestonlyLabels: []
         )
 
         let (newResult, invalidatedTargets) = try #require(
@@ -272,7 +278,9 @@ struct ProcessedCqueryResultTests {
             ],
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
-            testTargetToBundleTargetMap: [:]
+            bspUriToTopLevelLabelsMap: [:],
+            testTargetToBundleTargetMap: [:],
+            topLevelTestonlyLabels: []
         )
 
         let (newResult, invalidatedTargets) = try #require(
@@ -352,7 +360,9 @@ struct ProcessedCqueryResultTests {
             ],
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
-            testTargetToBundleTargetMap: [:]
+            bspUriToTopLevelLabelsMap: [:],
+            testTargetToBundleTargetMap: [:],
+            topLevelTestonlyLabels: []
         )
 
         let (newResult, invalidatedTargets) = try #require(
@@ -420,7 +430,9 @@ struct ProcessedCqueryResultTests {
             srcToBspURIsMap: [filetoKepp: [targetUri]],
             configurationToTopLevelLabelsMap: [:],
             bspUriToParentConfigMap: [:],
-            testTargetToBundleTargetMap: [:]
+            bspUriToTopLevelLabelsMap: [:],
+            testTargetToBundleTargetMap: [:],
+            topLevelTestonlyLabels: []
         )
 
         var response = initialResult.processFileChanges(

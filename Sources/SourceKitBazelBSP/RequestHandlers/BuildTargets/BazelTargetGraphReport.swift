@@ -37,7 +37,12 @@ struct BazelTargetGraphReport: Codable, Equatable {
     struct DependencyTarget: Codable, Equatable {
         let label: String
         let configMnemonic: String
+        /// The top-level parent target to build. When using wrapper approach, this is the wrapper target
+        /// (e.g., //.bsp/skbsp_generated:wrapper_...). When compileTopLevel is true, this is the actual
+        /// top-level target (e.g., //HelloWorld:HelloWorld).
         let topLevelParent: String
+        /// Extra build args (e.g., ["--output_groups=aspect_..."]). Empty when compileTopLevel is true.
+        let extraBuildArgs: [String]
     }
 
     struct Configuration: Codable, Equatable {
@@ -46,9 +51,6 @@ struct BazelTargetGraphReport: Codable, Equatable {
         let minimumOsVersion: String
         let cpuArch: String
         let sdkName: String
-        /// Build invocation template for building dependencies via wrapper targets.
-        /// Format: "build {wrapper_target} --output_groups={OUTPUT_GROUP}"
-        let buildInvocation: String
     }
 
     let topLevelTargets: [TopLevelTarget]
