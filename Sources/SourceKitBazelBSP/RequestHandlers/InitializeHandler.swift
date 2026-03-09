@@ -95,15 +95,6 @@ final class InitializeHandler {
         )
         logger.debug("regularOutputBase: \(regularOutputBase, privacy: .public)")
 
-        // Get the base path where rules_swift stores the global index path on the _original_ output base.
-        // This is what we will use for the BSP builds as well.
-        let baseIndexDataFolder: String = try commandRunner.bazel(
-            baseConfig: baseConfig,
-            rootUri: rootUri,
-            cmd: "info output_path"
-        )
-        logger.debug("baseIndexDataFolder: \(baseIndexDataFolder, privacy: .public)")
-
         // Setup the special output base path where we will run indexing commands from.
         // Nesting into a subfolder for easier cleanup. For example: /private/var/tmp/_bazel_<User>/<ProjectHash>/sourcekit-bazel-bsp
         let outputBase: String
@@ -131,11 +122,22 @@ final class InitializeHandler {
         // Create a symlink for _global_index_store so that the custom output base shares
         // the index store with the original output base. This allows both regular builds
         // and BSP builds to share the same index data.
+        let baseIndexDataFolder: String
         if baseConfig.sharedIndexStore && !baseConfig.noExtraOutputBase {
+            // Get the base path where rules_swift stores the global index path on the _original_ output base.
+            // This is what we will use for the BSP builds as well.
+            baseIndexDataFolder = try commandRunner.bazel(
+                baseConfig: baseConfig,
+                rootUri: rootUri,
+                cmd: "info output_path"
+            )
+            logger.debug("baseIndexDataFolder: \(baseIndexDataFolder, privacy: .public)")
             let bspIndexStorePath = outputPath + "/" + InitializedServerConfig.rulesSwiftIndexStoreFolderName
             let originalIndexStorePath =
                 baseIndexDataFolder + "/" + InitializedServerConfig.rulesSwiftIndexStoreFolderName
             try setupIndexStoreSymlink(from: bspIndexStorePath, to: originalIndexStorePath, with: commandRunner)
+        } else {
+            baseIndexDataFolder = outputPath
         }
 
         // Get the execution root based on the above output base.
