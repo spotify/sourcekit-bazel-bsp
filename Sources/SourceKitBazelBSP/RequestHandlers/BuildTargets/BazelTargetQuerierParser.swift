@@ -376,11 +376,37 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             return (buildTarget, sourcesItem)
         }
 
+        // Build a dependency graph from ruleInput to compute which deps belong to which top-level targets.
+        // This is more precise than just matching by config mnemonic.
+        let bspUriToTopLevelLabelsMap = buildDependencyMapping(
+            cqueryResults: cquery.results,
+            topLevelTargets: topLevelTargets,
+            depLabelToUriMap: depLabelToUriMap,
+            aliasToLabelMap: aliasToLabelMap
+        )
+
+        // Filter out orphan targets (targets without a parent in the dependency graph)
+        let validBuildTargets = buildTargets.filter { (target, _) in
+            let hasParent = bspUriToTopLevelLabelsMap[target.id.uri] != nil
+            if !hasParent {
+                logger.warning(
+                    "Dropping orphan target '\(target.displayName ?? target.id.uri.stringValue, privacy: .public)' - not found in any top-level target's dependency graph. This can be either a bug in the BSP or a consequence of filters passed to the server."
+                )
+            }
+            return hasParent
+        }
+
+        if validBuildTargets.count < buildTargets.count {
+            logger.warning(
+                "Dropped \(buildTargets.count - validBuildTargets.count, privacy: .public) orphan target(s) from BSP"
+            )
+        }
+
         var bspURIsToBazelLabelsMap: [URI: String] = [:]
         var displayNameToURIMap: [String: URI] = [:]
         var bspURIsToSrcsMap: [URI: SourcesItem] = [:]
         var srcToBspURIsMap: [URI: [URI]] = [:]
-        for dependencyTargetInfo in buildTargets {
+        for dependencyTargetInfo in validBuildTargets {
             let target = dependencyTargetInfo.0
             let sourcesItem = dependencyTargetInfo.1
             guard let displayName = target.displayName else {
@@ -405,32 +431,6 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 continue
             }
             testTargetToBundleTargetMap[realTestTarget] = targetUri
-        }
-
-        // Build a dependency graph from ruleInput to compute which deps belong to which top-level targets.
-        // This is more precise than just matching by config mnemonic.
-        let bspUriToTopLevelLabelsMap = buildDependencyMapping(
-            cqueryResults: cquery.results,
-            topLevelTargets: topLevelTargets,
-            depLabelToUriMap: depLabelToUriMap,
-            aliasToLabelMap: aliasToLabelMap
-        )
-
-        // Filter out orphan targets (targets without a parent in the dependency graph)
-        let validBuildTargets = buildTargets.filter { (target, _) in
-            let hasParent = bspUriToTopLevelLabelsMap[target.id.uri] != nil
-            if !hasParent {
-                logger.warning(
-                    "Dropping orphan target '\(target.displayName ?? target.id.uri.stringValue, privacy: .public)' - not found in any top-level target's dependency graph"
-                )
-            }
-            return hasParent
-        }
-
-        if validBuildTargets.count < buildTargets.count {
-            logger.warning(
-                "Dropped \(buildTargets.count - validBuildTargets.count, privacy: .public) orphan target(s) from BSP"
-            )
         }
 
         return ProcessedCqueryResult(
