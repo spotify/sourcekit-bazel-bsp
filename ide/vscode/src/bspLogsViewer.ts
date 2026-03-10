@@ -190,15 +190,34 @@ export class BspLogsViewer implements vscode.Disposable {
         ]);
 
         let buffer = "";
+        let pendingEntry = "";
         child.stdout?.on("data", (chunk: Buffer) => {
             buffer += chunk.toString();
             const lines = buffer.split("\n");
             // Keep the last (possibly incomplete) line in the buffer
             buffer = lines.pop() ?? "";
             for (const line of lines) {
-                if (line.length > 0) {
-                    this.processLine(line);
+                if (line.length === 0) {
+                    continue;
                 }
+                // Compact log entries start with a timestamp (e.g. "2026-03-09 12:34:56.789").
+                // Lines without one are continuations of a multi-line message.
+                if (/^\d{4}-\d{2}-\d{2}\s/.test(line)) {
+                    if (pendingEntry.length > 0) {
+                        this.processLine(pendingEntry);
+                    }
+                    pendingEntry = line;
+                } else {
+                    pendingEntry += "\n" + line;
+                }
+            }
+        });
+
+        // Flush any remaining entry when the stream ends.
+        child.stdout?.on("end", () => {
+            if (pendingEntry.length > 0) {
+                this.processLine(pendingEntry);
+                pendingEntry = "";
             }
         });
 
@@ -224,10 +243,11 @@ export class BspLogsViewer implements vscode.Disposable {
         this.logProcess = child;
     }
 
-    private processLine(text: string): void {
-        this.outputChannel.appendLine(text);
-        if (text.includes(" F  sourcekit-bazel-bsp[") || text.includes(" E  sourcekit-bazel-bsp[")) {
-            const message = this.extractMessageFromLogLine(text);
+    private processLine(entry: string): void {
+        this.outputChannel.appendLine(entry);
+        const firstLine = entry.split("\n", 1)[0];
+        if (firstLine.includes(" F  sourcekit-bazel-bsp[") || firstLine.includes(" E  sourcekit-bazel-bsp[")) {
+            const message = this.extractMessageFromLogEntry(entry);
             if (message.includes("Failed to build targets") || message.includes("Error while replying to buildTarget/prepare")) {
                 return;
             }
@@ -235,10 +255,18 @@ export class BspLogsViewer implements vscode.Disposable {
         }
     }
 
-    private extractMessageFromLogLine(line: string): string {
-        const startIndex = line.indexOf("[com.spotify.sourcekit-bazel-bsp:");
-        const endIndex = line.indexOf("]", startIndex);
-        return line.substring(endIndex + 1);
+    private extractMessageFromLogEntry(entry: string): string {
+        const firstLine = entry.split("\n", 1)[0];
+        const startIndex = firstLine.indexOf("[com.spotify.sourcekit-bazel-bsp:");
+        const endIndex = firstLine.indexOf("]", startIndex);
+        const headerMessage = firstLine.substring(endIndex + 1).trim();
+        // Include continuation lines (the actual error details)
+        const newlineIndex = entry.indexOf("\n");
+        if (newlineIndex === -1) {
+            return headerMessage;
+        }
+        const continuation = entry.substring(newlineIndex + 1).trim();
+        return headerMessage + "\n" + continuation;
     }
 
     private stopLogStream(): void {

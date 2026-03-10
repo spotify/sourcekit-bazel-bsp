@@ -25,8 +25,6 @@ interface Configuration {
     minimumOsVersion: String
     cpuArch: String
     sdkName: String
-    /** Build invocation template for aspect-based builds */
-    buildInvocation: string;
 }
 
 interface TopLevelTarget {
@@ -39,8 +37,8 @@ interface TopLevelTarget {
 interface DependencyTarget {
     label: string;
     configMnemonic: string;
-    /** The top-level parent to build through for aspect-based builds */
     topLevelParent: string;
+    extraBuildArgs: string[];
 }
 
 interface Graph {
@@ -142,28 +140,11 @@ export async function processGraph(inputUri: vscode.Uri, appsToAlwaysInclude: st
         const platform = config.platform;
         const minimumOsVersion = config.minimumOsVersion;
 
-        // Sanitize label for output group: //path/to:Target -> aspect_path_to_Target
-        let sanitized = dep.label;
-        if (sanitized.startsWith("//")) {
-            sanitized = sanitized.substring(2);
-        }
-        sanitized = "aspect_" + sanitized
-            .replace(/\//g, "_")
-            .replace(/:/g, "_")
-            .replace(/-/g, "_")
-            .replace(/\./g, "_");
-
-        // Build through parent using aspect approach
-        const extraBuildArgs = [
-            "--aspects=//.bsp/skbsp_generated:aspect.bzl%platform_deps_aspect",
-            "--output_groups=" + sanitized
-        ];
-
         return {
             label: dep.topLevelParent,
             displayName: dep.label + " (" + platform + "_" + minimumOsVersion + ")",
             type: "library" as TargetType,
-            extraBuildArgs: extraBuildArgs,
+            extraBuildArgs: dep.extraBuildArgs,
             canRun: false,
             canDebug: false,
             testSources: undefined,
