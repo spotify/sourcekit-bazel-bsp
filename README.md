@@ -54,6 +54,7 @@ setup_sourcekit_bsp(
 )
 ```
 
+- If not using `compile_top_level = True`, make sure the targets' visibility settings allow `"//.bsp/skbsp_generated:__pkg__"` as this is where the BSP will reference them from.
 - Run `bazel run {path to the rule, e.g //:setup_sourcekit_bsp}`.
 
 This will result in the necessary configuration files being added to your repository. Users should then re-run the above command whenever the rule's parameters changes. We recommend adding `.bsp/skbsp_generated` as well as the copied binaries and `.bsp/skbsp.json` to your `.gitignore`.
