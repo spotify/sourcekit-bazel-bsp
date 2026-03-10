@@ -138,6 +138,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         for configuration in cquery.configurations {
             configIdToMnemonicMap[configuration.id] = configuration.mnemonic
         }
+
         for configuredTarget in cquery.results {
             let target = configuredTarget.target
             if target.type == .rule {
@@ -471,17 +472,19 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         depLabelToUriMap: [String: [(BuildTargetIdentifier, String)]],
         aliasToLabelMap: [String: String]
     ) -> [URI: [String]] {
-        // Step 1: Build a forward dependency graph from ruleInput
-        // Maps each label to its direct dependencies (labels from ruleInput)
+        // Step 1: Build a forward dependency graph from explicit deps attribute
+        // Maps each label to its direct dependencies (labels from deps + implementation_deps)
+        // We use the explicit deps attribute instead of ruleInput because ruleInput includes
+        // all inputs (e.g., test_host for E2E tests), which would incorrectly make E2E tests
+        // appear to depend on the entire test host app's dependency tree.
         var labelToDeps: [String: Set<String>] = [:]
         for configuredTarget in cqueryResults {
             let target = configuredTarget.target
             guard target.type == .rule else { continue }
             let label = target.rule.name
-            // ruleInput contains all direct inputs: deps, srcs, etc.
-            // We only care about dependencies that are also rules (not source files)
-            let deps = Set(target.rule.ruleInput.filter { !$0.contains(".") || $0.contains(":") })
-            labelToDeps[label] = deps
+            let depsAttr = target.rule.attribute.first { $0.name == "deps" }?.stringListValue ?? []
+            let implDeps = target.rule.attribute.first { $0.name == "implementation_deps" }?.stringListValue ?? []
+            labelToDeps[label] = Set(depsAttr + implDeps)
         }
 
         // Step 2: For each top-level target, compute its transitive dependency closure
