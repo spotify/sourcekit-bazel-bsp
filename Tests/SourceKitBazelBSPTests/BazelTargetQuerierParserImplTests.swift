@@ -31,6 +31,7 @@ struct BazelTargetQuerierParserImplTests {
     private static let mockWorkspaceName = "_main"
     private static let mockExecutionRoot = "/tmp/execroot/_main"
     private static let mockToolchainPath = "/path/to/toolchain"
+    private static let mockOutputPath = "/tmp/execroot/_main/bazel-out"
 
     @Test
     func canProcessExampleCquery() throws {
@@ -47,7 +48,8 @@ struct BazelTargetQuerierParserImplTests {
             rootUri: Self.mockRootUri,
             workspaceName: Self.mockWorkspaceName,
             executionRoot: Self.mockExecutionRoot,
-            toolchainPath: Self.mockToolchainPath
+            toolchainPath: Self.mockToolchainPath,
+            outputPath: Self.mockOutputPath
         )
 
         // Expected target properties (language and dependency labels)
@@ -454,7 +456,8 @@ struct BazelTargetQuerierParserImplTests {
             srcs: ["HelloWorldLib/Sources/TodoItemRow.swift"],
             rootUri: Self.mockRootUri,
             workspaceName: Self.mockWorkspaceName,
-            executionRoot: Self.mockExecutionRoot
+            executionRoot: Self.mockExecutionRoot,
+            outputPath: Self.mockOutputPath
         )
 
         let targetUri = try URI(
@@ -466,6 +469,9 @@ struct BazelTargetQuerierParserImplTests {
                 "file:///Users/rochab/src/sourcekit-bazel-bsp/Example/HelloWorld/HelloWorldLib/Sources/TodoItemRow.swift"
         )
 
+        let configMnemonic = "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300"
+        let expectedOutputPath =
+            "./bazel-out/\(configMnemonic)/bin/HelloWorld/HelloWorldLib_objs/TodoItemRow.swift.o"
         #expect(
             result.bspURIsToNewSourceItemsMap == [
                 targetUri: [
@@ -477,7 +483,7 @@ struct BazelTargetQuerierParserImplTests {
                         data: SourceKitSourceItemData(
                             language: .swift,
                             kind: .source,
-                            outputPath: nil,
+                            outputPath: expectedOutputPath,
                             copyDestinations: nil
                         ).encodeToLSPAny()
                     )

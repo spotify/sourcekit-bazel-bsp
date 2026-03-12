@@ -81,6 +81,7 @@ protocol BazelTargetQuerierParser: AnyObject {
         workspaceName: String,
         executionRoot: String,
         toolchainPath: String,
+        outputPath: String
     ) throws -> ProcessedCqueryResult
 
     func processAquery(
@@ -93,7 +94,8 @@ protocol BazelTargetQuerierParser: AnyObject {
         srcs: [String],
         rootUri: String,
         workspaceName: String,
-        executionRoot: String
+        executionRoot: String,
+        outputPath: String
     ) throws -> ProcessedCqueryAddedFilesResult
 }
 
@@ -109,6 +111,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         workspaceName: String,
         executionRoot: String,
         toolchainPath: String,
+        outputPath: String
     ) throws -> ProcessedCqueryResult {
         let cquery = try BazelProtobufBindings.parseCqueryResult(data: data)
 
@@ -329,11 +332,14 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 target: id,
                 sources: try buildSourceItems(
                     rule: rule,
+                    ruleType: ruleType,
                     srcToUriMap: srcToUriMap,
                     filegroupLabelToSrcsMap: filegroupLabelToSrcsMap,
                     aliasToLabelMap: aliasToLabelMap,
                     rootUri: rootUri,
-                    executionRoot: executionRoot
+                    executionRoot: executionRoot,
+                    outputPath: outputPath,
+                    configMnemonic: configMnemonic
                 )
             )
 
@@ -587,11 +593,14 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
 
     private func buildSourceItems(
         rule: BlazeQuery_Rule,
+        ruleType: DependencyRuleType,
         srcToUriMap: [String: URI],
         filegroupLabelToSrcsMap: [String: [String]] = [:],
         aliasToLabelMap: [String: String] = [:],
         rootUri: String,
-        executionRoot: String
+        executionRoot: String,
+        outputPath: String,
+        configMnemonic: String
     ) throws -> [SourceItem] {
         let srcsAttribute = rule.attribute.first { $0.name == "srcs" }?.stringListValue ?? []
         let hdrsAttribute = rule.attribute.first { $0.name == "hdrs" }?.stringListValue ?? []
@@ -610,19 +619,28 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             }
             return srcUri
         }
+
         return try srcs.map {
             try buildSourceItem(
                 forSrc: $0,
+                ruleType: ruleType,
                 rootUri: rootUri,
-                executionRoot: executionRoot
+                executionRoot: executionRoot,
+                outputPath: outputPath,
+                configMnemonic: configMnemonic,
+                ruleName: rule.name
             )
         }
     }
 
     private func buildSourceItem(
         forSrc src: URI,
+        ruleType: DependencyRuleType,
         rootUri: String,
-        executionRoot: String
+        executionRoot: String,
+        outputPath: String,
+        configMnemonic: String,
+        ruleName: String
     ) throws -> SourceItem {
         guard let pathExtension = src.fileURL?.pathExtension else {
             throw BazelTargetQuerierParserError.missingPathExtension(src.stringValue)
@@ -643,6 +661,22 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
 
         let copyDestinations = srcCopyDestinations(for: src, rootUri: rootUri, executionRoot: executionRoot)
 
+        // Tell the LSP where index files will be store for this file.
+        let indexOutputPath: String?
+        if let language = language, let filePath = src.fileURL?.path {
+            indexOutputPath = IndexOutputPathBuilder.build(
+                language: language,
+                ruleType: ruleType,
+                ruleName: ruleName,
+                configMnemonic: configMnemonic,
+                filePath: filePath,
+                rootUri: rootUri,
+                executionRoot: executionRoot
+            )
+        } else {
+            indexOutputPath = nil
+        }
+
         return SourceItem(
             uri: src,
             kind: .file,
@@ -651,7 +685,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             data: SourceKitSourceItemData(
                 language: language,
                 kind: kind,
-                outputPath: nil,
+                outputPath: indexOutputPath,
                 copyDestinations: copyDestinations
             ).encodeToLSPAny()
         )
@@ -831,7 +865,8 @@ extension BazelTargetQuerierParserImpl {
         srcs: [String],
         rootUri: String,
         workspaceName: String,
-        executionRoot: String
+        executionRoot: String,
+        outputPath: String
     ) throws -> ProcessedCqueryAddedFilesResult {
         let cquery = try BazelProtobufBindings.parseCqueryResult(data: data)
 
@@ -853,21 +888,29 @@ extension BazelTargetQuerierParserImpl {
         var newSrcToBspURIsMap: [URI: [URI]] = [:]
         for configuredTarget in targets {
             let displayName = configuredTarget.target.rule.name
-
-            let sourceItems = try buildSourceItems(
-                rule: configuredTarget.target.rule,
-                srcToUriMap: srcToUriMap,
-                rootUri: rootUri,
-                executionRoot: executionRoot
-            )
-
-            guard !sourceItems.isEmpty else {
+            let ruleKind = configuredTarget.target.rule.ruleClass
+            guard let ruleType = DependencyRuleType(rawValue: ruleKind) else {
                 continue
             }
 
             guard let configMnemonic = configIdToMnemonicMap[configuredTarget.configurationID] else {
                 throw BazelTargetQuerierParserError.missingMnemonic(configuredTarget.configurationID)
             }
+
+            let sourceItems = try buildSourceItems(
+                rule: configuredTarget.target.rule,
+                ruleType: ruleType,
+                srcToUriMap: srcToUriMap,
+                rootUri: rootUri,
+                executionRoot: executionRoot,
+                outputPath: outputPath,
+                configMnemonic: configMnemonic
+            )
+
+            guard !sourceItems.isEmpty else {
+                continue
+            }
+
             let id = try displayName.toTargetId(
                 rootUri: rootUri,
                 workspaceName: workspaceName,

@@ -81,6 +81,12 @@ struct BazelTargetCompilerArgsExtractorTests {
     @Test
     func extractsAndProcessesCompilerArguments_complexRealWorldSwiftExample() throws {
         let extractor = Self.makeMockExtractor()
+        let testSourceUri = URI(
+            filePath: "/Users/user/Documents/demo-ios-project/HelloWorld/HelloWorldLib/Sources/AddTodoView.swift",
+            isDirectory: false
+        )
+        let expectedIndexOutputPath =
+            "../bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300/bin/HelloWorld/HelloWorldLib_objs/HelloWorldLib/Sources/AddTodoView.swift.o"
         let result = try extractor.extractCompilerArgs(
             fromAquery: aqueryResult,
             forTarget: BazelTargetPlatformInfo(
@@ -88,7 +94,8 @@ struct BazelTargetCompilerArgsExtractorTests {
                 topLevelParentLabel: "//HelloWorld:HelloWorld",
                 topLevelParentConfig: helloWorldConfig
             ),
-            withStrategy: .swiftModule,
+            withStrategy: .swiftModule(testSourceUri),
+            indexOutputPath: expectedIndexOutputPath
         )
         #expect(result == expectedSwiftResult)
     }
@@ -104,6 +111,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                 topLevelParentConfig: helloWorldConfig
             ),
             withStrategy: .cImpl("HelloWorld/TodoObjCSupport/Sources/SKObjCUtils.m", "objective-c"),
+            indexOutputPath: nil
         )
         #expect(result == expectedObjCResult)
     }
@@ -120,6 +128,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                     topLevelParentConfig: helloWorldConfig
                 ),
                 withStrategy: .cImpl("HelloWorld/TodoObjCSupport/Sources/SomethingElse.m", "objective-c"),
+                indexOutputPath: nil
             )
         }
         #expect(
@@ -139,6 +148,7 @@ struct BazelTargetCompilerArgsExtractorTests {
                 topLevelParentConfig: helloWorldConfig
             ),
             withStrategy: .cHeader,
+            indexOutputPath: nil
         )
         #expect(result == [])
     }
@@ -221,6 +231,10 @@ struct BazelTargetCompilerArgsExtractorTests {
     @Test
     func missingSwiftModule() throws {
         let extractor = Self.makeMockExtractor()
+        let testSourceUri = URI(
+            filePath: "/Users/user/Documents/demo-ios-project/HelloWorld/SomethingElse/Sources/Test.swift",
+            isDirectory: false
+        )
         let error = #expect(throws: BazelTargetCompilerArgsExtractorError.self) {
             try extractor.extractCompilerArgs(
                 fromAquery: aqueryResult,
@@ -229,7 +243,8 @@ struct BazelTargetCompilerArgsExtractorTests {
                     topLevelParentLabel: "//HelloWorld:HelloWorld",
                     topLevelParentConfig: helloWorldConfig
                 ),
-                withStrategy: .swiftModule,
+                withStrategy: .swiftModule(testSourceUri),
+                indexOutputPath: nil
             )
         }
         #expect(error?.localizedDescription == "Target //HelloWorld:SomethingElseLib not found in the aquery output.")
@@ -261,7 +276,6 @@ let expectedSwiftResult: [String] = [
     "/private/var/tmp/_bazel_user/hash123/external/rules_swift+/swift/toolchains/config/const_protocols_to_gather.json",
     "-DDEBUG",
     "-Onone",
-    "-whole-module-optimization",
     "-Xfrontend",
     "-internalize-at-link",
     "-Xfrontend",
@@ -270,7 +284,7 @@ let expectedSwiftResult: [String] = [
     "-disable-sandbox",
     "-g",
     "-file-prefix-map",
-    "/Applications/Xcode.app/Contents/Developer=/PLACEHOLDER_DEVELOPER_DIR",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__=.",
     "-file-compilation-dir",
     ".",
     "-module-cache-path",
@@ -284,8 +298,6 @@ let expectedSwiftResult: [String] = [
     "-fmodule-map-file=/Users/user/Documents/demo-ios-project/HelloWorld/TodoObjCSupport/Sources/module.modulemap",
     "-Xfrontend",
     "-color-diagnostics",
-    "-num-threads",
-    "12",
     "-module-name",
     "HelloWorldLib",
     "-index-store-path",
@@ -306,13 +318,16 @@ let expectedSwiftResult: [String] = [
     "-fstack-protector",
     "-Xcc",
     "-fstack-protector-all",
-    "-whole-module-optimization",
     "-Xfrontend",
     "-checked-async-objc-bridging=on",
     "/Users/user/Documents/demo-ios-project/HelloWorld/HelloWorldLib/Sources/AddTodoView.swift",
     "/Users/user/Documents/demo-ios-project/HelloWorld/HelloWorldLib/Sources/HelloWorldApp.swift",
     "/Users/user/Documents/demo-ios-project/HelloWorld/HelloWorldLib/Sources/TodoItemRow.swift",
     "/Users/user/Documents/demo-ios-project/HelloWorld/HelloWorldLib/Sources/TodoListView.swift",
+    "-working-directory",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__",
+    "-index-unit-output-path",
+    "../bazel-out/ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-2842469f5300/bin/HelloWorld/HelloWorldLib_objs/HelloWorldLib/Sources/AddTodoView.swift.o",
 ]
 
 /// Expected result of processing the example input for the Obj-C file.
@@ -379,5 +394,5 @@ let expectedObjCResult: [String] = [
     "-index-store-path",
     "/private/var/tmp/_bazel_user/hash123/execroot/__main__/bazel-out/_global_index_store",
     "-working-directory",
-    "/Users/user/Documents/demo-ios-project",
+    "/private/var/tmp/_bazel_user/hash123/execroot/__main__",
 ]

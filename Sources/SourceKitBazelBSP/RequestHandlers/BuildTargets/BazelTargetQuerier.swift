@@ -139,6 +139,7 @@ final class BazelTargetQuerier {
             workspaceName: config.workspaceName,
             executionRoot: config.executionRoot,
             toolchainPath: config.devToolchainPath,
+            outputPath: config.outputPath
         )
 
         logger.debug("Cqueried \(processedCqueryResult.buildTargets.count, privacy: .public) targets")
@@ -275,7 +276,8 @@ final class BazelTargetQuerier {
             srcs: srcs,
             rootUri: config.rootUri,
             workspaceName: config.workspaceName,
-            executionRoot: config.executionRoot
+            executionRoot: config.executionRoot,
+            outputPath: config.outputPath
         )
     }
 }
