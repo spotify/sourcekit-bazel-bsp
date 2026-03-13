@@ -1,0 +1,13 @@
+{
+  "name": "sourcekit-lsp-custom-marketplace",
+  "owner": {
+    "name": "Spotify"
+  },
+  "plugins": [
+    {
+      "name": "sourcekit-lsp-custom",
+      "source": "./plugins/sourcekit-lsp-custom",
+      "description": "Swift language intelligence via a patched sourcekit-lsp binary"
+    }
+  ]
+}
