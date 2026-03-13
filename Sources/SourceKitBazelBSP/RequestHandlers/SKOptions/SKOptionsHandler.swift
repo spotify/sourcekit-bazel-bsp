@@ -75,11 +75,13 @@ final class SKOptionsHandler {
         // instead of throwing errors that would spam logs.
         let platformInfo: BazelTargetPlatformInfo
         let aqueryResult: ProcessedAqueryResult
+        let sourcesItem: SourcesItem?
         do {
-            (platformInfo, aqueryResult) = try targetStore.stateLock.withLockUnchecked {
+            (platformInfo, aqueryResult, sourcesItem) = try targetStore.stateLock.withLockUnchecked {
                 let info = try targetStore.platformBuildLabelInfo(forBSPURI: targetUri)
                 let aquery = try targetStore.targetsAqueryForArgsExtraction()
-                return (info, aquery)
+                let srcs = try? targetStore.bazelTargetSrcs(forBSPURI: targetUri)
+                return (info, aquery, srcs)
             }
         } catch BazelTargetStoreError.unknownBSPURI {
             return nil
@@ -93,10 +95,15 @@ final class SKOptionsHandler {
             targetUri: request.target.uri
         )
 
+        // FIXME: This is O(n), we should be able to pre-calculate this somewhere
+        let sourceItem = sourcesItem?.sources.first { $0.uri == request.textDocument.uri }
+
+        let indexOutputPath = sourceItem?.sourceKitData?.outputPath
         let args = try extractor.extractCompilerArgs(
             fromAquery: aqueryResult,
             forTarget: platformInfo,
             withStrategy: strategy,
+            indexOutputPath: indexOutputPath
         )
 
         // If no compiler arguments are found, return nil to avoid sourcekit indexing with no input files

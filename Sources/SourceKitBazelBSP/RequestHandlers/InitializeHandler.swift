@@ -292,7 +292,7 @@ final class InitializeHandler {
                 inverseSourcesProvider: true,
                 dependencySourcesProvider: true,
                 resourcesProvider: true,
-                outputPathsProvider: false,
+                outputPathsProvider: true,
                 buildTargetChangedProvider: true,
                 canReload: true,
             ),
@@ -300,7 +300,7 @@ final class InitializeHandler {
             data: SourceKitInitializeBuildResponseData(
                 indexDatabasePath: initializedConfig.indexDatabasePath,
                 indexStorePath: initializedConfig.indexStorePath,
-                outputPathsProvider: nil,
+                outputPathsProvider: true,
                 prepareProvider: true,
                 sourceKitOptionsProvider: true,
                 watchers: watchers,

@@ -4,8 +4,6 @@ common --watchos_cpus=arm64
 # --swiftcopt and --host_swiftcopt are deprecated
 common --flag_alias=swiftcopt=@rules_swift//swift:copt
 common --flag_alias=host_swiftcopt=@rules_swift//swift:exec_copt
-common --swiftcopt=-whole-module-optimization
-common --host_swiftcopt=-whole-module-optimization
 
 common --check_visibility=false
 
@@ -22,7 +20,6 @@ common --features=oso_prefix_is_pwd
 common --features=relative_ast_path
 common --features=swift.cacheable_swiftmodules
 common --features=swift.index_while_building
-common --features=swift.use_global_index_store
 common --features=swift.use_global_module_cache
 common --features=swift.emit_swiftsourceinfo
 common --nolegacy_important_outputs

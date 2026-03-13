@@ -74,7 +74,8 @@ def _setup_sourcekit_bsp_impl(ctx):
 
     prefixMap = {
         "./OUTPUT_PATH_NAME_PLACEHOLDER": "OUTPUT_PATH_PLACEHOLDER",
-        "./external": "EXTERNAL_ROOT_PLACEHOLDER"
+        "./external": "EXTERNAL_ROOT_PLACEHOLDER",
+        ".": "WORKSPACE_ROOT_PLACEHOLDER",
     }
     lsp_config_json["index"] = {"indexPrefixMap": prefixMap}
 

@@ -59,14 +59,14 @@ enum BazelTargetCompilerArgsExtractorError: Error, LocalizedError {
 /// Abstraction that handles processing and answering compiler args requests for SourceKit-LSP.
 final class BazelTargetCompilerArgsExtractor {
     enum ParsingStrategy: CustomStringConvertible {
-        case swiftModule
+        case swiftModule(URI)
         case cImpl(String, String)
         case cHeader
 
         var description: String {
             switch self {
-            case .swiftModule: return "swiftModule"
-            case .cImpl(let uri, let langId): return "cImpl(\(uri), \(langId))"
+            case .swiftModule(let uri): return "swiftModule(\(uri))"
+            case .cImpl(let relativePath, let langId): return "cImpl(\(relativePath), \(langId))"
             case .cHeader: return "cHeader"
             }
         }
@@ -87,7 +87,7 @@ final class BazelTargetCompilerArgsExtractor {
     func getParsingStrategy(for uri: URI, language: Language, targetUri: URI) throws -> ParsingStrategy {
         switch language {
         case .swift:
-            return .swiftModule
+            return .swiftModule(uri)
         case .c, .cpp, .objective_c, .objective_cpp:
             if let pathExtension = uri.fileURL?.pathExtension,
                 SupportedExtension(rawValue: pathExtension)?.kind == .header
@@ -121,6 +121,7 @@ final class BazelTargetCompilerArgsExtractor {
         fromAquery aquery: ProcessedAqueryResult,
         forTarget platformInfo: BazelTargetPlatformInfo,
         withStrategy strategy: ParsingStrategy,
+        indexOutputPath: String?
     ) throws -> [String] {
         // Ignore Obj-C header requests as these don't compile.
         if case .cHeader = strategy {
@@ -133,6 +134,7 @@ final class BazelTargetCompilerArgsExtractor {
 
         let cacheKey = try getCacheKey(
             forTarget: platformInfo.label,
+            configMnemonic: platformInfo.topLevelParentConfig.configurationName,
             fromAquery: aquery,
             strategy: strategy
         )
@@ -160,7 +162,8 @@ final class BazelTargetCompilerArgsExtractor {
         let processedArgs = _processCompilerArguments(
             rawArguments: targetAction.arguments,
             sdkRoot: sdkRoot,
-            strategy: strategy
+            strategy: strategy,
+            indexOutputPath: indexOutputPath
         )
 
         logger.debug("Finished processing compiler arguments")
@@ -176,16 +179,21 @@ final class BazelTargetCompilerArgsExtractor {
 
     private func getCacheKey(
         forTarget target: String,
+        configMnemonic: String,
         fromAquery aquery: ProcessedAqueryResult,
         strategy: ParsingStrategy
     ) throws -> String {
         let queryHash = String(aquery.hashValue)
-        // For Swift, compilation is done at the target-level. But for ObjC, it's file-based instead.
+        // Cache key includes config mnemonic to differentiate between platforms (iOS, watchOS, etc.)
+        // and source file for Swift since we add per-file -index-unit-output-path.
+        // For ObjC, it's already file-based.
         switch strategy {
-        case .swiftModule, .cHeader:
-            return target + "|" + queryHash
-        case .cImpl(let uri, let langId):
-            return target + "|" + uri + "|" + langId + "|" + queryHash
+        case .swiftModule(let uri):
+            return target + "|" + configMnemonic + "|" + uri.stringValue + "|" + queryHash
+        case .cHeader:
+            return target + "|" + configMnemonic + "|" + queryHash
+        case .cImpl(let relativePath, let langId):
+            return target + "|" + configMnemonic + "|" + relativePath + "|" + langId + "|" + queryHash
         }
     }
 
@@ -222,15 +230,15 @@ final class BazelTargetCompilerArgsExtractor {
         }
         let contentBeingQueried: String
         switch strategy {
-        case .swiftModule, .cHeader:
+        case .swiftModule(_), .cHeader:
             contentBeingQueried = bazelTarget
-        case .cImpl(let uri, _):
+        case .cImpl(let relativePath, _):
             // For C, we need to additionally filter for the action containing the specific file we're looking at.
-            contentBeingQueried = uri + " (\(bazelTarget))"
+            contentBeingQueried = relativePath + " (\(bazelTarget))"
             candidateActions = candidateActions.filter {
                 let args = $0.arguments
                 for i in (0..<args.count).reversed() {
-                    if args[i] == "-c" && args[i + 1] == uri {
+                    if args[i] == "-c" && args[i + 1] == relativePath {
                         return true
                     }
                 }
@@ -256,7 +264,8 @@ extension BazelTargetCompilerArgsExtractor {
     private func _processCompilerArguments(
         rawArguments: [String],
         sdkRoot: String,
-        strategy: ParsingStrategy
+        strategy: ParsingStrategy,
+        indexOutputPath: String?
     ) -> [String] {
         let devDir = config.devDir
         let rootUri = config.rootUri
@@ -278,14 +287,30 @@ extension BazelTargetCompilerArgsExtractor {
         // For Swift, invocations start with "wrapped swiftc". We can ignore those.
         // In the case of Obj-C, this is just a single `clang` reference.
         switch strategy {
-        case .swiftModule: index = 2
+        case .swiftModule(_): index = 2
         case .cImpl, .cHeader: index = 1
         }
 
         while index < count {
             let arg = rawArguments[index]
 
-            // Skip injected arguments from rules_swift
+            // Handle injected arguments from rules_swift worker
+            // These are wrapper-specific flags that need to be translated to actual compiler args
+            if arg.hasPrefix("-Xwrapped-swift=") {
+                let wrappedArg = String(arg.dropFirst("-Xwrapped-swift=".count))
+                // Translate -file-prefix-pwd-is-dot to actual -file-prefix-map flag
+                // This makes paths in the index store relative, matching what rules_swift does.
+                // IMPORTANT: We must use executionRoot (not rootUri/workspace root) to match
+                // the path format used by regular Bazel builds. This ensures output paths in
+                // the index store are consistent between BSP and regular builds.
+                if wrappedArg == "-file-prefix-pwd-is-dot" {
+                    compilerArguments.append("-file-prefix-map")
+                    compilerArguments.append("\(config.executionRoot)=.")
+                }
+                // Other -Xwrapped-swift flags are worker-specific and should be skipped
+                index += 1
+                continue
+            }
             if arg.hasPrefix("-Xwrapped-swift") {
                 index += 1
                 continue
@@ -391,12 +416,22 @@ extension BazelTargetCompilerArgsExtractor {
             compilerArguments.append("-index-store-path")
             compilerArguments.append(config.indexStorePath)
             compilerArguments.append("-working-directory")
-            compilerArguments.append(rootUri)
+            compilerArguments.append(config.executionRoot)
+            if let indexOutputPath {
+                compilerArguments.append("-index-unit-output-path")
+                compilerArguments.append(indexOutputPath)
+            }
         case .swiftModule:
             // For Swift, swap the index store arg with the global cache.
             // Bazel handles this a bit differently internally, which is why
             // we need to do this.
             _editArg("-index-store-path", config.indexStorePath, &compilerArguments)
+            compilerArguments.append("-working-directory")
+            compilerArguments.append(config.executionRoot)
+            if let indexOutputPath {
+                compilerArguments.append("-index-unit-output-path")
+                compilerArguments.append(indexOutputPath)
+            }
         case .cHeader:
             break
         }

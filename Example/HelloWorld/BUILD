@@ -322,8 +322,7 @@ setup_sourcekit_bsp(
     targets = [
         "//HelloWorld/...",
     ],
-    merge_lsp_config = False,
-    experimental_no_extra_output_base = True
+    merge_lsp_config = False
 )
 
 command(
