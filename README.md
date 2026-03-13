@@ -27,7 +27,7 @@ https://github.com/user-attachments/assets/ca5a448d-03b1-4f8e-9de1-e403cc08953c
 - Add sourcekit-bazel-bsp as a dependency on your `MODULE.bazel` file:
 
 ```python
-bazel_dep(name = "sourcekit_bazel_bsp", version = "0.8.0", repo_name = "sourcekit_bazel_bsp")
+bazel_dep(name = "sourcekit_bazel_bsp", version = "0.8.1", repo_name = "sourcekit_bazel_bsp")
 ```
 
 - Define a `setup_sourcekit_bsp` rule in a BUILD.bazel file of your choice. [You can find the full list of arguments here](rules/setup_sourcekit_bsp.bzl). Although the exact setup differs from project to project, here's what an example setup would look like:
