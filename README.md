@@ -63,6 +63,33 @@ This will result in the necessary configuration files being added to your reposi
 
 The next step depends on which IDE you want to use this integration with. Follow the instructions below that match your choice.
 
+### Claude Code
+
+If you don't wish to use a custom sourcekit-lsp binary, then all you need to do is install the official **swift-lsp** plugin for Claude. However, as we currently make use of LSP features that are not yet shipped with Xcode, you may face performance and other usability issues when using the version that is shipped with Xcode. We strongly recommend using the version provided alongside sourcekit-bazel-bsp (or compiling/providing your own) for the best experience.
+
+To use Claude's LSP features with a custom sourcekit-lsp binary:
+- Uninstall the official swift-lsp plugin if you installed it previously.
+- Create a custom plugin marketplace by [copying the claude-marketplace folder from our Example project](Example/claude-marketplace/) to your repo, making sure to edit the binary path in `.lsp.json` to match what's used in your project (use absolute paths if possible).
+- Add the following entries to your `.claude/settings.json` (or `.claude/settings.local.json`):
+
+```json
+{
+  "enabledPlugins": {
+    "sourcekit-lsp-custom@sourcekit-lsp-custom-marketplace": true
+  },
+  "extraKnownMarketplaces": {
+    "sourcekit-lsp-custom-marketplace": {
+      "source": {
+        "source": "directory",
+        "path": "path-to-your-copied-claude-marketplace-folder"
+      }
+    }
+  }
+}
+```
+
+Claude should now be able to launch sourcekit-lsp + sourcekit-bazel-bsp when prompted about Swift files. To test the integration, ask it about its Swift LSP capabilities.
+
 ### Cursor / VSCode
 
 - Download and install the official [Swift](https://marketplace.visualstudio.com/items?itemName=swiftlang.swift-vscode) and [LLDB-DAP](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.lldb-dap) extensions.

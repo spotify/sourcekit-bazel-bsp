@@ -1,0 +1,13 @@
+{
+  "enabledPlugins": {
+    "sourcekit-lsp-custom@sourcekit-lsp-custom-marketplace": true
+  },
+  "extraKnownMarketplaces": {
+    "sourcekit-lsp-custom-marketplace": {
+      "source": {
+        "source": "directory",
+        "path": "./claude-marketplace"
+      }
+    }
+  }
+}
