@@ -238,6 +238,7 @@ else
 fi
 output_path="${bsp_output_base}/${output_path_difference}"
 external_root="${bsp_output_base}/${exec_root_difference}/external"
+exec_root="${bsp_output_base}/${exec_root_difference}"
 
 # Clean up the old output base if it exists (from before we nested it in the main one)
 if [ -d "$old_bsp_output_base" ]; then
@@ -251,7 +252,7 @@ cp "$lsp_config_path" "$lsp_config_tmp"
 sed -i '' 's|OUTPUT_PATH_PLACEHOLDER|'"$output_path"'|g' "$lsp_config_tmp"
 sed -i '' 's|EXTERNAL_ROOT_PLACEHOLDER|'"$external_root"'|g' "$lsp_config_tmp"
 sed -i '' 's|OUTPUT_PATH_NAME_PLACEHOLDER|'"$output_path_name"'|g' "$lsp_config_tmp"
-sed -i '' 's|WORKSPACE_ROOT_PLACEHOLDER|'"$WORKSPACE_ROOT"'|g' "$lsp_config_tmp"
+sed -i '' 's|EXECUTION_ROOT_PLACEHOLDER|'"$exec_root"'|g' "$lsp_config_tmp"
 lsp_config_path="${lsp_config_tmp}"
 
 # Update the LSP config if needed
