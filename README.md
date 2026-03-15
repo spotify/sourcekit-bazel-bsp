@@ -23,7 +23,7 @@ https://github.com/user-attachments/assets/ca5a448d-03b1-4f8e-9de1-e403cc08953c
 ### Shared Instructions for All IDEs / Models
 
 - Make sure your Bazel project is properly configured to generate the supporting files used for indexing. For more details on that, check how our example project is configured.
-    - The most important part is to **not** use WMO or `swift.use_global_index_store` on regular CLI builds as these will prevent the BSP from indexing the code properly.
+    - The most important part is to **not** use WMO as this will prevent the BSP from indexing the code properly.
 - Add sourcekit-bazel-bsp as a dependency on your `MODULE.bazel` file:
 
 ```python
