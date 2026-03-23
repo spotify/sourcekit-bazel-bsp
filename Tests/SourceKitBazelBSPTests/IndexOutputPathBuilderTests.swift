@@ -338,6 +338,84 @@ struct IndexOutputPathBuilderBuildTests {
         #expect(result == nil)
     }
 
+    // MARK: - Relative Clang Output Paths
+
+    @Test
+    func cSourceWithRelativeClangOutputPaths() {
+        let result = IndexOutputPathBuilder.build(
+            language: .c,
+            ruleType: .ccLibrary,
+            ruleName: "//Sources/MyCLib:MyCLib",
+            configMnemonic: configMnemonic,
+            filePath: "/Users/user/workspace/Sources/MyCLib/file.c",
+            rootUri: rootUri,
+            executionRoot: executionRoot,
+            relativeClangOutputPaths: true
+        )
+
+        #expect(
+            result
+                == "/bazel-out/\(configMnemonic)/bin/Sources/MyCLib/_objs/MyCLib/file.o"
+        )
+    }
+
+    @Test
+    func objcSourceWithRelativeClangOutputPaths() {
+        let result = IndexOutputPathBuilder.build(
+            language: .objective_c,
+            ruleType: .objcLibrary,
+            ruleName: "//Sources/MyObjCLib:MyObjCLib",
+            configMnemonic: configMnemonic,
+            filePath: "/Users/user/workspace/Sources/MyObjCLib/file.m",
+            rootUri: rootUri,
+            executionRoot: executionRoot,
+            relativeClangOutputPaths: true
+        )
+
+        #expect(
+            result
+                == "/bazel-out/\(configMnemonic)/bin/Sources/MyObjCLib/_objs/MyObjCLib/arc/file.o"
+        )
+    }
+
+    @Test
+    func cppSourceInExternalRepoWithRelativeClangOutputPaths() {
+        let result = IndexOutputPathBuilder.build(
+            language: .cpp,
+            ruleType: .ccLibrary,
+            ruleName: "@external_cpp_dep//Sources/ExternalCppLib:ExternalCppLib",
+            configMnemonic: configMnemonic,
+            filePath: "/Users/user/workspace/Sources/ExternalCppLib/file.cpp",
+            rootUri: rootUri,
+            executionRoot: executionRoot,
+            relativeClangOutputPaths: true
+        )
+
+        #expect(
+            result
+                == "/bazel-out/\(configMnemonic)/bin/external/external_cpp_dep/Sources/ExternalCppLib/_objs/ExternalCppLib/file.o"
+        )
+    }
+
+    @Test
+    func swiftUnaffectedByRelativeClangOutputPaths() {
+        let result = IndexOutputPathBuilder.build(
+            language: .swift,
+            ruleType: .swiftLibrary,
+            ruleName: "//Sources/MyLib:MyLib",
+            configMnemonic: configMnemonic,
+            filePath: "/Users/user/workspace/Sources/MyLib/File.swift",
+            rootUri: rootUri,
+            executionRoot: executionRoot,
+            relativeClangOutputPaths: true
+        )
+
+        #expect(
+            result
+                == "./bazel-out/\(configMnemonic)/bin/Sources/MyLib/MyLib_objs/File.swift.o"
+        )
+    }
+
     // MARK: - Edge Cases
 
     @Test

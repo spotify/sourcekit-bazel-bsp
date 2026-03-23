@@ -111,6 +111,12 @@ struct Serve: AsyncParsableCommand {
     )
     var experimentalSharedIndexStore: Bool = false
 
+    @Flag(
+        help:
+            "(EXPERIMENTAL) If enabled, C/ObjC/C++ index unit output paths will omit the execution root prefix, making them workspace-agnostic. This enables sharing index stores across workspaces with different execution roots (e.g. git worktrees)."
+    )
+    var experimentalRelativeClangOutputPaths: Bool = false
+
     func run() throws {
         logger.info("`serve` invoked, initializing BSP server...")
 
@@ -137,7 +143,8 @@ struct Serve: AsyncParsableCommand {
             dependencyTargetsToExclude: dependencyTargetToExclude,
             appleSupportRepoName: appleSupportRepoName,
             noExtraOutputBase: experimentalNoExtraOutputBase,
-            sharedIndexStore: experimentalSharedIndexStore
+            sharedIndexStore: experimentalSharedIndexStore,
+            relativeClangOutputPaths: experimentalRelativeClangOutputPaths
         )
 
         logger.debug("Initializing BSP with targets: \(targets)")

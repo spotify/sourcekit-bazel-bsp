@@ -39,6 +39,7 @@ package struct BaseServerConfig: Equatable {
     let appleSupportRepoName: String
     let noExtraOutputBase: Bool
     let sharedIndexStore: Bool
+    let relativeClangOutputPaths: Bool
 
     package init(
         bazelWrapper: String,
@@ -54,7 +55,8 @@ package struct BaseServerConfig: Equatable {
         dependencyTargetsToExclude: [String] = [],
         appleSupportRepoName: String = "apple_support",
         noExtraOutputBase: Bool = false,
-        sharedIndexStore: Bool = false
+        sharedIndexStore: Bool = false,
+        relativeClangOutputPaths: Bool = false
     ) {
         self.bazelWrapper = bazelWrapper
         self.targets = targets
@@ -70,5 +72,6 @@ package struct BaseServerConfig: Equatable {
         self.appleSupportRepoName = appleSupportRepoName
         self.noExtraOutputBase = noExtraOutputBase
         self.sharedIndexStore = sharedIndexStore
+        self.relativeClangOutputPaths = relativeClangOutputPaths
     }
 }

@@ -102,6 +102,12 @@ protocol BazelTargetQuerierParser: AnyObject {
 // MARK: - Processing Cqueries
 
 final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
+    let relativeClangOutputPaths: Bool
+
+    init(relativeClangOutputPaths: Bool = false) {
+        self.relativeClangOutputPaths = relativeClangOutputPaths
+    }
+
     func processCquery(
         from data: Data,
         testBundleRules: [String],
@@ -671,7 +677,8 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 configMnemonic: configMnemonic,
                 filePath: filePath,
                 rootUri: rootUri,
-                executionRoot: executionRoot
+                executionRoot: executionRoot,
+                relativeClangOutputPaths: relativeClangOutputPaths
             )
         } else {
             indexOutputPath = nil

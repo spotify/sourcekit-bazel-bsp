@@ -49,6 +49,8 @@ def _setup_sourcekit_bsp_impl(ctx):
         bsp_config_argv.append("--experimental-no-extra-output-base")
     if ctx.attr.experimental_shared_index_store:
         bsp_config_argv.append("--experimental-shared-index-store")
+    if ctx.attr.experimental_relative_clang_output_paths:
+        bsp_config_argv.append("--experimental-relative-clang-output-paths")
     ctx.actions.expand_template(
         template = ctx.file._bsp_config_template,
         output = rendered_bsp_config,
@@ -203,6 +205,10 @@ setup_sourcekit_bsp = rule(
         ),
         "experimental_shared_index_store": attr.bool(
             doc = "(EXPERIMENTAL) If enabled, the BSP will create a symlink so that the BSP's output base shares the index store with the main output base. This allows both regular builds and BSP builds to share the same index data. Has no effect if experimental_no_extra_output_base is enabled.",
+            default = False,
+        ),
+        "experimental_relative_clang_output_paths": attr.bool(
+            doc = "(EXPERIMENTAL) If enabled, C/ObjC/C++ index unit output paths will omit the execution root prefix, making them workspace-agnostic. This enables sharing index stores across workspaces with different execution roots (e.g. git worktrees).",
             default = False,
         ),
     },

@@ -54,7 +54,11 @@ package final class SourceKitBazelBSPServer {
         connection: JSONRPCConnection
     ) {
         // workspace/buildTargets
-        let targetStore = BazelTargetStoreImpl(initializedConfig: initializedConfig)
+        let parser = BazelTargetQuerierParserImpl(
+            relativeClangOutputPaths: initializedConfig.baseConfig.relativeClangOutputPaths
+        )
+        let querier = BazelTargetQuerier(parser: parser)
+        let targetStore = BazelTargetStoreImpl(initializedConfig: initializedConfig, bazelTargetQuerier: querier)
         let buildTargetsHandler = BuildTargetsHandler(targetStore: targetStore, connection: connection)
         registry.register(requestHandler: buildTargetsHandler.workspaceBuildTargets)
 

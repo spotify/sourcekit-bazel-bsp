@@ -85,7 +85,8 @@ enum IndexOutputPathBuilder {
         configMnemonic: String,
         filePath: String,
         rootUri: String,
-        executionRoot: String
+        executionRoot: String,
+        relativeClangOutputPaths: Bool = false
     ) -> String? {
         let parsed = parseRuleName(ruleName)
         guard let packagePath = parsed.packagePath, let targetName = parsed.targetName else {
@@ -113,13 +114,18 @@ enum IndexOutputPathBuilder {
                 "./bazel-out/\(configMnemonic)/bin/\(externalPrefix)\(packagePath)/\(targetName)_objs/\(srcRelativeToPackage).o"
         case .c, .cpp, .objective_c, .objective_cpp:
             // C/ObjC: <executionRoot>/bazel-out/<config>/bin/[external/<repo>/]<package>/_objs/<target>[/arc]/<file>.o
-            // Clang does NOT apply -file-prefix-map to the output path stored in index units,
-            // so the path must be absolute (unlike Swift which uses ./ prefix).
             // objc_library targets put ALL files (including .c) in an /arc subdirectory.
+            //
+            // When relativeClangOutputPaths is enabled, the execution root prefix is dropped
+            // so the output path is workspace-agnostic (/bazel-out/... instead of <execRoot>/bazel-out/...).
+            // This enables sharing index stores across git worktrees with different execution roots.
+            // The path is passed to clang via -index-unit-output-path, which stores it in the index unit.
+            // It must remain absolute (start with /) because clang prepends -working-directory to relative paths.
             let fileName = (filePath as NSString).deletingPathExtension.components(separatedBy: "/").last ?? ""
             let arcSubdir = (ruleType == .objcLibrary) ? "/arc" : ""
+            let prefix = relativeClangOutputPaths ? "" : executionRoot
             return
-                "\(executionRoot)/bazel-out/\(configMnemonic)/bin/\(externalPrefix)\(packagePath)/_objs/\(targetName)\(arcSubdir)/\(fileName).o"
+                "\(prefix)/bazel-out/\(configMnemonic)/bin/\(externalPrefix)\(packagePath)/_objs/\(targetName)\(arcSubdir)/\(fileName).o"
         default:
             return nil
         }
