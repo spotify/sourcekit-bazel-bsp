@@ -120,7 +120,8 @@ final class BazelTargetQuerier {
 
         // We use cquery here because we are interested on what's actually compiled.
         // Also, this shares more analysis cache compared to the regular query.
-        let cmd = "cquery '\(topLevelTargetsQuery)' --noinclude_aspects --notool_deps --noimplicit_deps --output proto"
+        let cmd =
+            "cquery '\(topLevelTargetsQuery)' --consistent_labels --noinclude_aspects --notool_deps --noimplicit_deps --output proto"
         let output: Data = try commandRunner.bazelIndexAction(
             baseConfig: config.baseConfig,
             outputBase: config.outputBase,
@@ -139,7 +140,8 @@ final class BazelTargetQuerier {
             workspaceName: config.workspaceName,
             executionRoot: config.executionRoot,
             toolchainPath: config.devToolchainPath,
-            outputPath: config.outputPath
+            outputPath: config.outputPath,
+            outputBase: config.outputBase
         )
 
         logger.debug("Cqueried \(processedCqueryResult.buildTargets.count, privacy: .public) targets")
@@ -165,6 +167,7 @@ final class BazelTargetQuerier {
 
         let baseFlags =
             [
+                "--consistent_labels",
                 "--noinclude_artifacts",
                 "--noinclude_aspects",
             ] + config.baseConfig.aqueryFlags
@@ -265,7 +268,8 @@ final class BazelTargetQuerier {
             cmd: query,
             rootUri: config.rootUri,
             additionalFlags: [
-                "--output=proto"
+                "--consistent_labels",
+                "--output=proto",
             ]
         )
 
@@ -277,7 +281,8 @@ final class BazelTargetQuerier {
             rootUri: config.rootUri,
             workspaceName: config.workspaceName,
             executionRoot: config.executionRoot,
-            outputPath: config.outputPath
+            outputPath: config.outputPath,
+            outputBase: config.outputBase
         )
     }
 }

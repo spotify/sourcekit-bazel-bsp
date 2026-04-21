@@ -81,7 +81,8 @@ protocol BazelTargetQuerierParser: AnyObject {
         workspaceName: String,
         executionRoot: String,
         toolchainPath: String,
-        outputPath: String
+        outputPath: String,
+        outputBase: String
     ) throws -> ProcessedCqueryResult
 
     func processAquery(
@@ -95,7 +96,8 @@ protocol BazelTargetQuerierParser: AnyObject {
         rootUri: String,
         workspaceName: String,
         executionRoot: String,
-        outputPath: String
+        outputPath: String,
+        outputBase: String
     ) throws -> ProcessedCqueryAddedFilesResult
 }
 
@@ -111,7 +113,8 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
         workspaceName: String,
         executionRoot: String,
         toolchainPath: String,
-        outputPath: String
+        outputPath: String,
+        outputBase: String
     ) throws -> ProcessedCqueryResult {
         let cquery = try BazelProtobufBindings.parseCqueryResult(data: data)
 
@@ -255,7 +258,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
             let id = try label.toTargetId(
                 rootUri: rootUri,
                 workspaceName: workspaceName,
-                executionRoot: executionRoot,
+                outputBase: outputBase,
                 configMnemonic: configuration
             )
             bspUriToParentConfigMap[id] = configuration
@@ -358,7 +361,7 @@ final class BazelTargetQuerierParserImpl: BazelTargetQuerierParser {
                 canDebug: false
             )
 
-            let isExternal = rule.name.hasPrefix("@")
+            let isExternal = rule.name.isExternalBazelLabel()
             let tags: [BuildTargetTag] = {
                 var tags: [BuildTargetTag] = [.library]
                 if isExternal {
@@ -866,7 +869,8 @@ extension BazelTargetQuerierParserImpl {
         rootUri: String,
         workspaceName: String,
         executionRoot: String,
-        outputPath: String
+        outputPath: String,
+        outputBase: String
     ) throws -> ProcessedCqueryAddedFilesResult {
         let cquery = try BazelProtobufBindings.parseCqueryResult(data: data)
 
@@ -914,7 +918,7 @@ extension BazelTargetQuerierParserImpl {
             let id = try displayName.toTargetId(
                 rootUri: rootUri,
                 workspaceName: workspaceName,
-                executionRoot: executionRoot,
+                outputBase: outputBase,
                 configMnemonic: configMnemonic
             )
 
@@ -937,12 +941,12 @@ extension String {
     /// Converts a Bazel label into a URI and returns a unique target id.
     ///
     /// For local labels: bazel://<path-to-root>/<package-name>___<target-name>
-    /// For external labels: bazel://<execution-root>/external/<repo-name>/<package-name>___<target-name>
+    /// For external labels: bazel://<output-base>/external/<repo-name>/<package-name>___<target-name>
     ///
     fileprivate func toTargetId(
         rootUri: String,
         workspaceName: String,
-        executionRoot: String,
+        outputBase: String,
         configMnemonic: String
     ) throws -> URI {
         let (repoName, packageName, targetName) = try splitTargetLabel(workspaceName: workspaceName)
@@ -953,7 +957,7 @@ extension String {
         } else {
             // External repo: use execution root + external path
             path =
-                "bazel://" + executionRoot + "/external/" + repoName + packagePath + "/" + targetName + "_"
+                "bazel://" + outputBase + "/external/" + repoName + packagePath + "/" + targetName + "_"
                 + configMnemonic
         }
         guard let uri = try? URI(string: path) else {
@@ -980,17 +984,17 @@ extension String {
         let repoName: String
         let packageName: String
 
-        if repoAndPackage.hasPrefix("@//") {
-            // Alias for the main repo.
+        var withoutAt = repoAndPackage
+        while withoutAt.first == "@" {
+            withoutAt = withoutAt.dropFirst()
+        }
+
+        if withoutAt.hasPrefix("//") {
+            // Main repo label.
             repoName = workspaceName
-            packageName = String(repoAndPackage.dropFirst(3))
-        } else if repoAndPackage.hasPrefix("//") {
-            // Also the main repo.
-            repoName = workspaceName
-            packageName = String(repoAndPackage.dropFirst(2))
-        } else if repoAndPackage.hasPrefix("@") && repoAndPackage.contains("//") {
-            // External label
-            let withoutAt = repoAndPackage.dropFirst()
+            packageName = String(withoutAt.dropFirst(2))
+        } else if !withoutAt.isEmpty {
+            // External repo label.
             guard let slashIndex = withoutAt.firstIndex(of: "/") else {
                 throw BazelTargetQuerierParserError.incorrectName(self)
             }

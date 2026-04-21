@@ -46,8 +46,11 @@ enum IndexOutputPathBuilder {
 
         // Extract external repo name if present (e.g., "@abseil-cpp" from "@abseil-cpp//absl/base")
         let externalRepoName: String?
-        if beforeColon.hasPrefix("@") {
-            let afterAt = beforeColon.dropFirst()  // drop "@"
+        if beforeColon.isExternalBazelLabel() {
+            var afterAt = beforeColon.dropFirst()
+            while afterAt.first == "@" {
+                afterAt = afterAt.dropFirst()
+            }
             if let slashIdx = afterAt.firstIndex(of: "/") {
                 externalRepoName = String(afterAt[..<slashIdx])
             } else {

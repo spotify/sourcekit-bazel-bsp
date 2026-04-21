@@ -28,6 +28,10 @@ archive_override(
 
 bazel_dep(name = "apple_support", version = "2.2.0")
 bazel_dep(name = "rules_cc", version = "0.2.16")
+
+# External Swift library to test the external repo case
+bazel_dep(name = "yams", version = "5.0.6")
+
 bazel_dep(name = "aspect_bazel_lib", version = "2.13.0")
 bazel_dep(name = "rules_multirun", version = "0.13.0")
 

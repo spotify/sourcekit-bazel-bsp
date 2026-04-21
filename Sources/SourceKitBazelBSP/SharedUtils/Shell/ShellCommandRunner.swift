@@ -62,7 +62,12 @@ struct ShellCommandRunner: CommandRunner {
 
         runningProcess.attachPipes()
 
-        logger.logFullObjectInMultipleLogMessages(level: .debug, header: "Running shell", cmd)
+        logger.logFullObjectInMultipleLogMessages(
+            level: .debug,
+            header: "Running shell",
+            cmd,
+            splitByCharacterCount: true
+        )
 
         try process.run()
 

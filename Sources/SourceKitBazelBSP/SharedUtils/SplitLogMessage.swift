@@ -22,16 +22,36 @@
 
 import OSLog
 
-/// Splits `message` on newline characters such that each chunk is at most `maxChunkSize` bytes long.
+/// Splits `message` such that each chunk is at most `maxChunkSize` bytes long.
 ///
 /// The intended use case for this is to split compiler arguments and a file's contents into multiple chunks so
 /// that each chunk doesn't exceed the maximum message length of `os_log` and thus won't get truncated.
 ///
-///  - Note: This will only split along newline boundary. If a single line is longer than `maxChunkSize`, it won't be
-///    split. This is fine for compiler argument splitting since a single argument is rarely longer than 800 characters.
-package func splitLongMultilineMessage(message: String) -> [String] {
+/// When `splitByCharacterCount` is true, the message is split purely by character count, ignoring any
+/// separator logic. Otherwise, splits along newline boundaries (a single line longer than `maxChunkSize`
+/// won't be split in that mode).
+package func splitLongMultilineMessage(
+    message: String,
+    splitByCharacterCount: Bool = false
+) -> [String] {
     let maxChunkSize = 800
     var chunks: [String] = []
+
+    if splitByCharacterCount {
+        var remaining = message
+        while !remaining.isEmpty {
+            if remaining.utf8.count > maxChunkSize {
+                let endIndex = remaining.utf8.index(remaining.utf8.startIndex, offsetBy: maxChunkSize)
+                chunks.append(String(remaining[..<endIndex]))
+                remaining = String(remaining[endIndex...])
+            } else {
+                chunks.append(remaining)
+                remaining = ""
+            }
+        }
+        return chunks
+    }
+
     for line in message.split(separator: "\n", omittingEmptySubsequences: false) {
         if let lastChunk = chunks.last, lastChunk.utf8.count + line.utf8.count < maxChunkSize {
             chunks[chunks.count - 1] += "\n" + line
@@ -52,9 +72,13 @@ extension Logger {
     package func logFullObjectInMultipleLogMessages(
         level: OSLogType = .default,
         header: StaticString,
-        _ subject: String
+        _ subject: String,
+        splitByCharacterCount: Bool = false
     ) {
-        let chunks = splitLongMultilineMessage(message: subject)
+        let chunks = splitLongMultilineMessage(
+            message: subject,
+            splitByCharacterCount: splitByCharacterCount
+        )
         let maxChunkCount = chunks.count
         for i in 0..<maxChunkCount {
             let loggableChunk = i < chunks.count ? chunks[i] : ""

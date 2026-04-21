@@ -20,11 +20,13 @@
 /// Sanitizes Bazel labels into safe identifiers for use as output group names or target names.
 enum BazelLabelSanitizer {
     /// Sanitizes a Bazel label with the given prefix.
-    /// Strips leading `//`, replaces `/`, `:`, `-`, `.` with `_`.
+    /// Strips all leading `@` and `/` characters, replaces `/`, `:`, `-`, `.`, `+` with `_`.
+    /// This must match the `_sanitize_label` function in `setup_sourcekit_bsp.sh.tpl`.
     static func sanitize(_ label: String, prefix: String) -> String {
         var sanitized = label
-        if sanitized.hasPrefix("//") {
-            sanitized = String(sanitized.dropFirst(2))
+        // Strip all leading @ and / characters (matches Bazel-side _strip_leading_chars)
+        while let first = sanitized.first, first == "@" || first == "/" {
+            sanitized = String(sanitized.dropFirst())
         }
         return prefix
             + sanitized
@@ -32,11 +34,36 @@ enum BazelLabelSanitizer {
             .replacingOccurrences(of: ":", with: "_")
             .replacingOccurrences(of: "-", with: "_")
             .replacingOccurrences(of: ".", with: "_")
+            .replacingOccurrences(of: "+", with: "_")
     }
 
     /// Converts a Bazel label to a wrapper target name.
     /// Example: //path/to/app:MyApp -> wrapper_path_to_app_MyApp
     static func wrapperTargetName(forLabel label: String) -> String {
         return sanitize(label, prefix: "wrapper_")
+    }
+}
+
+extension String {
+    func isExternalBazelLabel() -> Bool {
+        guard hasPrefix("@") else {
+            return false
+        }
+        var rest = self.dropFirst()
+        while rest.first == "@" {
+            rest = rest.dropFirst()
+        }
+        return !rest.isEmpty && !rest.hasPrefix("//")
+    }
+
+    func removingLeadingAtForMainRepoBazelLabel() -> String {
+        guard !isExternalBazelLabel() else {
+            return self
+        }
+        var rest = self.dropFirst()
+        while rest.first == "@" {
+            rest = rest.dropFirst()
+        }
+        return String(rest)
     }
 }

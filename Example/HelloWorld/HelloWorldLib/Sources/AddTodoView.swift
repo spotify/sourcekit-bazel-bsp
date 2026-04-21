@@ -19,6 +19,7 @@
 
 import SwiftUI
 import TodoModels
+import Yams
 
 struct AddTodoView: View {
 
@@ -113,6 +114,8 @@ struct AddTodoView: View {
         todoTitle = ""
         isPresented = false
 
-        print("Added task: \(trimmedTitle)")
+        // Test Yams external dependency
+        let yaml = try? Yams.dump(object: ["task": trimmedTitle])
+        print("Added task: \(trimmedTitle), yaml: \(yaml ?? "nil")")
     }
 }

@@ -32,6 +32,7 @@ struct BazelTargetQuerierParserImplTests {
     private static let mockExecutionRoot = "/tmp/execroot/_main"
     private static let mockToolchainPath = "/path/to/toolchain"
     private static let mockOutputPath = "/tmp/execroot/_main/bazel-out"
+    private static let mockOutputBase = "/tmp"
 
     @Test
     func canProcessExampleCquery() throws {
@@ -49,7 +50,8 @@ struct BazelTargetQuerierParserImplTests {
             workspaceName: Self.mockWorkspaceName,
             executionRoot: Self.mockExecutionRoot,
             toolchainPath: Self.mockToolchainPath,
-            outputPath: Self.mockOutputPath
+            outputPath: Self.mockOutputPath,
+            outputBase: Self.mockOutputBase
         )
 
         // Expected target properties (language and dependency labels)
@@ -62,58 +64,71 @@ struct BazelTargetQuerierParserImplTests {
         }
 
         let expectedTargets: [ExpectedTargetInfo] = [
-            ExpectedTargetInfo(displayName: "//HelloWorld:ExpandedTemplate", language: .swift, dependencyLabels: []),
-            ExpectedTargetInfo(displayName: "//HelloWorld:GeneratedDummy", language: .swift, dependencyLabels: []),
+            ExpectedTargetInfo(displayName: "@@//HelloWorld:ExpandedTemplate", language: .swift, dependencyLabels: []),
+            ExpectedTargetInfo(displayName: "@@//HelloWorld:GeneratedDummy", language: .swift, dependencyLabels: []),
             ExpectedTargetInfo(
-                displayName: "//HelloWorld:HelloWorldLib",
+                displayName: "@@//HelloWorld:HelloWorldLib",
                 language: .swift,
                 dependencyLabels: [
-                    "//HelloWorld:TodoModels", "//HelloWorld:TodoObjCSupport",
-                    "//HelloWorld:ExpandedTemplate", "//HelloWorld:GeneratedDummy",
+                    "@@//HelloWorld:TodoModels", "@@//HelloWorld:TodoObjCSupport",
+                    "@@//HelloWorld:ExpandedTemplate", "@@//HelloWorld:GeneratedDummy",
+                    "@@yams+//:Yams",
                 ]
             ),
             ExpectedTargetInfo(
-                displayName: "//HelloWorld:HelloWorldTestsLib",
+                displayName: "@@//HelloWorld:HelloWorldTestsLib",
                 language: .swift,
-                dependencyLabels: ["//HelloWorld:HelloWorldLib"]
+                dependencyLabels: ["@@//HelloWorld:HelloWorldLib"]
             ),
             ExpectedTargetInfo(
-                displayName: "//HelloWorld:HelloWorldE2ETestsLib",
+                displayName: "@@//HelloWorld:HelloWorldE2ETestsLib",
                 language: .swift,
                 dependencyLabels: []
             ),
             ExpectedTargetInfo(
-                displayName: "//HelloWorld:MacAppLib",
+                displayName: "@@//HelloWorld:MacAppLib",
                 language: .swift,
-                dependencyLabels: ["//HelloWorld:TodoModels"]
+                dependencyLabels: ["@@//HelloWorld:TodoModels"]
             ),
             ExpectedTargetInfo(
-                displayName: "//HelloWorld:MacAppTestsLib",
+                displayName: "@@//HelloWorld:MacAppTestsLib",
                 language: .swift,
-                dependencyLabels: ["//HelloWorld:MacAppLib"]
+                dependencyLabels: ["@@//HelloWorld:MacAppLib"]
             ),
             ExpectedTargetInfo(
-                displayName: "//HelloWorld:MacCLIAppLib",
+                displayName: "@@//HelloWorld:MacCLIAppLib",
                 language: .swift,
-                dependencyLabels: ["//HelloWorld:TodoModels"]
+                dependencyLabels: ["@@//HelloWorld:TodoModels"]
             ),
-            ExpectedTargetInfo(displayName: "//HelloWorld:TodoModels", language: .swift, dependencyLabels: []),
+            ExpectedTargetInfo(displayName: "@@//HelloWorld:TodoModels", language: .swift, dependencyLabels: []),
             ExpectedTargetInfo(
-                displayName: "//HelloWorld:TodoObjCSupport",
+                displayName: "@@//HelloWorld:TodoObjCSupport",
                 language: .objective_c,
-                dependencyLabels: ["//HelloWorld:TodoCSupport"]
+                dependencyLabels: ["@@//HelloWorld:TodoCSupport"]
             ),
-            ExpectedTargetInfo(displayName: "//HelloWorld:TodoCSupport", language: .cpp, dependencyLabels: []),
+            ExpectedTargetInfo(displayName: "@@//HelloWorld:TodoCSupport", language: .cpp, dependencyLabels: []),
             ExpectedTargetInfo(
-                displayName: "//HelloWorld:WatchAppLib",
+                displayName: "@@//HelloWorld:WatchAppLib",
                 language: .swift,
-                dependencyLabels: ["//HelloWorld:TodoModels"]
+                dependencyLabels: ["@@//HelloWorld:TodoModels"]
             ),
             ExpectedTargetInfo(
-                displayName: "//HelloWorld:WatchAppTestsLib",
+                displayName: "@@//HelloWorld:WatchAppTestsLib",
                 language: .swift,
-                dependencyLabels: ["//HelloWorld:WatchAppLib"]
+                dependencyLabels: ["@@//HelloWorld:WatchAppLib"]
             ),
+            ExpectedTargetInfo(
+                displayName: "@@//HelloWorld:NotificationServiceExtensionLib",
+                language: .swift,
+                dependencyLabels: ["@@//HelloWorld:TodoModels"]
+            ),
+            // External bzlmod dependencies (tests + character in URI handling)
+            ExpectedTargetInfo(
+                displayName: "@@yams+//:Yams",
+                language: .swift,
+                dependencyLabels: ["@@yams+//:CYaml"]
+            ),
+            ExpectedTargetInfo(displayName: "@@yams+//:CYaml", language: .cpp, dependencyLabels: []),
         ]
 
         // Group actual targets by displayName (same target can appear with multiple configs)
@@ -161,15 +176,16 @@ struct BazelTargetQuerierParserImplTests {
 
         // Top level targets - verify label and rule type (config IDs are assigned during parsing)
         let expectedTopLevelTargets: [(String, TopLevelRuleType)] = [
-            ("//HelloWorld:HelloWorldWatchApp", .watchosApplication),
-            ("//HelloWorld:HelloWorldE2ETests", .iosUiTest),
-            ("//HelloWorld:HelloWorldTests", .iosUnitTest),
-            ("//HelloWorld:HelloWorldMacApp", .macosApplication),
-            ("//HelloWorld:HelloWorld", .iosApplication),
-            ("//HelloWorld:HelloWorldWatchTests", .watchosUnitTest),
-            ("//HelloWorld:HelloWorldMacCLIApp", .macosCommandLineApplication),
-            ("//HelloWorld:HelloWorldWatchExtension", .watchosExtension),
-            ("//HelloWorld:HelloWorldMacTests", .macosUnitTest),
+            ("@@//HelloWorld:HelloWorld", .iosApplication),
+            ("@@//HelloWorld:HelloWorldWatchTests", .watchosUnitTest),
+            ("@@//HelloWorld:HelloWorldNotificationServiceExtension", .iosExtension),
+            ("@@//HelloWorld:HelloWorldMacApp", .macosApplication),
+            ("@@//HelloWorld:HelloWorldE2ETests", .iosUiTest),
+            ("@@//HelloWorld:HelloWorldTests", .iosUnitTest),
+            ("@@//HelloWorld:HelloWorldWatchApp", .watchosApplication),
+            ("@@//HelloWorld:HelloWorldMacTests", .macosUnitTest),
+            ("@@//HelloWorld:HelloWorldMacCLIApp", .macosCommandLineApplication),
+            ("@@//HelloWorld:HelloWorldWatchExtension", .watchosExtension),
         ]
         #expect(result.topLevelTargets.count == expectedTopLevelTargets.count)
         for (index, expected) in expectedTopLevelTargets.enumerated() {
@@ -184,14 +200,14 @@ struct BazelTargetQuerierParserImplTests {
         #expect(actualLabelSet == expectedLabels, "bspURIsToBazelLabelsMap labels don't match")
 
         // Verify counts - with multi-variant support, targets can have multiple URIs (one per config)
-        #expect(result.bspURIsToSrcsMap.keys.count == 15, "bspURIsToSrcsMap should have 15 target URIs")
-        #expect(result.srcToBspURIsMap.count == 30, "srcToBspURIsMap should have 30 source files")
+        #expect(result.bspURIsToSrcsMap.keys.count == 18, "bspURIsToSrcsMap should have 18 target URIs")
+        #expect(result.srcToBspURIsMap.count == 54, "srcToBspURIsMap should have 54 source files")
 
         // Verify filegroup sources are included in the correct targets' source lists.
         // HelloWorldTestsLib should contain filegroup sources from HelloWorldTestsAdditionalSources,
         // including sources from a nested filegroup and an aliased source file.
         let testsLibSrcs = result.bspURIsToSrcsMap.first {
-            result.bspURIsToBazelLabelsMap[$0.key] == "//HelloWorld:HelloWorldTestsLib"
+            result.bspURIsToBazelLabelsMap[$0.key] == "@@//HelloWorld:HelloWorldTestsLib"
         }?.value
         #expect(testsLibSrcs?.sources.contains { $0.uri.stringValue.contains("FilegroupForUnitTest.swift") } == true)
         #expect(testsLibSrcs?.sources.contains { $0.uri.stringValue.contains("FilegroupForUnitTest2.swift") } == true)
@@ -202,7 +218,7 @@ struct BazelTargetQuerierParserImplTests {
 
         // HelloWorldE2ETestsLib should contain filegroup sources from HelloWorldE2ETestsAdditionalSources.
         let e2eTestsLibSrcs = result.bspURIsToSrcsMap.first {
-            result.bspURIsToBazelLabelsMap[$0.key] == "//HelloWorld:HelloWorldE2ETestsLib"
+            result.bspURIsToBazelLabelsMap[$0.key] == "@@//HelloWorld:HelloWorldE2ETestsLib"
         }?.value
         #expect(
             e2eTestsLibSrcs?.sources.contains { $0.uri.stringValue.contains("FilegroupForE2ETest.swift") } == true
@@ -212,11 +228,11 @@ struct BazelTargetQuerierParserImplTests {
         )
 
         // BSP URI to parent config map - verify URIs map to configs
-        #expect(result.bspUriToParentConfigMap.count == 15, "bspUriToParentConfigMap should have 15 entries")
+        #expect(result.bspUriToParentConfigMap.count == 18, "bspUriToParentConfigMap should have 18 entries")
 
         // Verify bspUriToTopLevelLabelsMap - this maps each target to its actual top-level parents
         // based on the dependency graph, not just config mnemonic matching
-        #expect(result.bspUriToTopLevelLabelsMap.count == 15, "bspUriToTopLevelLabelsMap should have 15 entries")
+        #expect(result.bspUriToTopLevelLabelsMap.count == 18, "bspUriToTopLevelLabelsMap should have 18 entries")
 
         // Helper to get parent labels for a given label using the new dependency-graph-based mapping
         // This is more precise than the old config-based mapping
@@ -237,59 +253,60 @@ struct BazelTargetQuerierParserImplTests {
         // HelloWorldE2ETests has test_host=HelloWorld, but test_host is NOT included in deps,
         // so E2E tests only include their own deps (HelloWorldE2ETestsLib), not the test host's deps.
         #expect(
-            getParentLabels(forLabel: "//HelloWorld:ExpandedTemplate")
+            getParentLabels(forLabel: "@@//HelloWorld:ExpandedTemplate")
                 == Set([
-                    "//HelloWorld:HelloWorldTests",
-                    "//HelloWorld:HelloWorld",
+                    "@@//HelloWorld:HelloWorldTests",
+                    "@@//HelloWorld:HelloWorld",
                 ])
         )
         #expect(
-            getParentLabels(forLabel: "//HelloWorld:GeneratedDummy")
+            getParentLabels(forLabel: "@@//HelloWorld:GeneratedDummy")
                 == Set([
-                    "//HelloWorld:HelloWorldTests",
-                    "//HelloWorld:HelloWorld",
+                    "@@//HelloWorld:HelloWorldTests",
+                    "@@//HelloWorld:HelloWorld",
                 ])
         )
         #expect(
-            getParentLabels(forLabel: "//HelloWorld:HelloWorldLib")
+            getParentLabels(forLabel: "@@//HelloWorld:HelloWorldLib")
                 == Set([
-                    "//HelloWorld:HelloWorldTests",
-                    "//HelloWorld:HelloWorld",
+                    "@@//HelloWorld:HelloWorldTests",
+                    "@@//HelloWorld:HelloWorld",
                 ])
         )
         // HelloWorldTestsLib is ONLY a dep of HelloWorldTests, not of HelloWorld or HelloWorldE2ETests
         #expect(
-            getParentLabels(forLabel: "//HelloWorld:HelloWorldTestsLib")
+            getParentLabels(forLabel: "@@//HelloWorld:HelloWorldTestsLib")
                 == Set([
-                    "//HelloWorld:HelloWorldTests"
+                    "@@//HelloWorld:HelloWorldTests"
                 ])
         )
         // macOS targets - MacAppLib is dep of HelloWorldMacApp and HelloWorldMacTests (via MacAppTestsLib)
         // but NOT of HelloWorldMacCLIApp (which only deps on MacCLIAppLib)
         #expect(
-            getParentLabels(forLabel: "//HelloWorld:MacAppLib")
+            getParentLabels(forLabel: "@@//HelloWorld:MacAppLib")
                 == Set([
-                    "//HelloWorld:HelloWorldMacTests",
-                    "//HelloWorld:HelloWorldMacApp",
+                    "@@//HelloWorld:HelloWorldMacTests",
+                    "@@//HelloWorld:HelloWorldMacApp",
                 ])
         )
         // MacAppTestsLib is ONLY a dep of HelloWorldMacTests
         #expect(
-            getParentLabels(forLabel: "//HelloWorld:MacAppTestsLib")
+            getParentLabels(forLabel: "@@//HelloWorld:MacAppTestsLib")
                 == Set([
-                    "//HelloWorld:HelloWorldMacTests"
+                    "@@//HelloWorld:HelloWorldMacTests"
                 ])
         )
         // MacCLIAppLib is ONLY a dep of HelloWorldMacCLIApp
         #expect(
-            getParentLabels(forLabel: "//HelloWorld:MacCLIAppLib")
+            getParentLabels(forLabel: "@@//HelloWorld:MacCLIAppLib")
                 == Set([
-                    "//HelloWorld:HelloWorldMacCLIApp"
+                    "@@//HelloWorld:HelloWorldMacCLIApp"
                 ])
         )
         // TodoModels is used by multiple targets across platforms
         // iOS: HelloWorld -> HelloWorldLib -> TodoModelsAlias -> TodoModels
         //      HelloWorldTests -> HelloWorldTestsLib -> HelloWorldLib -> ...
+        //      HelloWorldNotificationServiceExtension -> NotificationServiceExtensionLib -> TodoModels
         //      Note: HelloWorldE2ETests is NOT included because test_host is not a dep
         // macOS: HelloWorldMacApp -> MacAppLib -> TodoModels
         //        HelloWorldMacTests -> MacAppTestsLib -> MacAppLib -> ...
@@ -298,58 +315,59 @@ struct BazelTargetQuerierParserImplTests {
         //          HelloWorldWatchTests -> WatchAppTestsLib -> WatchAppLib -> ...
         //          Note: HelloWorldWatchApp is NOT included because extension is not a dep
         #expect(
-            getParentLabels(forLabel: "//HelloWorld:TodoModels")
+            getParentLabels(forLabel: "@@//HelloWorld:TodoModels")
                 == Set([
-                    "//HelloWorld:HelloWorldMacTests",
-                    "//HelloWorld:HelloWorldMacCLIApp",
-                    "//HelloWorld:HelloWorldMacApp",
-                    "//HelloWorld:HelloWorldWatchTests",
-                    "//HelloWorld:HelloWorldWatchExtension",
-                    "//HelloWorld:HelloWorldTests",
-                    "//HelloWorld:HelloWorld",
+                    "@@//HelloWorld:HelloWorldMacTests",
+                    "@@//HelloWorld:HelloWorldMacCLIApp",
+                    "@@//HelloWorld:HelloWorldMacApp",
+                    "@@//HelloWorld:HelloWorldWatchTests",
+                    "@@//HelloWorld:HelloWorldWatchExtension",
+                    "@@//HelloWorld:HelloWorldTests",
+                    "@@//HelloWorld:HelloWorld",
+                    "@@//HelloWorld:HelloWorldNotificationServiceExtension",
                 ])
         )
         // TodoObjCSupport is a dep of HelloWorldLib (iOS only)
         // Note: HelloWorldE2ETests is NOT included because test_host is not a dep
         #expect(
-            getParentLabels(forLabel: "//HelloWorld:TodoObjCSupport")
+            getParentLabels(forLabel: "@@//HelloWorld:TodoObjCSupport")
                 == Set([
-                    "//HelloWorld:HelloWorldTests",
-                    "//HelloWorld:HelloWorld",
+                    "@@//HelloWorld:HelloWorldTests",
+                    "@@//HelloWorld:HelloWorld",
                 ])
         )
         // HelloWorldE2ETestsLib is ONLY a dep of HelloWorldE2ETests
         #expect(
-            getParentLabels(forLabel: "//HelloWorld:HelloWorldE2ETestsLib")
+            getParentLabels(forLabel: "@@//HelloWorld:HelloWorldE2ETestsLib")
                 == Set([
-                    "//HelloWorld:HelloWorldE2ETests"
+                    "@@//HelloWorld:HelloWorldE2ETests"
                 ])
         )
         // watchOS targets - WatchAppLib is dep of HelloWorldWatchExtension
         // HelloWorldWatchTests deps on WatchAppTestsLib which deps on WatchAppLib
         // Note: HelloWorldWatchApp is NOT included because it uses extension attribute, not deps
         #expect(
-            getParentLabels(forLabel: "//HelloWorld:WatchAppLib")
+            getParentLabels(forLabel: "@@//HelloWorld:WatchAppLib")
                 == Set([
-                    "//HelloWorld:HelloWorldWatchExtension",
-                    "//HelloWorld:HelloWorldWatchTests",
+                    "@@//HelloWorld:HelloWorldWatchExtension",
+                    "@@//HelloWorld:HelloWorldWatchTests",
                 ])
         )
         // WatchAppTestsLib is ONLY a dep of HelloWorldWatchTests
         #expect(
-            getParentLabels(forLabel: "//HelloWorld:WatchAppTestsLib")
+            getParentLabels(forLabel: "@@//HelloWorld:WatchAppTestsLib")
                 == Set([
-                    "//HelloWorld:HelloWorldWatchTests"
+                    "@@//HelloWorld:HelloWorldWatchTests"
                 ])
         )
 
         // Verify testTargetToBundleTargetMap - maps test targets to their bundle target URIs
         // These are the test bundle targets that should have their bundle URIs mapped
         let expectedTestTargets = Set([
-            "//HelloWorld:HelloWorldTests",
-            "//HelloWorld:HelloWorldE2ETests",
-            "//HelloWorld:HelloWorldMacTests",
-            "//HelloWorld:HelloWorldWatchTests",
+            "@@//HelloWorld:HelloWorldTests",
+            "@@//HelloWorld:HelloWorldE2ETests",
+            "@@//HelloWorld:HelloWorldMacTests",
+            "@@//HelloWorld:HelloWorldWatchTests",
         ])
         let actualTestTargets = Set(result.testTargetToBundleTargetMap.keys)
         #expect(
@@ -372,12 +390,12 @@ struct BazelTargetQuerierParserImplTests {
 
         // Verify specific bundle target mappings
         // HelloWorldTests should map to a bundle target containing test sources
-        let unitTestBundleUri = try #require(result.testTargetToBundleTargetMap["//HelloWorld:HelloWorldTests"])
+        let unitTestBundleUri = try #require(result.testTargetToBundleTargetMap["@@//HelloWorld:HelloWorldTests"])
         let unitTestSources = try #require(result.bspURIsToSrcsMap[unitTestBundleUri])
         #expect(unitTestSources.sources.contains { $0.uri.stringValue.contains("HelloWorldTests/") })
 
         // HelloWorldE2ETests should map to a bundle target containing E2E test sources
-        let e2eTestBundleUri = try #require(result.testTargetToBundleTargetMap["//HelloWorld:HelloWorldE2ETests"])
+        let e2eTestBundleUri = try #require(result.testTargetToBundleTargetMap["@@//HelloWorld:HelloWorldE2ETests"])
         let e2eTestSources = try #require(result.bspURIsToSrcsMap[e2eTestBundleUri])
         #expect(e2eTestSources.sources.contains { $0.uri.stringValue.contains("HelloWorldE2ETests/") })
     }
@@ -392,14 +410,14 @@ struct BazelTargetQuerierParserImplTests {
         let macOsMnemonic = "darwin_arm64-dbg-macos-arm64-min15.0-ST-3b9f41d61db6"
         let watchOsMnemonic = "watchos_arm64-dbg-watchos-arm64-min7.0-ST-f4f2bb7e56ed"
         let topLevelTargets: [(String, TopLevelRuleType, String)] = [
-            ("//HelloWorld:HelloWorld", .iosApplication, iosMnemonic),
-            ("//HelloWorld:HelloWorldMacApp", .macosApplication, macOsMnemonic),
-            ("//HelloWorld:HelloWorldMacCLIApp", .macosCommandLineApplication, macOsMnemonic),
-            ("//HelloWorld:HelloWorldMacTests", .macosUnitTest, macOsMnemonic),
-            ("//HelloWorld:HelloWorldTests", .iosUnitTest, iosMnemonic),
-            ("//HelloWorld:HelloWorldWatchApp", .watchosApplication, watchOsMnemonic),
-            ("//HelloWorld:HelloWorldWatchExtension", .watchosExtension, watchOsMnemonic),
-            ("//HelloWorld:HelloWorldWatchTests", .watchosUnitTest, watchOsMnemonic),
+            ("@@//HelloWorld:HelloWorld", .iosApplication, iosMnemonic),
+            ("@@//HelloWorld:HelloWorldMacApp", .macosApplication, macOsMnemonic),
+            ("@@//HelloWorld:HelloWorldMacCLIApp", .macosCommandLineApplication, macOsMnemonic),
+            ("@@//HelloWorld:HelloWorldMacTests", .macosUnitTest, macOsMnemonic),
+            ("@@//HelloWorld:HelloWorldTests", .iosUnitTest, iosMnemonic),
+            ("@@//HelloWorld:HelloWorldWatchApp", .watchosApplication, watchOsMnemonic),
+            ("@@//HelloWorld:HelloWorldWatchExtension", .watchosExtension, watchOsMnemonic),
+            ("@@//HelloWorld:HelloWorldWatchTests", .watchosUnitTest, watchOsMnemonic),
         ]
 
         let result = try parser.processAquery(
@@ -457,7 +475,8 @@ struct BazelTargetQuerierParserImplTests {
             rootUri: Self.mockRootUri,
             workspaceName: Self.mockWorkspaceName,
             executionRoot: Self.mockExecutionRoot,
-            outputPath: Self.mockOutputPath
+            outputPath: Self.mockOutputPath,
+            outputBase: Self.mockOutputBase
         )
 
         let targetUri = try URI(

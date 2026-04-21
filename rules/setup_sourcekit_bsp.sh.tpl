@@ -75,7 +75,7 @@ PlatformDepsInfo = provider(
 def _sanitize_label(label):
     label_str = str(label)
     label_str = _strip_leading_chars(label_str, "/@")
-    sanitized = label_str.replace("/", "_").replace(":", "_").replace("-", "_").replace(".", "_")
+    sanitized = label_str.replace("/", "_").replace(":", "_").replace("-", "_").replace(".", "_").replace("+", "_")
     return ASPECT_OUTPUT_GROUP_PREFIX + sanitized
 
 def _collect_dep_outputs(dep, transitive_outputs, transitive_output_groups):
@@ -237,7 +237,7 @@ else
     bsp_output_base="${output_base}/sourcekit-bazel-bsp"
 fi
 output_path="${bsp_output_base}/${output_path_difference}"
-external_root="${bsp_output_base}/${exec_root_difference}/external"
+external_root="${bsp_output_base}/external"
 exec_root="${bsp_output_base}/${exec_root_difference}"
 
 # Clean up the old output base if it exists (from before we nested it in the main one)

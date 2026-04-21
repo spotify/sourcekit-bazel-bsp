@@ -35,7 +35,8 @@ final class BazelTargetQuerierParserFake: BazelTargetQuerierParser {
         workspaceName: String,
         executionRoot: String,
         toolchainPath: String,
-        outputPath: String
+        outputPath: String,
+        outputBase: String
     ) throws -> ProcessedCqueryResult {
         guard let mockCqueryResult else {
             unimplemented()
@@ -59,7 +60,8 @@ final class BazelTargetQuerierParserFake: BazelTargetQuerierParser {
         rootUri: String,
         workspaceName: String,
         executionRoot: String,
-        outputPath: String
+        outputPath: String,
+        outputBase: String
     ) throws -> ProcessedCqueryAddedFilesResult {
         guard let mockCqueryAddedFilesResult else {
             unimplemented()

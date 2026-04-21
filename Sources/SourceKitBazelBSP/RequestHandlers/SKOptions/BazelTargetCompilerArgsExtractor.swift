@@ -202,15 +202,25 @@ final class BazelTargetCompilerArgsExtractor {
         fromAquery aquery: ProcessedAqueryResult,
         strategy: ParsingStrategy
     ) throws -> Analysis_Action {
-        let bazelTarget: String = {
-            let base = platformInfo.label
-            guard base.hasPrefix("@") else {
-                return base
-            }
-            // External labels show up as `@@` in the aquery.
-            return "@\(base)"
-        }()
-        guard let target = aquery.targets[bazelTarget] else {
+        let bazelTarget: String = platformInfo.label
+        // The aquery protobuf uses labels without the @ prefix for main repo targets even when
+        // --consistent_labels is used, but cquery returns labels with @@ or @ prefix.
+        // External repos keep their @@ prefix in both. Normalize labels for lookup.
+        // Older Bazel versions may return single @ for external repos, so try both formats.
+        let normalizedTarget: String
+        if bazelTarget.hasPrefix("@@//") {
+            normalizedTarget = String(bazelTarget.dropFirst(2))
+        } else if bazelTarget.hasPrefix("@//") {
+            normalizedTarget = String(bazelTarget.dropFirst(1))
+        } else if bazelTarget.hasPrefix("@") && !bazelTarget.hasPrefix("@@") {
+            // External repo with single @ - convert to @@ for lookup
+            normalizedTarget = "@" + bazelTarget
+        } else {
+            normalizedTarget = bazelTarget
+        }
+        // Try normalized target first, then fall back to original for compatibility
+        let targetToLookup = aquery.targets[normalizedTarget] ?? aquery.targets[bazelTarget]
+        guard let target = targetToLookup else {
             throw BazelTargetCompilerArgsExtractorError.targetNotFound(bazelTarget)
         }
         guard let actions = aquery.actions[target.id] else {

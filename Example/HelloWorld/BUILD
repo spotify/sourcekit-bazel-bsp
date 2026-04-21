@@ -1,5 +1,5 @@
 load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template_rule")
-load("@rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test", "ios_build_test", "ios_ui_test")
+load("@rules_apple//apple:ios.bzl", "ios_application", "ios_extension", "ios_unit_test", "ios_build_test", "ios_ui_test")
 load("@rules_apple//apple:macos.bzl", "macos_application", "macos_command_line_application", "macos_unit_test")
 load("@rules_apple//apple:watchos.bzl", "watchos_application", "watchos_extension", "watchos_unit_test")
 load("@rules_cc//cc:defs.bzl", "cc_library")
@@ -115,6 +115,7 @@ swift_library(
         ":TodoModelsAlias",
         ":TodoObjCSupport",
         ":ExpandedTemplate",
+        "@yams//:Yams",  # External dep to test bzlmod + version suffix in BSP URIs
     ] + select({
         "//conditions:default": [],
         ":dbg_mode": [":GeneratedDummy"],
@@ -178,6 +179,15 @@ swift_library(
     name = "ExpandedTemplate",
     module_name = "ExpandedTemplate",
     srcs = [":ExpandTemplateSwiftFile"],
+)
+
+## MARK: iOS extension targets
+
+swift_library(
+    name = "NotificationServiceExtensionLib",
+    module_name = "NotificationServiceExtensionLib",
+    srcs = glob(["HelloWorldNotificationExtension/Sources/*.swift"]),
+    deps = [":TodoModels"],
 )
 
 ## MARK: WatchOS targets
@@ -247,7 +257,17 @@ ios_application(
     infoplists = ["Resources/Info.plist"],
     minimum_os_version = IOS_MINIMUM_OS_VERSION,
     watch_application = ":HelloWorldWatchApp",
+    extensions = [":HelloWorldNotificationServiceExtension"],
     deps = [":HelloWorldLib"],
+)
+
+ios_extension(
+    name = "HelloWorldNotificationServiceExtension",
+    bundle_id = "com.example.HelloWorld.NotificationService",
+    families = ["iphone", "ipad"],
+    infoplists = ["Resources/IosExt-Info.plist"],
+    minimum_os_version = IOS_MINIMUM_OS_VERSION,
+    deps = [":NotificationServiceExtensionLib"],
 )
 
 watchos_application(

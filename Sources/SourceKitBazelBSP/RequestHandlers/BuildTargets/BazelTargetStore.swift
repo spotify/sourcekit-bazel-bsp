@@ -395,7 +395,7 @@ extension BazelTargetStoreImpl {
             }()
             reportTopLevel.append(
                 .init(
-                    label: label,
+                    label: label.removingLeadingAtForMainRepoBazelLabel(),
                     launchType: launchType,
                     configMnemonic: configMnemonic,
                     testSources: testSources
@@ -429,7 +429,7 @@ extension BazelTargetStoreImpl {
             }
             reportDependencies.append(
                 .init(
-                    label: label,
+                    label: label.removingLeadingAtForMainRepoBazelLabel(),
                     configMnemonic: configMnemonic,
                     topLevelParent: topLevelParent,
                     extraBuildArgs: extraBuildArgs
