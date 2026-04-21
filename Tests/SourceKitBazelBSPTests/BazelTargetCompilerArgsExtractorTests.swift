@@ -229,6 +229,59 @@ struct BazelTargetCompilerArgsExtractorTests {
     }
 
     @Test
+    func swiftModuleWithDifferentSTHash() throws {
+        let extractor = Self.makeMockExtractor()
+        let testSourceUri = URI(
+            filePath: "/Users/user/Documents/demo-ios-project/HelloWorld/HelloWorldLib/Sources/AddTodoView.swift",
+            isDirectory: false
+        )
+        // Use a different ST hash than the one in the aquery (2842469f5300).
+        // This simulates a dependency that exists under multiple top-level targets
+        // where the cquery stored a different parent's config than the aquery has.
+        let differentSTConfig = BazelTargetConfigurationInfo(
+            configurationName: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-aaaaaaaaaaaa",
+            minimumOsVersion: "17.0",
+            platform: "iphonesimulator",
+            cpuArch: "sim_arm64",
+            sdkName: "iphonesimulator"
+        )
+        let result = try extractor.extractCompilerArgs(
+            fromAquery: aqueryResult,
+            forTarget: BazelTargetPlatformInfo(
+                label: "//HelloWorld:HelloWorldLib",
+                topLevelParentLabel: "//HelloWorld:HelloWorld",
+                topLevelParentConfig: differentSTConfig
+            ),
+            withStrategy: .swiftModule(testSourceUri),
+            indexOutputPath: nil
+        )
+        #expect(!result.isEmpty)
+    }
+
+    @Test
+    func objcFileWithDifferentSTHash() throws {
+        let extractor = Self.makeMockExtractor()
+        let differentSTConfig = BazelTargetConfigurationInfo(
+            configurationName: "ios_sim_arm64-dbg-ios-sim_arm64-min17.0-ST-bbbbbbbbbbbb",
+            minimumOsVersion: "17.0",
+            platform: "iphonesimulator",
+            cpuArch: "sim_arm64",
+            sdkName: "iphonesimulator"
+        )
+        let result = try extractor.extractCompilerArgs(
+            fromAquery: aqueryResult,
+            forTarget: BazelTargetPlatformInfo(
+                label: "//HelloWorld:TodoObjCSupport",
+                topLevelParentLabel: "//HelloWorld:HelloWorld",
+                topLevelParentConfig: differentSTConfig
+            ),
+            withStrategy: .cImpl("HelloWorld/TodoObjCSupport/Sources/SKObjCUtils.m", "objective-c"),
+            indexOutputPath: nil
+        )
+        #expect(!result.isEmpty)
+    }
+
+    @Test
     func missingSwiftModule() throws {
         let extractor = Self.makeMockExtractor()
         let testSourceUri = URI(

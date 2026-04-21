@@ -228,6 +228,17 @@ final class BazelTargetCompilerArgsExtractor {
             }
             return config.mnemonic == platformInfo.topLevelParentConfig.configurationName
         }
+        // When a dependency exists under multiple top-level targets, each gets a unique
+        // settings transition hash (the -ST-<hex> suffix in the config mnemonic).
+        // The parent config stored during cquery may not match the one from aquery.
+        // Fall back to matching without the ST hash — same platform/arch/minOS.
+        if candidateActions.isEmpty {
+            let requestedBase = platformInfo.topLevelParentConfig.configurationName.strippingSettingsTransitionHash
+            candidateActions = actions.filter {
+                guard let config = aquery.configurations[$0.configurationID] else { return false }
+                return config.mnemonic.strippingSettingsTransitionHash == requestedBase
+            }
+        }
         let contentBeingQueried: String
         switch strategy {
         case .swiftModule(_), .cHeader:
@@ -245,13 +256,12 @@ final class BazelTargetCompilerArgsExtractor {
                 return false
             }
         }
-        guard candidateActions.count > 0 else {
+        // After all filtering, multiple candidates means different ST variants
+        // for the same platform/file — compiler args are effectively identical.
+        guard let action = candidateActions.first else {
             throw BazelTargetCompilerArgsExtractorError.relevantTargetActionsNotFound(contentBeingQueried)
         }
-        guard candidateActions.count == 1 else {
-            throw BazelTargetCompilerArgsExtractorError.multipleTargetActions(contentBeingQueried, target.id)
-        }
-        return candidateActions[0]
+        return action
     }
 
     func clearCache() {
@@ -444,5 +454,19 @@ extension BazelTargetCompilerArgsExtractor {
             return
         }
         lines[idx + 1] = new
+    }
+}
+
+extension String {
+    /// Strips the Bazel settings transition hash suffix from a configuration mnemonic.
+    ///
+    /// Bazel appends a `-ST-<hex>` suffix to configuration mnemonics to distinguish builds
+    /// that share the same platform/arch/minOS but have different build settings due to
+    /// different top-level targets (e.g., an app vs. an extension). The hash is deterministic
+    /// for a given set of settings but differs across top-level targets.
+    ///
+    /// See: https://bazel.build/extending/config#user-defined-transitions
+    fileprivate var strippingSettingsTransitionHash: String {
+        self.replacingOccurrences(of: #"-ST-[a-f0-9]+$"#, with: "", options: .regularExpression)
     }
 }
