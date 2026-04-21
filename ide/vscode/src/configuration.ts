@@ -33,6 +33,8 @@ export class Configuration {
     private _testDiscoveryConcurrency: number;
     private _pinnedTargets: string[];
     private _additionalLLDBCommands: string[];
+    private _debugConsoleLogs: boolean;
+    private _logLevel: string;
     private _disposable: vscode.Disposable;
     private _onDidChange = new vscode.EventEmitter<void>();
 
@@ -50,6 +52,8 @@ export class Configuration {
         this._testDiscoveryConcurrency = 10;
         this._pinnedTargets = [];
         this._additionalLLDBCommands = [];
+        this._debugConsoleLogs = true;
+        this._logLevel = "info";
         this.reload();
 
         this._disposable = vscode.workspace.onDidChangeConfiguration((e) => {
@@ -73,6 +77,8 @@ export class Configuration {
         this._testDiscoveryConcurrency = config.get<number>("testDiscoveryConcurrency", 10);
         this._pinnedTargets = config.get<string[]>("pinnedTargets", []);
         this._additionalLLDBCommands = config.get<string[]>("additionalLLDBCommands", []);
+        this._debugConsoleLogs = config.get<boolean>("debugConsoleLogs", true);
+        this._logLevel = config.get<string>("logLevel", "info");
     }
 
     get extraBuildFlags(): string {
@@ -117,6 +123,14 @@ export class Configuration {
 
     get additionalLLDBCommands(): string[] {
         return this._additionalLLDBCommands;
+    }
+
+    get debugConsoleLogs(): boolean {
+        return this._debugConsoleLogs;
+    }
+
+    get logLevel(): string {
+        return this._logLevel;
     }
 
     dispose(): void {

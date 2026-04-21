@@ -34,7 +34,11 @@ export async function generateTasks(
 ): Promise<void> {
     const fileContents = await vscode.workspace.fs.readFile(inputUri);
     const graph: ProcessedGraph = JSON.parse(Buffer.from(fileContents).toString("utf-8"));
-    const targets: ProcessedTarget[] = graph.targets;
+    // Edge case: Handle underlyingLabel missing when upgrading the extension from a previous version
+    const targets: ProcessedTarget[] = graph.targets.map((t) => ({
+        ...t,
+        underlyingLabel: t.underlyingLabel ?? t.label,
+    }));
     const fromGraphThatAlreadyExisted: boolean = graph.fromGraphThatAlreadyExisted;
     const bazelWrapper: string = graph.bazelWrapper ?? "bazel";
     outputChannel?.appendLine(`Updating targets view with ${targets.length} targets`);

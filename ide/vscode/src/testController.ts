@@ -78,7 +78,7 @@ export class TestController {
     }
 
     async setTargets(targets: ProcessedTarget[], fromGraphThatAlreadyExisted: boolean, bazelWrapper: string): Promise<void> {
-        this.log("setTargets");
+        this.logDebug("setTargets");
         this.bazelWrapper = bazelWrapper;
 
         const testTargets = targets.filter((t) => t.type === "test" && t.canRun);
@@ -161,7 +161,7 @@ export class TestController {
 
         // Fetching LSP info right at startup doesn't work. We need the graph to be updated first.
         if (fromGraphThatAlreadyExisted) {
-            this.log("Skipping generating test info (waiting for an updated graph)");
+            this.logDebug("Skipping generating test info (waiting for an updated graph)");
             return;
         }
 
@@ -177,7 +177,7 @@ export class TestController {
 
         // Skip if discovery is already in progress for this file
         if (this.pendingDiscoveries.get(uriString)) {
-            this.log(`Skipping discovery for ${uri.fsPath} - already in progress`);
+            this.logDebug(`Skipping discovery for ${uri.fsPath} - already in progress`);
             return;
         }
 
@@ -186,13 +186,13 @@ export class TestController {
         }
         const testTarget = this.testTargetForSourceFile.get(uriString);
         if (!testTarget) {
-            this.log(`No test target found for file: ${uri.fsPath}`);
+            this.logDebug(`No test target found for file: ${uri.fsPath}`);
             return;
         }
 
         const parentItem = this.testItemsByLabel.get(testTarget);
         if (!parentItem) {
-            this.log(`No parent test item found for target: ${testTarget}`);
+            this.logDebug(`No parent test item found for target: ${testTarget}`);
             return;
         }
 
@@ -208,7 +208,7 @@ export class TestController {
     }
 
     private async discoverTestsInFileImpl(uri: vscode.Uri, parentItem: vscode.TestItem): Promise<void> {
-        this.log(`Discovering tests in file: ${uri.fsPath}`);
+        this.logDebug(`Discovering tests in file: ${uri.fsPath}`);
 
         // Log current state before removal
         const existingTestNames: string[] = [];
@@ -221,16 +221,16 @@ export class TestController {
             }
         });
         if (existingTestNames.length > 0) {
-            this.log(`Existing tests in UI: ${existingTestNames.join(', ')}`);
+            this.logDebug(`Existing tests in UI: ${existingTestNames.join(', ')}`);
         }
 
         // Use AST parsing for fast, reliable test discovery
         // This avoids LSP cache invalidation issues
-        this.log(`Parsing tests using AST for ${uri.fsPath}`);
+        this.logDebug(`Parsing tests using AST for ${uri.fsPath}`);
         const astTests = await discoverTestsByBuilding(this.outputChannel, uri);
 
         if (!astTests || astTests.length === 0) {
-            this.log(`No tests found in file: ${uri.fsPath}`);
+            this.logDebug(`No tests found in file: ${uri.fsPath}`);
             this.removeUriFromParent(uri, parentItem);
             return;
         }
@@ -243,13 +243,13 @@ export class TestController {
                 astTestNames.push(`  ${child.label}`);
             }
         }
-        this.log(`AST returned ${astTests.length} test classes: ${astTestNames.join(', ')}`);
+        this.logDebug(`AST returned ${astTests.length} test classes: ${astTestNames.join(', ')}`);
 
         // Remove existing children from this file and re-add
-        this.log(`Removing all existing tests for ${uri.fsPath}`);
+        this.logDebug(`Removing all existing tests for ${uri.fsPath}`);
         this.removeUriFromParent(uri, parentItem);
 
-        this.log(`Adding ${astTests.length} test classes from AST`);
+        this.logDebug(`Adding ${astTests.length} test classes from AST`);
         for (const astTest of astTests) {
             this.addLSPTestToParent(astTest, parentItem, 1);
         }
@@ -290,19 +290,19 @@ export class TestController {
         });
 
         if (toDelete.length > 0) {
-            this.log(`Will delete ${toDelete.length} test classes: ${toDeleteDetails.join('; ')}`);
+            this.logDebug(`Will delete ${toDelete.length} test classes: ${toDeleteDetails.join('; ')}`);
         } else {
-            this.log(`No existing tests to delete for ${uri.fsPath}`);
+            this.logDebug(`No existing tests to delete for ${uri.fsPath}`);
         }
 
         // Delete those top-level children (their descendants will be automatically removed)
         for (const id of toDelete) {
-            this.log(`Deleting test class with ID: ${id}`);
+            this.logDebug(`Deleting test class with ID: ${id}`);
             parent.children.delete(id);
         }
 
         if (toDelete.length > 0) {
-            this.log(`Successfully deleted ${toDelete.length} test classes`);
+            this.logDebug(`Successfully deleted ${toDelete.length} test classes`);
         }
     }
 
@@ -375,7 +375,7 @@ export class TestController {
                 }
 
                 // Use AST to discover tests in this file
-                this.log(`Parsing ${uri.fsPath} with AST`);
+                this.logDebug(`Parsing ${uri.fsPath} with AST`);
                 const astTests = await discoverTestsByBuilding(this.outputChannel, uri);
 
                 if (astTests && astTests.length > 0) {
@@ -855,6 +855,15 @@ export class TestController {
      * Launches the test task in debug mode, polls for lldb.json, attaches the debugger,
      * waits for the debug session to end, then parses test results.
      */
+    async debugTestTarget(label: string): Promise<void> {
+        const cts = new vscode.CancellationTokenSource();
+        try {
+            await this.executeTestWithDebugger(label, cts.token, cts.token);
+        } finally {
+            cts.dispose();
+        }
+    }
+
     private async executeTestWithDebugger(
         testItemId: string,
         token: vscode.CancellationToken,
@@ -1112,6 +1121,12 @@ export class TestController {
 
     private log(message: string): void {
         this.outputChannel.appendLine(`[TestController] ${message}`);
+    }
+
+    private logDebug(message: string): void {
+        if (vscode.workspace.getConfiguration('sourcekit-bazel-bsp').get<string>('logLevel', 'info') === 'debug') {
+            this.outputChannel.appendLine(`[TestController] ${message}`);
+        }
     }
 
     dispose(): void {

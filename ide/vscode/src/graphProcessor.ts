@@ -59,6 +59,7 @@ export interface ProcessedGraph {
 export interface ProcessedTarget {
     label: string;
     displayName: string;
+    underlyingLabel: string;
     type: TargetType;
     extraBuildArgs: string[];
     canRun: boolean;
@@ -105,6 +106,7 @@ export async function processGraph(inputUri: vscode.Uri, appsToAlwaysInclude: st
         return {
             label: target.label,
             displayName: target.label,
+            underlyingLabel: target.label,
             type: (target.launchType as TargetType) ?? "app",
             extraBuildArgs: [],
             canRun: canRun(platform, sdkName) && hasLaunchType,
@@ -121,6 +123,7 @@ export async function processGraph(inputUri: vscode.Uri, appsToAlwaysInclude: st
             topLevelTargets.push({
                 label,
                 displayName: label,
+                underlyingLabel: label,
                 type: "app",
                 extraBuildArgs: [],
                 canRun: true,
@@ -143,6 +146,7 @@ export async function processGraph(inputUri: vscode.Uri, appsToAlwaysInclude: st
         return {
             label: dep.topLevelParent,
             displayName: dep.label + " (" + platform + "_" + minimumOsVersion + ")",
+            underlyingLabel: dep.label,
             type: "library" as TargetType,
             extraBuildArgs: dep.extraBuildArgs,
             canRun: false,

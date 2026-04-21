@@ -46,25 +46,6 @@ function createDebugConfig(extensionPath: string, targetLabel: string): vscode.D
     };
 }
 
-// function createTestDebugConfig(extensionPath: string, targetLabel: string): vscode.DebugConfiguration {
-//     const attachScriptPath = getScriptPath(extensionPath, "lldb_attach.py");
-//     const killScriptPath = getScriptPath(extensionPath, "lldb_kill_app.py");
-//     return {
-//         name: `Test ${targetLabel}`,
-//         type: "lldb-dap",
-//         request: "attach",
-//         preLaunchTask: `sourcekit-bazel-bsp: ${getTestLaunchTaskLabel(targetLabel)}`,
-//         debuggerRoot: "${workspaceFolder}",
-//         attachCommands: [
-//             `command script import "${attachScriptPath}"`
-//         ],
-//         terminateCommands: [
-//             `command script import "${killScriptPath}"`
-//         ],
-//         internalConsoleOptions: "openOnSessionStart",
-//         timeout: 9999
-//     };
-// }
 
 export class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
     private configsByLabel = new Map<string, vscode.DebugConfiguration>();

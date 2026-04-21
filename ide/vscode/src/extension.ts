@@ -25,9 +25,9 @@ import { processGraph } from "./graphProcessor";
 import { generateTasks } from "./taskGenerator";
 import { Configuration } from "./configuration";
 import { BuildTaskProvider, TASK_SOURCE, ACTION_BUILD, ACTION_LAUNCH, ACTION_LAUNCH_WITHOUT_DEBUGGING, buildTarget, launchTargetWithoutDebugging, launchTestTargetWithoutDebugging, stopAllRunningBuildTasks, parseTaskName } from "./buildTaskProvider";
-import { selectSimulator } from "./simulatorPicker";
+import { selectSimulator, selectTestSimulator, clearTestSimulatorInfo } from "./simulatorPicker";
 import { DebugConfigurationProvider, launchTarget } from "./debugTaskProvider";
-import { TargetsViewProvider } from "./targetsView";
+import { TargetsViewProvider, FILTER_STATE_KEY, FILTER_STATE_KEY_OLD } from "./targetsView";
 import { BspLogsViewer } from "./bspLogsViewer";
 import { TestController } from "./testController";
 import { LSPTestDiscovery } from "./lspTestDiscovery";
@@ -109,17 +109,17 @@ async function writeAdditionalLLDBCommands(config: Configuration): Promise<void>
 
 async function buildTargetAndTrack(target: any, provider: BuildTaskProvider, context: vscode.ExtensionContext) {
     await buildTarget(target, provider);
-    await context.workspaceState.update(LAST_BUILT_TARGET_KEY, target.label);
+    await context.workspaceState.update(LAST_BUILT_TARGET_KEY, target.displayName);
 }
 
 async function launchTargetWithoutDebuggingAndTrack(target: any, provider: BuildTaskProvider, context: vscode.ExtensionContext) {
     await launchTargetWithoutDebugging(target, provider);
-    await context.workspaceState.update(LAST_RUN_TARGET_KEY, target.label);
+    await context.workspaceState.update(LAST_RUN_TARGET_KEY, target.displayName);
 }
 
 async function launchTestTargetWithoutDebuggingAndTrack(target: any, provider: BuildTaskProvider, context: vscode.ExtensionContext) {
     await launchTestTargetWithoutDebugging(target, provider);
-    await context.workspaceState.update(LAST_TESTED_TARGET_KEY, target.label);
+    await context.workspaceState.update(LAST_TESTED_TARGET_KEY, target.displayName);
 }
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -165,34 +165,61 @@ export async function activate(context: vscode.ExtensionContext) {
     });
     targetsViewProvider.onBuildTarget(async (target) => {
         await stopAllRunningBuildTasks();
-        activeRunningState = { targetLabel: target.label, action: ACTION_BUILD, isDebugSession: false, pending: true };
-        targetsViewProvider.updateRunningState(target.label, ACTION_BUILD, true);
+        activeRunningState = { targetLabel: target.displayName, action: ACTION_BUILD, isDebugSession: false, pending: true };
+        targetsViewProvider.updateRunningState(target.displayName, ACTION_BUILD, true);
         buildTargetAndTrack(target, buildTaskProvider, context);
     });
     targetsViewProvider.onLaunchTarget(async (target) => {
         await stopAllRunningBuildTasks();
-        activeRunningState = { targetLabel: target.label, action: ACTION_LAUNCH, isDebugSession: true, pending: true };
-        targetsViewProvider.updateRunningState(target.label, ACTION_LAUNCH, true);
+        activeRunningState = { targetLabel: target.displayName, action: ACTION_LAUNCH, isDebugSession: true, pending: true };
+        targetsViewProvider.updateRunningState(target.displayName, ACTION_LAUNCH, true);
         launchTarget(target, debugConfigProvider);
     });
     targetsViewProvider.onLaunchTargetWithoutDebugging(async (target) => {
         await stopAllRunningBuildTasks();
-        activeRunningState = { targetLabel: target.label, action: ACTION_LAUNCH_WITHOUT_DEBUGGING, isDebugSession: false, pending: true };
-        targetsViewProvider.updateRunningState(target.label, ACTION_LAUNCH_WITHOUT_DEBUGGING, true);
+        activeRunningState = { targetLabel: target.displayName, action: ACTION_LAUNCH_WITHOUT_DEBUGGING, isDebugSession: false, pending: true };
+        targetsViewProvider.updateRunningState(target.displayName, ACTION_LAUNCH_WITHOUT_DEBUGGING, true);
         launchTargetWithoutDebuggingAndTrack(target, buildTaskProvider, context);
     });
-    // targetsViewProvider.onTestTarget((target) => launchTestTarget(target, debugConfigProvider));
+    targetsViewProvider.onTestTarget(async (target) => {
+        await stopAllRunningBuildTasks();
+        activeRunningState = { targetLabel: target.displayName, action: ACTION_LAUNCH, isDebugSession: true, pending: true };
+        targetsViewProvider.updateRunningState(target.displayName, ACTION_LAUNCH, true);
+        testController.debugTestTarget(target.label);
+    });
     targetsViewProvider.onTestTargetWithoutDebugging(async (target) => {
         await stopAllRunningBuildTasks();
-        activeRunningState = { targetLabel: target.label, action: ACTION_LAUNCH_WITHOUT_DEBUGGING, isDebugSession: false, pending: true };
-        targetsViewProvider.updateRunningState(target.label, ACTION_LAUNCH_WITHOUT_DEBUGGING, true);
+        activeRunningState = { targetLabel: target.displayName, action: ACTION_LAUNCH_WITHOUT_DEBUGGING, isDebugSession: false, pending: true };
+        targetsViewProvider.updateRunningState(target.displayName, ACTION_LAUNCH_WITHOUT_DEBUGGING, true);
         launchTestTargetWithoutDebuggingAndTrack(target, buildTaskProvider, context);
     });
     targetsViewProvider.onSelectSimulator(async () => {
-        const selected = await selectSimulator();
-        if (selected) {
-            targetsViewProvider.updateSimulatorInfo(selected);
+        targetsViewProvider.setSimulatorLoading(true);
+        try {
+            const selected = await selectSimulator();
+            if (selected) {
+                targetsViewProvider.updateSimulatorInfo(selected);
+            }
+        } finally {
+            targetsViewProvider.setSimulatorLoading(false);
         }
+    });
+    targetsViewProvider.onSelectTestSimulator(async () => {
+        targetsViewProvider.setTestSimulatorLoading(true);
+        try {
+            const result = await selectTestSimulator();
+            if (result.cleared) {
+                targetsViewProvider.updateTestSimulatorInfo(undefined);
+            } else if (result.info) {
+                targetsViewProvider.updateTestSimulatorInfo(result.info);
+            }
+        } finally {
+            targetsViewProvider.setTestSimulatorLoading(false);
+        }
+    });
+    targetsViewProvider.onClearTestSimulator(async () => {
+        await clearTestSimulatorInfo();
+        targetsViewProvider.updateTestSimulatorInfo(undefined);
     });
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(TargetsViewProvider.viewType, targetsViewProvider, {
@@ -352,7 +379,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 return;
             }
 
-            const target = buildTaskProvider.targets.find(t => t.label === lastTargetLabel);
+            const target = buildTaskProvider.targets.find(t => t.displayName === lastTargetLabel);
 
             if (!target) {
                 vscode.window.showErrorMessage(`Last built target '${lastTargetLabel}' not found. The workspace may have changed.`);
@@ -373,7 +400,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 return;
             }
 
-            const target = buildTaskProvider.targets.find(t => t.label === lastTargetLabel);
+            const target = buildTaskProvider.targets.find(t => t.displayName === lastTargetLabel);
 
             if (!target) {
                 vscode.window.showErrorMessage(`Last run target '${lastTargetLabel}' not found. The workspace may have changed.`);
@@ -381,6 +408,25 @@ export async function activate(context: vscode.ExtensionContext) {
             }
 
             await launchTargetWithoutDebugging(target, buildTaskProvider);
+        })
+    );
+
+    // Clear Extension State Command
+    context.subscriptions.push(
+        vscode.commands.registerCommand("sourcekit-bazel-bsp.clearExtensionState", async () => {
+            await context.workspaceState.update(LAST_BUILT_TARGET_KEY, undefined);
+            await context.workspaceState.update(LAST_RUN_TARGET_KEY, undefined);
+            await context.workspaceState.update(LAST_TESTED_TARGET_KEY, undefined);
+            await context.workspaceState.update(FILTER_STATE_KEY, undefined);
+            await context.workspaceState.update(FILTER_STATE_KEY_OLD, undefined);
+            targetsViewProvider.clearState();
+            const reload = await vscode.window.showInformationMessage(
+                "Extension state cleared. Reload the window to apply changes.",
+                "Reload Window"
+            );
+            if (reload === "Reload Window") {
+                await vscode.commands.executeCommand("workbench.action.reloadWindow");
+            }
         })
     );
 
@@ -394,7 +440,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 return;
             }
 
-            const target = buildTaskProvider.targets.find(t => t.label === lastTargetLabel);
+            const target = buildTaskProvider.targets.find(t => t.displayName === lastTargetLabel);
 
             if (!target) {
                 vscode.window.showErrorMessage(`Last tested target '${lastTargetLabel}' not found. The workspace may have changed.`);

@@ -2,8 +2,8 @@
 
 def _sourcekit_lsp_binary_impl(ctx):
     ctx.download_and_extract(
-        url = ["https://github.com/spotify/sourcekit-bazel-bsp/releases/download/0.8.2/sourcekit-bazel-bsp-0.8.2-darwin.zip"],
-        sha256 = "84f92cc4a6fd17c55594fcf00bc4f287d9e1ff726ad3126ebb9f686b93505d10",
+        url = ["https://github.com/spotify/sourcekit-bazel-bsp/releases/download/0.8.3/sourcekit-bazel-bsp-0.8.3-darwin.zip"],
+        sha256 = "c9329c4a95126f60fbdc576561ae66b4bc9354b3e2f059e128d1e3a386529bfc",
     )
     ctx.file("BUILD.bazel", """
 exports_files(["sourcekit-bazel-bsp", "sourcekit-lsp"])

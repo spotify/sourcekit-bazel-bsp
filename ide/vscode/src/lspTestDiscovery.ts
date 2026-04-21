@@ -164,7 +164,7 @@ export class LSPTestDiscovery implements vscode.Disposable {
 
         // Activate if not already active
         if (!swiftExtension.isActive) {
-            this.log('Activating Swift extension...');
+            this.logDebug('Activating Swift extension...');
             try {
                 await swiftExtension.activate();
             } catch (error) {
@@ -205,7 +205,7 @@ export class LSPTestDiscovery implements vscode.Disposable {
         // Try to get the current folder, or fall back to the first folder
         const folder = workspaceContext.currentFolder ?? workspaceContext.folders[0];
         if (!folder) {
-            this.log('No folder context available');
+            this.logDebug('No folder context available');
             return undefined;
         }
 
@@ -223,13 +223,13 @@ export class LSPTestDiscovery implements vscode.Disposable {
      */
     async getWorkspaceTests(): Promise<LSPTestItem[] | undefined> {
         if (!this.swiftApi?.workspaceContext) {
-            this.log('Cannot get workspace tests: Swift extension not initialized');
+            this.logDebug('Cannot get workspace tests: Swift extension not initialized');
             return undefined;
         }
 
         const clientManager = this.getLanguageClientManager();
         if (!clientManager) {
-            this.log('Cannot get workspace tests: No language client manager available');
+            this.logDebug('Cannot get workspace tests: No language client manager available');
             return undefined;
         }
 
@@ -240,7 +240,7 @@ export class LSPTestDiscovery implements vscode.Disposable {
                     if (!this.checkCapability(client, WorkspaceTestsRequest.method, 2)) {
                         throw new Error('workspace/tests not supported by sourcekit-lsp');
                     }
-                    this.log('Requesting workspace tests from LSP...');
+                    this.logDebug('Requesting workspace tests from LSP...');
                     const tests = await client.sendRequest(WorkspaceTestsRequest.type, token);
                     this.log(`LSP returned ${tests.length} top-level test items`);
                     return tests;
@@ -259,13 +259,13 @@ export class LSPTestDiscovery implements vscode.Disposable {
      */
     async getDocumentTests(uri: vscode.Uri): Promise<LSPTestItem[] | undefined> {
         if (!this.swiftApi?.workspaceContext) {
-            this.log('Cannot get document tests: Swift extension not initialized');
+            this.logDebug('Cannot get document tests: Swift extension not initialized');
             return undefined;
         }
 
         const clientManager = this.getLanguageClientManager();
         if (!clientManager) {
-            this.log('Cannot get document tests: No language client manager available');
+            this.logDebug('Cannot get document tests: No language client manager available');
             return undefined;
         }
 
@@ -276,13 +276,13 @@ export class LSPTestDiscovery implements vscode.Disposable {
                     if (!this.checkCapability(client, TextDocumentTestsRequest.method, 2)) {
                         throw new Error('textDocument/tests not supported by sourcekit-lsp');
                     }
-                    this.log(`Requesting tests for document: ${uri.toString()}`);
+                    this.logDebug(`Requesting tests for document: ${uri.toString()}`);
                     const tests = await client.sendRequest<LSPTestItem[]>(
                         'textDocument/tests',
                         { textDocument: { uri: uri.toString() } },
                         token
                     );
-                    this.log(`LSP returned ${tests.length} test items for document`);
+                    this.logDebug(`LSP returned ${tests.length} test items for document`);
                     return tests;
                 }
             );
@@ -305,7 +305,7 @@ export class LSPTestDiscovery implements vscode.Disposable {
             | undefined;
 
         if (!experimental) {
-            this.log(`No experimental capabilities found`);
+            this.logDebug(`No experimental capabilities found`);
             return false;
         }
 
@@ -314,7 +314,7 @@ export class LSPTestDiscovery implements vscode.Disposable {
         const supported = version >= minVersion;
 
         if (!supported) {
-            this.log(`Capability ${method} version ${version} < required ${minVersion}`);
+            this.logDebug(`Capability ${method} version ${version} < required ${minVersion}`);
         }
 
         return supported;
@@ -322,6 +322,12 @@ export class LSPTestDiscovery implements vscode.Disposable {
 
     private log(message: string): void {
         this.outputChannel.appendLine(`[LSPTestDiscovery] ${message}`);
+    }
+
+    private logDebug(message: string): void {
+        if (vscode.workspace.getConfiguration('sourcekit-bazel-bsp').get<string>('logLevel', 'info') === 'debug') {
+            this.outputChannel.appendLine(`[LSPTestDiscovery] ${message}`);
+        }
     }
 
     dispose(): void {

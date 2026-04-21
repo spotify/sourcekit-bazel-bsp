@@ -21,7 +21,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import { ProcessedTarget } from "./graphProcessor";
 import { Configuration } from "./configuration";
-import { selectSimulator } from "./simulatorPicker";
+import { selectSimulator, getSimulatorInfoPath } from "./simulatorPicker";
 
 const BUILD_TASK_TYPE = "sourcekit-bazel-bsp-build";
 
@@ -69,6 +69,11 @@ function getExtraFlags(config: Configuration, target: ProcessedTarget): string {
     }
     if (target.type === "test" && config.extraTestBuildFlags.length > 0) {
         extraFlags += " " + config.extraTestBuildFlags;
+    }
+    // For library targets built with aspects, add build_metadata so BuildBuddy shows the library instead of the aspect target
+    // See https://www.buildbuddy.io/docs/guide-metadata/#build-metadata-5
+    if (target.type === "library") {
+        extraFlags += ` --build_metadata=PATTERN=${target.underlyingLabel}`;
     }
     return extraFlags;
 }
@@ -128,6 +133,8 @@ function createLaunchTask(extensionPath: string, config: Configuration, target: 
     }
     if (withoutDebugging) {
         env.BAZEL_APPLE_RUN_WITHOUT_DEBUGGING = "1";
+    } else if (config.debugConsoleLogs) {
+        env.SKBSP_DEBUG_CONSOLE_LOGS = "1";
     }
     const task = new vscode.Task(
         { type: BUILD_TASK_TYPE, target: taskLabel, hide: !withoutDebugging },
@@ -154,6 +161,10 @@ function createTestTask(extensionPath: string, config: Configuration, target: Pr
         BAZEL_EXECUTABLE: bazelWrapper,
         BAZEL_RULES_APPLE_NAME: config.rulesAppleName,
     };
+    const testDevicePath = getSimulatorInfoPath('test');
+    if (testDevicePath) {
+        env.BAZEL_DEVICE_INFO_FILE = testDevicePath;
+    }
     if (target.platform) {
         env.BAZEL_PLATFORM_TYPE = target.platform;
     }
@@ -162,6 +173,8 @@ function createTestTask(extensionPath: string, config: Configuration, target: Pr
     }
     if (withoutDebugging) {
         env.BAZEL_APPLE_RUN_WITHOUT_DEBUGGING = "1";
+    } else if (config.debugConsoleLogs) {
+        env.SKBSP_DEBUG_CONSOLE_LOGS = "1";
     }
     const task = new vscode.Task(
         { type: BUILD_TASK_TYPE, target: taskLabel, hide: !withoutDebugging },
@@ -311,7 +324,7 @@ export class BuildTaskProvider implements vscode.TaskProvider {
         this.testTasksByLabel.clear();
         this.testWithoutDebuggingTasksByLabel.clear();
         for (const target of this.targets) {
-            this.tasksByLabel.set(target.label, createBuildTask(this.extensionPath, this.config, target, this.bazelWrapper));
+            this.tasksByLabel.set(target.displayName, createBuildTask(this.extensionPath, this.config, target, this.bazelWrapper));
             if (target.type === "app") {
                 if (target.canDebug) {
                     this.launchTasksByLabel.set(getLaunchTaskLabel(target.label), createLaunchTask(this.extensionPath, this.config, target, this.bazelWrapper));
@@ -358,7 +371,7 @@ export class BuildTaskProvider implements vscode.TaskProvider {
 }
 
 export async function buildTarget(target: ProcessedTarget, provider: BuildTaskProvider): Promise<void> {
-    const task = provider.getTask(target.label);
+    const task = provider.getTask(target.displayName);
     if (task) {
         await vscode.tasks.executeTask(task);
     } else {

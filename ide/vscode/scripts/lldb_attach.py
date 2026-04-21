@@ -1,4 +1,5 @@
 from lldb_common import load_launch_info, load_bazel_info, run_command, load_additional_lldb_commands
+from lldb_log_stream import start as start_log_stream
 import os
 
 launch_info = load_launch_info()
@@ -53,4 +54,6 @@ else:
     # For simulators
     run_command(f"platform select {device_platform}")
     run_command(f"platform connect {device_udid}")
+    if bazel_info.get("debug_console_logs", False):
+        start_log_stream(device_udid, debug_pid)
     run_command(f"process attach --pid {debug_pid}")

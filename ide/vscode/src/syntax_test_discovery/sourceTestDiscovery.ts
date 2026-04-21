@@ -72,10 +72,19 @@ function byteOffsetToLine(content: string, offset: number): number {
 }
 
 /**
- * Log a message to the output channel.
+ * Log an info-level message to the output channel.
  */
 function log(outputChannel: vscode.OutputChannel, message: string): void {
     outputChannel.appendLine(`[SourceTestDiscovery] ${message}`);
+}
+
+/**
+ * Log a debug-level message to the output channel (only when logLevel is "debug").
+ */
+function logDebug(outputChannel: vscode.OutputChannel, message: string): void {
+    if (vscode.workspace.getConfiguration('sourcekit-bazel-bsp').get<string>('logLevel', 'info') === 'debug') {
+        outputChannel.appendLine(`[SourceTestDiscovery] ${message}`);
+    }
 }
 
 /**
@@ -91,7 +100,7 @@ async function parseSwiftTestFile(
     content: string,
 ): Promise<{ classes: TestClassLocation[]; methods: TestMethodLocation[] }> {
     try {
-        log(outputChannel, `parseSwiftTestFile: Parsing ${filePath} with swiftc`);
+        logDebug(outputChannel, `parseSwiftTestFile: Parsing ${filePath} with swiftc`);
 
         let stdout = '';
         let stderr = '';
@@ -120,22 +129,22 @@ async function parseSwiftTestFile(
             }
         }
 
-        log(outputChannel, `parseSwiftTestFile: swiftc completed, stdout length: ${stdout.length}`);
+        logDebug(outputChannel, `parseSwiftTestFile: swiftc completed, stdout length: ${stdout.length}`);
         if (stderr) {
-            log(outputChannel, `parseSwiftTestFile: swiftc stderr (truncated): ${stderr.substring(0, 200)}`);
+            logDebug(outputChannel, `parseSwiftTestFile: swiftc stderr (truncated): ${stderr.substring(0, 200)}`);
         }
 
         // The JSON may be followed by error messages, try to find the JSON part
         // JSON starts with { and we need to find the matching closing brace
         let jsonEnd = stdout.lastIndexOf('}');
         if (jsonEnd === -1) {
-            log(outputChannel, `parseSwiftTestFile: No JSON closing brace found in output, returning empty`);
+            logDebug(outputChannel, `parseSwiftTestFile: No JSON closing brace found in output, returning empty`);
             return { classes: [], methods: [] };
         }
         const jsonStr = stdout.substring(0, jsonEnd + 1);
 
         const ast = JSON.parse(jsonStr) as SwiftASTSourceFile;
-        log(outputChannel, `parseSwiftTestFile: Parsed AST, items count: ${ast.items?.length ?? 0}`);
+        logDebug(outputChannel, `parseSwiftTestFile: Parsed AST, items count: ${ast.items?.length ?? 0}`);
 
         const classes: TestClassLocation[] = [];
         const methods: TestMethodLocation[] = [];
@@ -143,7 +152,7 @@ async function parseSwiftTestFile(
         // Process top-level items looking for class declarations and extensions
         // Only treat classes ending with "Test" or "Tests" as test classes
         if (!ast.items) {
-            log(outputChannel, `parseSwiftTestFile: AST has no items array`);
+            logDebug(outputChannel, `parseSwiftTestFile: AST has no items array`);
             return { classes: [], methods: [] };
         }
 
@@ -161,7 +170,7 @@ async function parseSwiftTestFile(
                 }
 
                 const methodLine = byteOffsetToLine(content, funcDecl.range.start);
-                log(outputChannel, `parseSwiftTestFile: Found test method "${methodName}" at line ${methodLine}`);
+                logDebug(outputChannel, `parseSwiftTestFile: Found test method "${methodName}" at line ${methodLine}`);
 
                 methods.push({
                     methodName,
@@ -181,14 +190,14 @@ async function parseSwiftTestFile(
 
                 // Only include classes whose names end with "Test" or "Tests"
                 if (!className.endsWith('Test') && !className.endsWith('Tests')) {
-                    log(outputChannel, `parseSwiftTestFile: Skipping class "${className}" - name doesn't end with Test/Tests`);
+                    logDebug(outputChannel, `parseSwiftTestFile: Skipping class "${className}" - name doesn't end with Test/Tests`);
                     continue;
                 }
 
                 // Convert byte offset to line number
                 const classLine = byteOffsetToLine(content, classDecl.range.start);
 
-                log(outputChannel, `parseSwiftTestFile: Found test class "${className}" at line ${classLine}`);
+                logDebug(outputChannel, `parseSwiftTestFile: Found test class "${className}" at line ${classLine}`);
                 classes.push({
                     className,
                     line: classLine,
@@ -207,11 +216,11 @@ async function parseSwiftTestFile(
 
                 // Only process extensions of types that look like test classes
                 if (!extendedType.endsWith('Test') && !extendedType.endsWith('Tests')) {
-                    log(outputChannel, `parseSwiftTestFile: Skipping extension of "${extendedType}" - name doesn't end with Test/Tests`);
+                    logDebug(outputChannel, `parseSwiftTestFile: Skipping extension of "${extendedType}" - name doesn't end with Test/Tests`);
                     continue;
                 }
 
-                log(outputChannel, `parseSwiftTestFile: Found extension of test class "${extendedType}"`);
+                logDebug(outputChannel, `parseSwiftTestFile: Found extension of test class "${extendedType}"`);
 
                 // Look for test methods in this extension
                 if (extDecl.members) {
@@ -220,7 +229,7 @@ async function parseSwiftTestFile(
             }
         }
 
-        log(outputChannel, `parseSwiftTestFile: Found ${classes.length} classes and ${methods.length} methods via AST`);
+        logDebug(outputChannel, `parseSwiftTestFile: Found ${classes.length} classes and ${methods.length} methods via AST`);
         return { classes, methods };
 
     } catch (error) {
@@ -259,7 +268,7 @@ async function parseObjCTestFile(
     _content: string,
 ): Promise<{ classes: TestClassLocation[]; methods: TestMethodLocation[] }> {
     try {
-        log(outputChannel, `parseObjCTestFile: Parsing ${filePath} with clang`);
+        logDebug(outputChannel, `parseObjCTestFile: Parsing ${filePath} with clang`);
 
         const sdkPath = await getSDKPath(outputChannel);
         if (!sdkPath) {
@@ -296,29 +305,29 @@ async function parseObjCTestFile(
             }
         }
 
-        log(outputChannel, `parseObjCTestFile: clang completed, stdout length: ${stdout.length}`);
+        logDebug(outputChannel, `parseObjCTestFile: clang completed, stdout length: ${stdout.length}`);
         if (stderr) {
-            log(outputChannel, `parseObjCTestFile: clang stderr (truncated): ${stderr.substring(0, 200)}`);
+            logDebug(outputChannel, `parseObjCTestFile: clang stderr (truncated): ${stderr.substring(0, 200)}`);
         }
 
         // Find the JSON - error messages may appear before it, so find the first {
         const jsonStart = stdout.indexOf('{');
         const jsonEnd = stdout.lastIndexOf('}');
         if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
-            log(outputChannel, `parseObjCTestFile: No valid JSON found in output (start=${jsonStart}, end=${jsonEnd}), returning empty`);
+            logDebug(outputChannel, `parseObjCTestFile: No valid JSON found in output (start=${jsonStart}, end=${jsonEnd}), returning empty`);
             return { classes: [], methods: [] };
         }
         const jsonStr = stdout.substring(jsonStart, jsonEnd + 1);
-        log(outputChannel, `parseObjCTestFile: Extracted JSON from positions ${jsonStart} to ${jsonEnd}`);
+        logDebug(outputChannel, `parseObjCTestFile: Extracted JSON from positions ${jsonStart} to ${jsonEnd}`);
 
         const ast = JSON.parse(jsonStr) as ObjCASTTranslationUnit;
-        log(outputChannel, `parseObjCTestFile: Parsed AST, inner count: ${ast.inner?.length ?? 0}`);
+        logDebug(outputChannel, `parseObjCTestFile: Parsed AST, inner count: ${ast.inner?.length ?? 0}`);
 
         const classes: TestClassLocation[] = [];
         const methods: TestMethodLocation[] = [];
 
         if (!ast.inner) {
-            log(outputChannel, `parseObjCTestFile: AST has no inner array`);
+            logDebug(outputChannel, `parseObjCTestFile: AST has no inner array`);
             return { classes: [], methods: [] };
         }
 
@@ -336,7 +345,7 @@ async function parseObjCTestFile(
 
             // Only include classes whose names end with "Test" or "Tests"
             if (!className.endsWith('Test') && !className.endsWith('Tests')) {
-                log(outputChannel, `parseObjCTestFile: Skipping class "${className}" - name doesn't end with Test/Tests`);
+                logDebug(outputChannel, `parseObjCTestFile: Skipping class "${className}" - name doesn't end with Test/Tests`);
                 continue;
             }
 
@@ -345,7 +354,7 @@ async function parseObjCTestFile(
             // Clang uses 1-based line numbers, convert to 0-based
             const classLineZeroBased = classLine > 0 ? classLine - 1 : 0;
 
-            log(outputChannel, `parseObjCTestFile: Found test class "${className}" at line ${classLineZeroBased}`);
+            logDebug(outputChannel, `parseObjCTestFile: Found test class "${className}" at line ${classLineZeroBased}`);
             classes.push({
                 className,
                 line: classLineZeroBased,
@@ -367,7 +376,7 @@ async function parseObjCTestFile(
                     const methodLine = methodDecl.loc?.line ?? methodDecl.loc?.expansionLoc?.line ?? 0;
                     const methodLineZeroBased = methodLine > 0 ? methodLine - 1 : 0;
 
-                    log(outputChannel, `parseObjCTestFile: Found test method "${methodName}" at line ${methodLineZeroBased}`);
+                    logDebug(outputChannel, `parseObjCTestFile: Found test method "${methodName}" at line ${methodLineZeroBased}`);
                     methods.push({
                         methodName,
                         className,
@@ -377,7 +386,7 @@ async function parseObjCTestFile(
             }
         }
 
-        log(outputChannel, `parseObjCTestFile: Found ${classes.length} classes and ${methods.length} methods via AST`);
+        logDebug(outputChannel, `parseObjCTestFile: Found ${classes.length} classes and ${methods.length} methods via AST`);
         return { classes, methods };
 
     } catch (error) {
@@ -415,7 +424,7 @@ export async function findTestClassesAsync(
     const content = document.getText();
 
     const { classes } = await parseTestFile(outputChannel, filePath, content);
-    log(outputChannel, `findTestClassesAsync: Found ${classes.length} classes`);
+    logDebug(outputChannel, `findTestClassesAsync: Found ${classes.length} classes`);
     return classes;
 }
 
@@ -436,7 +445,7 @@ export async function findTestMethodsAsync(
     const content = document.getText();
 
     const { methods } = await parseTestFile(outputChannel, filePath, content);
-    log(outputChannel, `findTestMethodsAsync: Found ${methods.length} methods`);
+    logDebug(outputChannel, `findTestMethodsAsync: Found ${methods.length} methods`);
     return methods;
 }
 

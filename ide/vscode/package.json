@@ -2,7 +2,7 @@
     "name": "sourcekit-bazel-bsp",
     "displayName": "SourceKit Bazel BSP",
     "description": "Companion extension for sourcekit-bazel-bsp",
-    "version": "0.0.34",
+    "version": "0.0.52",
     "publisher": "spotify",
     "repository": {
         "type": "git",
@@ -34,6 +34,10 @@
             {
                 "command": "sourcekit-bazel-bsp.testLastTarget",
                 "title": "Test Last Bazel Target"
+            },
+            {
+                "command": "sourcekit-bazel-bsp.clearExtensionState",
+                "title": "SourceKit Bazel BSP: Clear Extension Cache"
             }
         ],
         "viewsContainers": {
@@ -115,6 +119,12 @@
                     "default": [],
                     "description": "Bazel target labels to always pin at the top of the Targets view (e.g., [\"//app:MyApp\", \"//tests:MyTests\"])"
                 },
+                "sourcekit-bazel-bsp.logLevel": {
+                    "type": "string",
+                    "default": "info",
+                    "enum": ["info", "debug"],
+                    "description": "Log level for the extension output. Use 'debug' for verbose output including per-file test discovery details."
+                },
                 "sourcekit-bazel-bsp.additionalLLDBCommands": {
                     "type": "array",
                     "items": {
@@ -122,6 +132,11 @@
                     },
                     "default": [],
                     "description": "Additional LLDB commands to execute before attaching to the process during debugging"
+                },
+                "sourcekit-bazel-bsp.debugConsoleLogs": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Stream the attached app's unified log (os_log) into VSCode's Debug Console while debugging. Simulator only."
                 }
             }
         },
