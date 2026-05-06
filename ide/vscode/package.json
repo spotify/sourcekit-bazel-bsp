@@ -21,6 +21,17 @@
         "swiftlang.swift-vscode"
     ],
     "main": "./out/extension.js",
+    "capabilities": {
+        "untrustedWorkspaces": {
+            "supported": "limited",
+            "restrictedConfigurations": [
+                "sourcekit-bazel-bsp.hooks.buildSuccess",
+                "sourcekit-bazel-bsp.hooks.buildFailure",
+                "sourcekit-bazel-bsp.hooks.testSuccess",
+                "sourcekit-bazel-bsp.hooks.testFailed"
+            ]
+        }
+    },
     "contributes": {
         "commands": [
             {
@@ -137,6 +148,30 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Stream the attached app's unified log (os_log) into VSCode's Debug Console while debugging. Simulator only."
+                },
+                "sourcekit-bazel-bsp.hooks.buildSuccess": {
+                    "type": "string",
+                    "default": "",
+                    "scope": "window",
+                    "description": "Command to run when a build succeeds. Executed via execFile. Environment variables: SKBSP_LABEL (target label)."
+                },
+                "sourcekit-bazel-bsp.hooks.buildFailure": {
+                    "type": "string",
+                    "default": "",
+                    "scope": "window",
+                    "description": "Command to run when a build fails. Executed via execFile. Environment variables: SKBSP_LABEL (target label)."
+                },
+                "sourcekit-bazel-bsp.hooks.testSuccess": {
+                    "type": "string",
+                    "default": "",
+                    "scope": "window",
+                    "description": "Command to run when all tests in a target pass. Executed via execFile. Environment variables: SKBSP_LABEL (target label), SKBSP_TEST_STATUS (PASSED or FLAKY)."
+                },
+                "sourcekit-bazel-bsp.hooks.testFailed": {
+                    "type": "string",
+                    "default": "",
+                    "scope": "window",
+                    "description": "Command to run when tests fail. Executed via execFile. Environment variables: SKBSP_LABEL (target label), SKBSP_TEST_STATUS (FAILED, TIMEOUT, etc.)."
                 }
             }
         },

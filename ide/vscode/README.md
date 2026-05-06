@@ -67,3 +67,31 @@ The extension provides the following commands that can be bound to keyboard shor
 | `sourcekit-bazel-bsp.enableTestDiscovery` | boolean | `true` | Enable automatic test discovery for gutter icons. When enabled, test gutter icons appear next to test classes and methods in Swift and Objective-C files. |
 | `sourcekit-bazel-bsp.pinnedTargets` | array | `[]` | Bazel target labels to always pin at the top of the Targets view (e.g., `["//app:MyApp", "//tests:MyTests"]`) |
 | `sourcekit-bazel-bsp.rulesAppleName` | string | `"rules_apple"` | The name of the rules_apple external repository (e.g., rules_apple) |
+| `sourcekit-bazel-bsp.hooks.buildSuccess` | string | `""` | Command to run when a build succeeds. |
+| `sourcekit-bazel-bsp.hooks.buildFailure` | string | `""` | Command to run when a build fails. |
+| `sourcekit-bazel-bsp.hooks.testSuccess` | string | `""` | Command to run when all tests in a target pass. |
+| `sourcekit-bazel-bsp.hooks.testFailed` | string | `""` | Command to run when tests fail. |
+
+### Build and test hooks
+
+The extension can run a custom command when a build or test finishes. Each event has its own `hooks.*` setting. The command is executed via `execFile` (no shell) with the following environment variables:
+
+| Variable | Hooks | Value |
+|----------|-------|-------|
+| `SKBSP_LABEL` | all 4 | Target label, e.g. `//App:App` |
+| `SKBSP_TEST_STATUS` | `testSuccess`, `testFailed` | Bazel test status: `PASSED`, `FAILED`, `FLAKY`, `TIMEOUT`, etc. |
+
+**Examples:**
+
+```jsonc
+// Play a macOS system sound on build success
+"sourcekit-bazel-bsp.hooks.buildSuccess": "afplay /System/Library/Sounds/Glass.aiff"
+
+// Show a macOS notification on build failure
+"sourcekit-bazel-bsp.hooks.buildFailure": "osascript -e 'display notification \"Build failed\" with title \"Bazel\"'"
+
+// Text-to-speech on test failure
+"sourcekit-bazel-bsp.hooks.testFailed": "say tests failed"
+```
+
+**Security:** Hook settings are listed under `restrictedConfigurations` in the extension's workspace trust declaration. In untrusted workspaces, only user-level (global) settings are used — workspace-level `.vscode/settings.json` values are ignored. Additionally, hooks are skipped entirely if the workspace is not trusted.

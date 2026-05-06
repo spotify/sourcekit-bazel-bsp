@@ -22,6 +22,7 @@ import * as path from "path";
 import { ProcessedTarget } from "./graphProcessor";
 import { Configuration } from "./configuration";
 import { selectSimulator, getSimulatorInfoPath } from "./simulatorPicker";
+const BEP_FILE_NAME = "bep.json";
 
 const BUILD_TASK_TYPE = "sourcekit-bazel-bsp-build";
 
@@ -62,6 +63,10 @@ export function getTestLaunchTaskLabel(targetLabel: string, withoutDebugging: bo
     }
 }
 
+export function getBepFilePath(): string {
+    return path.join(vscode.workspace.workspaceFolders![0].uri.fsPath, ".bsp", "skbsp_generated", BEP_FILE_NAME);
+}
+
 function getExtraFlags(config: Configuration, target: ProcessedTarget): string {
     let extraFlags = target.extraBuildArgs.join(" ");
     if (config.extraBuildFlags.length > 0) {
@@ -97,6 +102,9 @@ function createBuildTask(extensionPath: string, config: Configuration, target: P
         BAZEL_EXECUTABLE: bazelWrapper,
         BAZEL_RULES_APPLE_NAME: config.rulesAppleName,
     };
+    if (config.anyHookConfigured) {
+        env.BAZEL_BEP_FILE = getBepFilePath();
+    }
     if (target.platform) {
         env.BAZEL_PLATFORM_TYPE = target.platform;
     }
@@ -125,6 +133,9 @@ function createLaunchTask(extensionPath: string, config: Configuration, target: 
         BAZEL_EXECUTABLE: bazelWrapper,
         BAZEL_RULES_APPLE_NAME: config.rulesAppleName,
     };
+    if (config.anyHookConfigured) {
+        env.BAZEL_BEP_FILE = getBepFilePath();
+    }
     if (target.platform) {
         env.BAZEL_PLATFORM_TYPE = target.platform;
     }
@@ -161,6 +172,9 @@ function createTestTask(extensionPath: string, config: Configuration, target: Pr
         BAZEL_EXECUTABLE: bazelWrapper,
         BAZEL_RULES_APPLE_NAME: config.rulesAppleName,
     };
+    if (config.anyHookConfigured) {
+        env.BAZEL_BEP_FILE = getBepFilePath();
+    }
     const testDevicePath = getSimulatorInfoPath('test');
     if (testDevicePath) {
         env.BAZEL_DEVICE_INFO_FILE = testDevicePath;

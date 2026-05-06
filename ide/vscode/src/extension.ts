@@ -24,13 +24,15 @@ import * as path from "path";
 import { processGraph } from "./graphProcessor";
 import { generateTasks } from "./taskGenerator";
 import { Configuration } from "./configuration";
-import { BuildTaskProvider, TASK_SOURCE, ACTION_BUILD, ACTION_LAUNCH, ACTION_LAUNCH_WITHOUT_DEBUGGING, buildTarget, launchTargetWithoutDebugging, launchTestTargetWithoutDebugging, stopAllRunningBuildTasks, parseTaskName } from "./buildTaskProvider";
+import { BuildTaskProvider, TASK_SOURCE, ACTION_BUILD, ACTION_LAUNCH, ACTION_LAUNCH_WITHOUT_DEBUGGING, buildTarget, launchTargetWithoutDebugging, launchTestTargetWithoutDebugging, stopAllRunningBuildTasks, parseTaskName, getBepFilePath } from "./buildTaskProvider";
 import { selectSimulator, selectTestSimulator, clearTestSimulatorInfo } from "./simulatorPicker";
 import { DebugConfigurationProvider, launchTarget } from "./debugTaskProvider";
 import { TargetsViewProvider, FILTER_STATE_KEY, FILTER_STATE_KEY_OLD } from "./targetsView";
 import { BspLogsViewer } from "./bspLogsViewer";
 import { TestController } from "./testController";
 import { LSPTestDiscovery } from "./lspTestDiscovery";
+import { BepWatcher } from "./bepWatcher";
+import { BepHookCoordinator } from "./bepHookCoordinator";
 
 export const outputChannel = vscode.window.createOutputChannel("SourceKit-Bazel-BSP (Extension)");
 
@@ -50,6 +52,8 @@ let buildTaskProvider: BuildTaskProvider;
 let debugConfigProvider: DebugConfigurationProvider;
 let bspLogsViewer: BspLogsViewer | undefined;
 let testController: TestController;
+let bepWatcher: BepWatcher;
+let bepHookCoordinator: BepHookCoordinator;
 let activeRunningState: { targetLabel: string; action: string; isDebugSession: boolean; pending: boolean } | null = null;
 
 async function onGraphFileChanged(alreadyExisted: boolean = false) {
@@ -147,6 +151,11 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.tasks.registerTaskProvider(BuildTaskProvider.taskType, buildTaskProvider)
     );
 
+    bepWatcher = new BepWatcher(outputChannel);
+    context.subscriptions.push(bepWatcher);
+    bepHookCoordinator = new BepHookCoordinator(bepWatcher, configuration, outputChannel);
+    context.subscriptions.push(bepHookCoordinator);
+
     // Initialize LSP test discovery (uses Swift extension's sourcekit-lsp)
     const lspTestDiscovery = new LSPTestDiscovery(outputChannel);
     context.subscriptions.push(lspTestDiscovery);
@@ -240,6 +249,11 @@ export async function activate(context: vscode.ExtensionContext) {
             if (event.execution.task.source !== TASK_SOURCE) {
                 return;
             }
+
+            if (configuration.anyHookConfigured) {
+                bepWatcher.startWatching(getBepFilePath());
+            }
+
             // If we have a pending state, confirm it now that a task is actually running
             if (activeRunningState?.pending) {
                 activeRunningState.pending = false;
@@ -258,6 +272,13 @@ export async function activate(context: vscode.ExtensionContext) {
                     pending: false,
                 };
                 targetsViewProvider.updateRunningState(parsed.targetLabel, parsed.action, false);
+            }
+        }),
+    );
+    context.subscriptions.push(
+        vscode.tasks.onDidEndTaskProcess((event) => {
+            if (event.execution.task.source === TASK_SOURCE && configuration.anyHookConfigured) {
+                bepWatcher.stopWatching();
             }
         }),
     );
@@ -458,6 +479,8 @@ export function deactivate() {
     bspBinaryWatcher?.dispose();
     bspConfigWatcher?.dispose();
     // processedFileWatcher?.dispose();
+    bepHookCoordinator?.dispose();
+    bepWatcher?.dispose();
     outputChannel?.dispose();
     bspLogsViewer?.dispose();
 }

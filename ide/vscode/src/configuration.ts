@@ -35,6 +35,10 @@ export class Configuration {
     private _additionalLLDBCommands: string[];
     private _debugConsoleLogs: boolean;
     private _logLevel: string;
+    private _hookBuildSuccess: string;
+    private _hookBuildFailure: string;
+    private _hookTestSuccess: string;
+    private _hookTestFailed: string;
     private _disposable: vscode.Disposable;
     private _onDidChange = new vscode.EventEmitter<void>();
 
@@ -54,6 +58,10 @@ export class Configuration {
         this._additionalLLDBCommands = [];
         this._debugConsoleLogs = true;
         this._logLevel = "info";
+        this._hookBuildSuccess = "";
+        this._hookBuildFailure = "";
+        this._hookTestSuccess = "";
+        this._hookTestFailed = "";
         this.reload();
 
         this._disposable = vscode.workspace.onDidChangeConfiguration((e) => {
@@ -79,6 +87,11 @@ export class Configuration {
         this._additionalLLDBCommands = config.get<string[]>("additionalLLDBCommands", []);
         this._debugConsoleLogs = config.get<boolean>("debugConsoleLogs", true);
         this._logLevel = config.get<string>("logLevel", "info");
+
+        this._hookBuildSuccess = config.get<string>("hooks.buildSuccess", "");
+        this._hookBuildFailure = config.get<string>("hooks.buildFailure", "");
+        this._hookTestSuccess = config.get<string>("hooks.testSuccess", "");
+        this._hookTestFailed = config.get<string>("hooks.testFailed", "");
     }
 
     get extraBuildFlags(): string {
@@ -131,6 +144,29 @@ export class Configuration {
 
     get logLevel(): string {
         return this._logLevel;
+    }
+
+    get hookBuildSuccess(): string {
+        return this._hookBuildSuccess;
+    }
+
+    get hookBuildFailure(): string {
+        return this._hookBuildFailure;
+    }
+
+    get hookTestSuccess(): string {
+        return this._hookTestSuccess;
+    }
+
+    get hookTestFailed(): string {
+        return this._hookTestFailed;
+    }
+
+    get anyHookConfigured(): boolean {
+        return this._hookBuildSuccess !== ""
+            || this._hookBuildFailure !== ""
+            || this._hookTestSuccess !== ""
+            || this._hookTestFailed !== "";
     }
 
     dispose(): void {

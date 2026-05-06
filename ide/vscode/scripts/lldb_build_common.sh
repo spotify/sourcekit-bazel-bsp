@@ -19,6 +19,12 @@ if [ -n "${BAZEL_EXTRA_BUILD_FLAGS:-}" ]; then
   ADDITIONAL_FLAGS+=("${BAZEL_EXTRA_BUILD_FLAGS_ARRAY[@]}")
 fi
 
+if [ -n "${BAZEL_BEP_FILE:-}" ]; then
+  mkdir -p "$(dirname "${BAZEL_BEP_FILE}")"
+  : > "${BAZEL_BEP_FILE}"
+  ADDITIONAL_FLAGS+=("--build_event_json_file=${BAZEL_BEP_FILE}")
+fi
+
 LAUNCH_ARGS_ARRAY=()
 if [ -n "${BAZEL_LAUNCH_ARGS:-}" ]; then
   read -ra LAUNCH_ARGS_ARRAY <<< "$BAZEL_LAUNCH_ARGS"
