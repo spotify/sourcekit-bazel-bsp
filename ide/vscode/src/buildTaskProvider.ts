@@ -63,7 +63,7 @@ export function getTestLaunchTaskLabel(targetLabel: string, withoutDebugging: bo
 }
 
 function getExtraFlags(config: Configuration, target: ProcessedTarget): string {
-    let extraFlags = target.extraBuildArgs.join(" ");
+    let extraFlags = (target.extraBuildArgs ?? []).join(" ");
     if (config.extraBuildFlags.length > 0) {
         extraFlags += " " + config.extraBuildFlags;
     }

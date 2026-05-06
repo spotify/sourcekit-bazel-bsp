@@ -148,7 +148,7 @@ export async function processGraph(inputUri: vscode.Uri, appsToAlwaysInclude: st
             displayName: dep.label + " (" + platform + "_" + minimumOsVersion + ")",
             underlyingLabel: dep.label,
             type: "library" as TargetType,
-            extraBuildArgs: dep.extraBuildArgs,
+            extraBuildArgs: dep.extraBuildArgs ?? [],
             canRun: false,
             canDebug: false,
             testSources: undefined,
