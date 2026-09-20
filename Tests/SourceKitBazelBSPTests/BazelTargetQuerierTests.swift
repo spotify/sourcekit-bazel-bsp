@@ -292,6 +292,60 @@ struct BazelTargetQuerierTests {
     }
 
     @Test
+    func aqueryUsesWildcardPatternsWithoutExpandingTargets() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig(
+            targets: ["//..."],
+            topLevelTargetsToExclude: ["//Legacy:LegacyApp"]
+        )
+        let expandedTargets = (0..<1_000).map {
+            ("//Features/Feature\($0):Feature\($0)", TopLevelRuleType.iosApplication, "config\($0)")
+        }
+
+        let expectedCommand =
+            "bazelisk --output_base=/path/to/output/base aquery \"mnemonic('SwiftCompile', deps(kind('ios_application', //...) except set(//Legacy:LegacyApp)))\" --consistent_labels --noinclude_artifacts --noinclude_aspects --output proto --config=test"
+        runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleAqueryOutput)
+
+        _ = try querier.aquery(
+            topLevelTargets: expandedTargets,
+            config: config,
+            mnemonics: ["SwiftCompile"]
+        )
+
+        let command = try #require(runnerMock.commands.first)
+        #expect(runnerMock.commands.count == 1)
+        #expect(command.command == expectedCommand)
+        #expect(!command.command.contains("Feature999"))
+    }
+
+    @Test
+    func aqueryKeepsExpandedTargetsForMixedPatterns() throws {
+        let runnerMock = CommandRunnerFake()
+        let parserMock = BazelTargetQuerierParserFake()
+        let querier = Self.makeQuerier(runner: runnerMock, parser: parserMock)
+        let config = Self.makeInitializedConfig(targets: ["//Features/...", "//App:App"])
+
+        let expectedCommand =
+            "bazelisk --output_base=/path/to/output/base aquery \"mnemonic('SwiftCompile', deps(//Features/Login:Login) union deps(//App:App))\" --consistent_labels --noinclude_artifacts --noinclude_aspects --output proto --config=test"
+        runnerMock.setResponse(for: expectedCommand, cwd: Self.mockRootUri, response: exampleAqueryOutput)
+
+        _ = try querier.aquery(
+            topLevelTargets: [
+                ("//Features/Login:Login", .iosApplication, "abc123"),
+                ("//App:App", .iosApplication, "def456"),
+            ],
+            config: config,
+            mnemonics: ["SwiftCompile"]
+        )
+
+        let command = try #require(runnerMock.commands.first)
+        #expect(runnerMock.commands.count == 1)
+        #expect(command.command == expectedCommand)
+    }
+
+    @Test
     func aqueryFlagsAreIncludedInCommand() throws {
         let runnerMock = CommandRunnerFake()
         let parserMock = BazelTargetQuerierParserFake()
