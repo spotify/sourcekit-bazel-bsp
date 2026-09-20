@@ -52,6 +52,24 @@ final class BazelTargetQuerier {
         return targets.joined(separator: " union ")
     }
 
+    private static func wildcardActionDepsString(
+        targetPatterns: [String],
+        ruleTypes: [String],
+        excluding excludedTargets: [String]
+    ) -> String? {
+        guard !targetPatterns.isEmpty, targetPatterns.allSatisfy({ $0.contains("...") }) else {
+            return nil
+        }
+
+        let targetPatternSet = unionString(forTargets: targetPatterns)
+        let exclusions =
+            excludedTargets.isEmpty
+            ? "" : " except set(\(excludedTargets.joined(separator: " ")))"
+        let topLevelTargets =
+            "kind('\(ruleTypes.joined(separator: "|"))', \(targetPatternSet))\(exclusions)"
+        return "deps(\(topLevelTargets))"
+    }
+
     init(
         commandRunner: CommandRunner = ShellCommandRunner(),
         parser: BazelTargetQuerierParser = BazelTargetQuerierParserImpl()
@@ -163,7 +181,13 @@ final class BazelTargetQuerier {
         let targets = topLevelTargets.map { $0.0 }
 
         let mnemonicsFilter = mnemonics.joined(separator: "|")
-        let depsQuery = Self.queryDepsString(forTargets: targets)
+        let topLevelRuleTypes = Array(Set(topLevelTargets.map { $0.1.rawValue })).sorted()
+        let depsQuery =
+            Self.wildcardActionDepsString(
+                targetPatterns: config.baseConfig.targets,
+                ruleTypes: topLevelRuleTypes,
+                excluding: config.baseConfig.topLevelTargetsToExclude
+            ) ?? Self.queryDepsString(forTargets: targets)
 
         let baseFlags =
             [
