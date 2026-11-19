@@ -39,6 +39,10 @@ final class WatchedFileChangeHandler {
     private var changeSubscription: PassthroughSubject<[FileEvent], Never>
     private var cancellables = Set<AnyCancellable>()
 
+    // The main thread is parked in SourceKitBazelBSPServer.run, so RunLoop.main never fires timers.
+    // The debounce needs its own queue.
+    private let debounceQueue = DispatchQueue(label: "com.spotify.sourcekit-bazel-bsp.watched-file-change.debounce")
+
     init(
         targetStore: BazelTargetStore,
         observers: [any InvalidatedTargetObserver] = [],
@@ -49,7 +53,7 @@ final class WatchedFileChangeHandler {
         self.connection = connection
         changeSubscription = PassthroughSubject<[FileEvent], Never>()
         changeSubscription
-            .collect(.byTime(RunLoop.main, .seconds(1)))
+            .collect(.byTime(debounceQueue, .seconds(1)))
             .sink { [weak self] changes in
                 self?.debouncedOnWatchedFilesDidChange(changes.flatMap { $0 })
             }
