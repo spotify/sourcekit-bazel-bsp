@@ -31,6 +31,7 @@ final class BazelTargetStoreFake: BazelTargetStore {
     var fetchTargetsCalled = false
     var fetchTargetsError: Error?
     var mockSrcToBspURIs: [DocumentURI: [DocumentURI]] = [:]
+    private let processedFileChanges = OSAllocatedUnfairLock(initialState: [[FileEvent]]())
 
     var isInitialized: Bool {
         return fetchTargetsCalled || !mockSrcToBspURIs.isEmpty
@@ -68,7 +69,12 @@ final class BazelTargetStoreFake: BazelTargetStore {
     }
 
     func process(fileChanges: [FileEvent]) throws -> Set<BuildTargetIdentifier> {
-        unimplemented()
+        processedFileChanges.withLock { $0.append(fileChanges) }
+        return []
+    }
+
+    func receivedFileChanges() -> [[FileEvent]] {
+        processedFileChanges.withLock { $0 }
     }
 
     func topLevelConfigInfo(forConfigMnemonic mnemonic: String) throws -> BazelTargetConfigurationInfo {
